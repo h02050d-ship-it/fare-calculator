@@ -139,6 +139,10 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
     </div>
   </div>
   <div id="seino-result"></div>
+  <div id="bundle-ref" style="margin-top:12px;padding:10px 14px;background:#f8f8f8;border-radius:6px;font-size:13px;color:#666;">
+    <div style="font-weight:bold;margin-bottom:4px;color:#555;">1束あたり運賃の目安（ネット税込）</div>
+    <div id="bundle-ref-table"></div>
+  </div>
 </div>
 
 <script>
@@ -217,6 +221,30 @@ function init() {
   });
 
   calcSeino();
+  buildBundleRef();
+}
+
+function buildBundleRef() {
+  let html = '';
+  for (const len of [2, 3, 4]) {
+    const d = DANBALL[len];
+    let minPB = Infinity, maxPB = 0;
+    for (let qty = 1; qty <= 20; qty++) {
+      const w = Math.ceil(qty * d.weight);
+      let ti = SEINO_WEIGHTS.findIndex(v => v >= w);
+      if (ti === -1) ti = SEINO_WEIGHTS.length - 1;
+      for (let di = 0; di < SEINO_DISTANCES.length; di++) {
+        const fare = SEINO_FARES[ti][di];
+        const sub = fare + qty * d.box;
+        const total = Math.round((sub + Math.round(sub * 0.1)) / 100) * 100;
+        const pb = Math.round(total / qty);
+        if (pb < minPB) minPB = pb;
+        if (pb > maxPB) maxPB = pb;
+      }
+    }
+    html += `<span style="margin-right:16px;">${len}m：${minPB.toLocaleString()}円〜${maxPB.toLocaleString()}円</span>`;
+  }
+  document.getElementById('bundle-ref-table').innerHTML = html;
 }
 
 function setChannel(btn, ch) {
