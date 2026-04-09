@@ -95,7 +95,6 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
       <div class="form-group">
         <label>長さ (m)</label>
         <select id="s-length" onchange="calcSeino()">
-          <option value="1">1m</option>
           <option value="2">2m</option>
           <option value="3">3m</option>
           <option value="4" selected>4m</option>
@@ -425,7 +424,6 @@ function calcSeino() {
         <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
         <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
       </table>
-      <p class="note">※ 1回500kg以内、3m/4mは市売不可。</p>
     </div>
   `;
   document.getElementById('seino-result').innerHTML = html;
