@@ -19,6 +19,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 .channel-btn { padding: 8px 16px; border: 2px solid #ccc; border-radius: 6px; cursor: pointer; background: #fff; font-size: 0.9em; font-weight: bold; transition: all 0.15s; }
 .channel-btn.active { border-color: #2980b9; background: #ebf5fb; color: #2980b9; }
 .channel-btn.active[onclick*="rakuten"] { border-color: #bf0000; background: #fef0f0; color: #bf0000; }
+.channel-btn.active[onclick*="yahoo"] { border-color: #ff0033; background: #fff0f3; color: #ff0033; }
 .channel-btn:hover { border-color: #2980b9; }
 .result-box { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 8px; padding: 16px; margin-top: 16px; }
 .result-box h3 { margin-bottom: 12px; font-size: 1.1em; }
@@ -79,6 +80,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 <div id="seino-panel" class="panel active" style="border-radius:8px;">
   <div class="channel-row">
     <div class="channel-btn active" onclick="setChannel(this,'net')">ネット販売（税込）</div>
+    <div class="channel-btn" onclick="setChannel(this,'yahoo')">ヤフー（税込）</div>
     <div class="channel-btn" onclick="setChannel(this,'rakuten')">楽天（税込）</div>
     <div class="channel-btn" onclick="setChannel(this,'ichi')">市売・付売（税抜）</div>
     <label style="display:flex;align-items:center;gap:6px;margin-left:12px;font-size:0.9em;cursor:pointer;">
@@ -205,6 +207,29 @@ const DANBALL = {
   3: { weight: 30, box: 240 },
   4: { weight: 40, box: 320 }
 };
+
+// ===== Yahoo送料データ（西濃運輸・都道府県×比例重量別） =====
+// base: 初期送料(重量0), add: 10増加ごとの追加送料
+const YAHOO_SEINO = {
+  "北海道":{base:1160,add:1160},"青森":{base:1810,add:990},"岩手":{base:1960,add:840},
+  "宮城":{base:1730,add:670},"秋田":{base:1960,add:840},"山形":{base:1750,add:750},
+  "福島":{base:1420,add:580},"東京":{base:1520,add:480},"神奈川":{base:1550,add:450},
+  "埼玉":{base:1500,add:500},"千葉":{base:1500,add:500},"茨城":{base:1440,add:560},
+  "栃木":{base:1470,add:530},"群馬":{base:1440,add:560},"山梨":{base:1520,add:480},
+  "新潟":{base:1390,add:610},"長野":{base:1500,add:500},"富山":{base:1360,add:640},
+  "石川":{base:1470,add:530},"福井":{base:1360,add:640},"愛知":{base:1510,add:390},
+  "岐阜":{base:1480,add:420},"静岡":{base:1510,add:390},"三重":{base:1550,add:450},
+  "大阪":{base:1500,add:500},"兵庫":{base:1440,add:560},"京都":{base:1520,add:480},
+  "滋賀":{base:1550,add:450},"奈良":{base:1520,add:480},"和歌山":{base:1470,add:530},
+  "鳥取":{base:1420,add:580},"島根":{base:1720,add:780},"岡山":{base:1420,add:580},
+  "広島":{base:1700,add:700},"山口":{base:1930,add:870},"徳島":{base:1470,add:530},
+  "香川":{base:1390,add:610},"愛媛":{base:1700,add:700},"高知":{base:1390,add:610},
+  "福岡":{base:1900,add:900},"佐賀":{base:1870,add:930},"長崎":{base:1810,add:990},
+  "熊本":{base:1810,add:990},"大分":{base:1810,add:990},"宮崎":{base:1700,add:1100},
+  "鹿児島":{base:1700,add:1100},"沖縄":{base:2640,add:1860}
+};
+// Yahoo商品のshipWeight（Yahooストア設定値）
+const YAHOO_SHIP_WEIGHT = { 2: 40, 3: 30, 4: 40 };
 
 // ===== 状態 =====
 let seinoChannel = 'net';
@@ -333,14 +358,98 @@ function calcSeino() {
     return;
   }
 
-  const isTaxIncl = seinoChannel === 'net' || seinoChannel === 'rakuten';
+  const isYahoo = seinoChannel === 'yahoo';
+  const isTaxIncl = seinoChannel === 'net' || seinoChannel === 'rakuten' || isYahoo;
   const isRakuten = seinoChannel === 'rakuten';
   const isGenba = document.getElementById('s-genba').checked;
   const GENBA_RATE = 25; // 円/kg
   const RAKUTEN_RATE = 1.15;
   const MAX_BUNDLE = 20;
 
-  const channelLabel = isRakuten ? '楽天（税込）' : isTaxIncl ? '（税込）' : '（税抜）';
+  const channelLabel = isYahoo ? 'ヤフー（税込）' : isRakuten ? '楽天（税込）' : isTaxIncl ? '（税込）' : '（税抜）';
+
+  // ===== Yahoo計算（別ロジック） =====
+  if (isYahoo && !mixMode) {
+    const length = parseInt(document.getElementById('s-length').value);
+    const qty = parseInt(document.getElementById('s-qty').value) || 0;
+    if (qty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
+
+    const ys = YAHOO_SEINO[pref];
+    if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
+
+    const sw = YAHOO_SHIP_WEIGHT[length] || 40;
+    const totalYW = sw * qty;
+    const yahooFee = ys.base + Math.floor(totalYW / 10) * ys.add;
+
+    // 比較用：実際の西濃運賃（税込）
+    const danball = DANBALL[length];
+    const realWeight = Math.ceil(qty * danball.weight);
+    let rTierIdx = SEINO_WEIGHTS.findIndex(w => w >= realWeight);
+    if (rTierIdx === -1) rTierIdx = SEINO_WEIGHTS.length - 1;
+    const prefIdx = SEINO_PREF_MAP[pref];
+    const distIdx = PREF_TO_DIST[prefIdx];
+    const realFare = SEINO_FARES[rTierIdx][distIdx];
+    const realBox = qty * danball.box;
+    const realSub = realFare + realBox;
+    const realTax = Math.round(realSub * 0.1);
+    const realTotal = Math.round((realSub + realTax) / 100) * 100;
+
+    const diff = yahooFee - realTotal;
+    const diffSign = diff >= 0 ? '+' : '';
+    const diffColor = diff >= 0 ? '#27ae60' : '#c0392b';
+    const perBundle = Math.round(yahooFee / qty);
+
+    const html = `
+      <div class="result-box">
+        <h3>ヤフー送料（税込） <span class="info-badge">西濃運輸・比例重量別</span></h3>
+        <table class="result-table">
+          <tr class="sub"><th>Yahoo shipWeight</th><td>${sw} × ${qty}束 = ${totalYW}</td></tr>
+          <tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>
+          <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
+          <tr class="total"><th>Yahoo送料合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
+          <tr style="border-top:2px solid #ddd;"><th>比較：実際の西濃運賃（税込）</th><td>${realTotal.toLocaleString()}円</td></tr>
+          <tr><th>差額（Yahoo − 実コスト）</th><td style="color:${diffColor};font-weight:bold;">${diffSign}${diff.toLocaleString()}円</td></tr>
+        </table>
+      </div>
+    `;
+    document.getElementById('seino-result').innerHTML = html;
+    return;
+  }
+
+  if (isYahoo && mixMode) {
+    // 混載Yahoo計算
+    const ys = YAHOO_SEINO[pref];
+    if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
+    let totalYW = 0;
+    let yahooDetail = [];
+    for (let len = 2; len <= 4; len++) {
+      const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
+      if (q > 0) {
+        const sw = YAHOO_SHIP_WEIGHT[len] || 40;
+        totalYW += sw * q;
+        yahooDetail.push(`${len}m:${sw}×${q}`);
+      }
+    }
+    if (totalQty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
+    const yahooFee = ys.base + Math.floor(totalYW / 10) * ys.add;
+    const perBundle = Math.round(yahooFee / totalQty);
+
+    const html = `
+      <div class="result-box">
+        <h3>ヤフー送料（税込） <span class="info-badge">西濃運輸・比例重量別</span></h3>
+        <table class="result-table">
+          <tr class="sub"><th>Yahoo shipWeight合計</th><td>${yahooDetail.join(' + ')} = ${totalYW}</td></tr>
+          <tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>
+          <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
+          <tr class="total"><th>Yahoo送料合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
+        </table>
+      </div>
+    `;
+    document.getElementById('seino-result').innerHTML = html;
+    return;
+  }
 
   // 20束超の場合は分割計算
   if (totalQty > MAX_BUNDLE && !mixMode) {
