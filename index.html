@@ -228,8 +228,9 @@ const YAHOO_SEINO = {
   "熊本":{base:1810,add:990},"大分":{base:1810,add:990},"宮崎":{base:1700,add:1100},
   "鹿児島":{base:1700,add:1100},"沖縄":{base:2640,add:1860}
 };
-// Yahoo商品のshipWeight（Yahooストア設定値）
+// Yahoo商品のshipWeight（Yahooストア設定値）と束数/セット
 const YAHOO_SHIP_WEIGHT = { 2: 40, 3: 30, 4: 40 };
+const YAHOO_BUNDLE_PER_SET = { 2: 2, 3: 1, 4: 1 }; // 2mは1セット2束
 
 // ===== 状態 =====
 let seinoChannel = 'net';
@@ -378,7 +379,9 @@ function calcSeino() {
     if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
 
     const sw = YAHOO_SHIP_WEIGHT[length] || 40;
-    const totalYW = sw * qty;
+    const bps = YAHOO_BUNDLE_PER_SET[length] || 1;
+    const sets = Math.ceil(qty / bps);
+    const totalYW = sw * sets;
     const yahooFee = ys.base + Math.floor(totalYW / 10) * ys.add;
 
     // 比較用：実際の西濃運賃（税込）
@@ -398,12 +401,14 @@ function calcSeino() {
     const diffSign = diff >= 0 ? '+' : '';
     const diffColor = diff >= 0 ? '#27ae60' : '#c0392b';
     const perBundle = Math.round(yahooFee / qty);
+    const setLabel = bps > 1 ? `${qty}束 → ${sets}セット（1セット${bps}束）` : `${qty}セット`;
 
     const html = `
       <div class="result-box">
         <h3>ヤフー送料（税込） <span class="info-badge">西濃運輸・比例重量別</span></h3>
         <table class="result-table">
-          <tr class="sub"><th>Yahoo shipWeight</th><td>${sw} × ${qty}束 = ${totalYW}</td></tr>
+          <tr class="sub"><th>Yahooセット数</th><td>${setLabel}</td></tr>
+          <tr class="sub"><th>Yahoo shipWeight</th><td>${sw} × ${sets}セット = ${totalYW}</td></tr>
           <tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>
           <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
           <tr class="total"><th>Yahoo送料合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
@@ -427,8 +432,10 @@ function calcSeino() {
       const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
       if (q > 0) {
         const sw = YAHOO_SHIP_WEIGHT[len] || 40;
-        totalYW += sw * q;
-        yahooDetail.push(`${len}m:${sw}×${q}`);
+        const bps = YAHOO_BUNDLE_PER_SET[len] || 1;
+        const sets = Math.ceil(q / bps);
+        totalYW += sw * sets;
+        yahooDetail.push(`${len}m:${sw}×${sets}`);
       }
     }
     if (totalQty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
