@@ -383,23 +383,6 @@ function calcSeino() {
     const sets = Math.ceil(qty / bps);
     const totalYW = sw * sets;
     const yahooFee = ys.base + Math.floor(totalYW / 10) * ys.add;
-
-    // 比較用：実際の西濃運賃（税込）
-    const danball = DANBALL[length];
-    const realWeight = Math.ceil(qty * danball.weight);
-    let rTierIdx = SEINO_WEIGHTS.findIndex(w => w >= realWeight);
-    if (rTierIdx === -1) rTierIdx = SEINO_WEIGHTS.length - 1;
-    const prefIdx = SEINO_PREF_MAP[pref];
-    const distIdx = PREF_TO_DIST[prefIdx];
-    const realFare = SEINO_FARES[rTierIdx][distIdx];
-    const realBox = qty * danball.box;
-    const realSub = realFare + realBox;
-    const realTax = Math.round(realSub * 0.1);
-    const realTotal = Math.round((realSub + realTax) / 100) * 100;
-
-    const diff = yahooFee - realTotal;
-    const diffSign = diff >= 0 ? '+' : '';
-    const diffColor = diff >= 0 ? '#27ae60' : '#c0392b';
     const perBundle = Math.round(yahooFee / qty);
     const setLabel = bps > 1 ? `${qty}束 → ${sets}セット（1セット${bps}束）` : `${qty}セット`;
 
@@ -408,13 +391,11 @@ function calcSeino() {
         <h3>ヤフー送料（税込） <span class="info-badge">西濃運輸・比例重量別</span></h3>
         <table class="result-table">
           <tr class="sub"><th>Yahooセット数</th><td>${setLabel}</td></tr>
-          <tr class="sub"><th>Yahoo shipWeight</th><td>${sw} × ${sets}セット = ${totalYW}</td></tr>
+          <tr class="sub"><th>Yahoo shipWeight</th><td>${sw} × ${sets} = ${totalYW}</td></tr>
           <tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>
-          <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
-          <tr class="total"><th>Yahoo送料合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
+          <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add.toLocaleString()}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
+          <tr class="total"><th>合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
           <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
-          <tr style="border-top:2px solid #ddd;"><th>比較：実際の西濃運賃（税込）</th><td>${realTotal.toLocaleString()}円</td></tr>
-          <tr><th>差額（Yahoo − 実コスト）</th><td style="color:${diffColor};font-weight:bold;">${diffSign}${diff.toLocaleString()}円</td></tr>
         </table>
       </div>
     `;
