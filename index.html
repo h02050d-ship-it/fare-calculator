@@ -226,6 +226,7 @@ function init() {
 
 function buildBundleRef() {
   let html = '';
+  const maxDistIdx = PREF_TO_DIST[SEINO_PREF_MAP['埼玉']]; // 最大は埼玉基準
   for (const len of [2, 3, 4]) {
     const d = DANBALL[len];
     let minPB = Infinity, maxPB = 0;
@@ -234,6 +235,7 @@ function buildBundleRef() {
       let ti = SEINO_WEIGHTS.findIndex(v => v >= w);
       if (ti === -1) ti = SEINO_WEIGHTS.length - 1;
       for (let di = 0; di < SEINO_DISTANCES.length; di++) {
+        if (di > maxDistIdx) continue;
         const fare = SEINO_FARES[ti][di];
         const sub = fare + qty * d.box;
         const total = Math.round((sub + Math.round(sub * 0.1)) / 100) * 100;
