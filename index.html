@@ -55,6 +55,18 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 .office-addr { font-size: 0.85em; color: #666; margin-top: 2px; }
 .office-dist { font-weight: bold; color: #c0392b; font-size: 0.95em; white-space: nowrap; }
 .searching { color: #888; font-style: italic; padding: 8px 0; }
+.order-panel { background: #fff; border: 2px solid #e67e22; border-radius: 8px; padding: 20px; margin-top: 16px; }
+.order-panel h2 { font-size: 1.2em; color: #e67e22; margin-bottom: 14px; }
+.type-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.type-btn { padding: 10px 20px; border: 2px solid #ccc; border-radius: 6px; cursor: pointer; background: #fff; font-size: 1em; font-weight: bold; transition: all 0.15s; }
+.type-btn.active-kojin { border-color: #2980b9; background: #ebf5fb; color: #2980b9; }
+.type-btn.active-hojin { border-color: #27ae60; background: #eafaf1; color: #27ae60; }
+.type-btn:hover { opacity: 0.8; }
+.mail-preview { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 14px; margin-top: 12px; white-space: pre-wrap; font-family: monospace; font-size: 0.9em; line-height: 1.6; max-height: 400px; overflow-y: auto; }
+.copy-btn { display: inline-block; padding: 10px 24px; background: #e67e22; color: #fff; border: none; border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px; transition: all 0.15s; }
+.copy-btn:hover { background: #d35400; }
+.copy-btn.copied { background: #27ae60; }
+.order-note { font-size: 0.85em; color: #888; margin-top: 8px; }
 @media (max-width: 600px) {
   .form-row { flex-direction: column; }
   .form-group select, .form-group input { min-width: 100%; }
@@ -96,14 +108,15 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
       </div>
       <div class="form-group">
         <label>長さ (m)</label>
-        <select id="s-length" onchange="calcSeino()">
+        <select id="s-length" onchange="updateQtyLabel();calcSeino()">
+          <option value="1">1m</option>
           <option value="2">2m</option>
           <option value="3">3m</option>
           <option value="4" selected>4m</option>
         </select>
       </div>
       <div class="form-group">
-        <label>数量 (束)</label>
+        <label id="qty-label">数量 (束)</label>
         <input type="number" id="s-qty" value="15" min="0" step="1" onchange="calcSeino()" oninput="calcSeino()">
       </div>
       <div class="form-group" style="align-self:flex-end;">
@@ -124,6 +137,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
     </div>
     <div class="mix-grid">
       <div class="mix-row mix-header"><span>長さ</span><span>数量(束)</span><span>重量/束</span><span>小計重量</span><span>ダンボール代</span></div>
+      <div class="mix-row"><span>1m<span style="font-size:0.75em;color:#888">（20枚）</span></span><input type="number" id="mix-q1" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">20kg</span><span id="mix-sw1">0</span><span id="mix-db1">0</span></div>
       <div class="mix-row"><span>2m</span><input type="number" id="mix-q2" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">20kg</span><span id="mix-sw2">0</span><span id="mix-db2">0</span></div>
       <div class="mix-row"><span>3m</span><input type="number" id="mix-q3" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">30kg</span><span id="mix-sw3">0</span><span id="mix-db3">0</span></div>
       <div class="mix-row"><span>4m</span><input type="number" id="mix-q4" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">40kg</span><span id="mix-sw4">0</span><span id="mix-db4">0</span></div>
@@ -144,6 +158,21 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
   <div id="bundle-ref" style="margin-top:12px;padding:10px 14px;background:#f8f8f8;border-radius:6px;font-size:13px;color:#666;">
     <div style="font-weight:bold;margin-bottom:4px;color:#555;">1束あたり運賃の目安（ネット税込）</div>
     <div id="bundle-ref-table"></div>
+  </div>
+</div>
+
+<!-- 注文処理パネル -->
+<div class="order-panel" id="order-panel">
+  <h2>📋 注文処理（メール文面生成）</h2>
+  <div class="type-row">
+    <div class="type-btn active-kojin" id="btn-kojin" onclick="setOrderType('kojin')">個人（支店止め）</div>
+    <div class="type-btn" id="btn-hojin" onclick="setOrderType('hojin')">法人</div>
+  </div>
+  <div id="order-status" style="font-size:0.9em;color:#888;margin-bottom:8px;"></div>
+  <div id="mail-area" style="display:none;">
+    <div class="mail-preview" id="mail-preview"></div>
+    <button class="copy-btn" id="copy-btn" onclick="copyMail()">📋 メール文面をコピー</button>
+    <p class="order-note">※ コピー後、RMSのメール送信画面の本文に貼り付けてください</p>
   </div>
 </div>
 
@@ -230,10 +259,35 @@ const YAHOO_SEINO = {
 };
 // Yahoo商品のshipWeight（Yahooストア設定値）と束数/セット
 const YAHOO_SHIP_WEIGHT = { 2: 40, 3: 30, 4: 40 };
-const YAHOO_BUNDLE_PER_SET = { 2: 2, 3: 1, 4: 1 }; // 2mは1セット2束
+const YAHOO_BUNDLE_PER_SET = { 1: 1, 2: 2, 3: 1, 4: 1 }; // 1m=1束20枚=1セット, 2m=1セット2束
+
+// ===== Yahoo 1m送料データ（佐川急便・都道府県別固定×商品単位） =====
+const YAHOO_SAGAWA_1M = {
+  "北海道":3000,"青森":2700,"岩手":2700,"宮城":2500,
+  "秋田":2700,"山形":2500,"福島":2500,
+  "東京":2400,"神奈川":2400,"埼玉":2400,"千葉":2400,"茨城":2400,
+  "栃木":2400,"群馬":2400,"山梨":2400,"新潟":2400,
+  "長野":2400,"富山":2400,"石川":2400,"福井":2400,
+  "愛知":2400,"岐阜":2400,"静岡":2400,"三重":2400,
+  "大阪":2400,"兵庫":2400,"京都":2400,"滋賀":2400,
+  "奈良":2400,"和歌山":2400,
+  "鳥取":2500,"島根":2500,"岡山":2500,"広島":2500,"山口":2500,
+  "徳島":2700,"香川":2700,"愛媛":2700,"高知":2700,
+  "福岡":2700,"佐賀":2700,"長崎":2700,"熊本":2700,"大分":2700,"宮崎":2700,"鹿児島":2700,
+  "沖縄":4800
+};
 
 // ===== 状態 =====
 let seinoChannel = 'net';
+
+// ===== 数量ラベル更新 =====
+const SHEETS_PER_BUNDLE = { 1: 20, 2: 20, 3: 10, 4: 10 };
+function updateQtyLabel() {
+  const len = parseInt(document.getElementById('s-length').value);
+  const sheets = SHEETS_PER_BUNDLE[len] || '';
+  const label = document.getElementById('qty-label');
+  label.textContent = len === 1 ? `数量 (束=20枚)` : '数量 (束)';
+}
 
 // ===== 初期化 =====
 function init() {
@@ -246,6 +300,7 @@ function init() {
     sPrefMix.appendChild(new Option(p, p));
   });
 
+  updateQtyLabel();
   calcSeino();
   buildBundleRef();
 }
@@ -309,7 +364,7 @@ function calcSeino() {
     primaryLength = null;
     let maxQty = 0;
 
-    for (let len = 2; len <= 4; len++) {
+    for (let len = 1; len <= 4; len++) {
       const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
       const d = DANBALL[len];
       const sw = Math.ceil(q * d.weight);
@@ -375,6 +430,26 @@ function calcSeino() {
     const qty = parseInt(document.getElementById('s-qty').value) || 0;
     if (qty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
 
+    // 1m = 佐川急便（都道府県別固定×セット数）
+    if (length === 1) {
+      const rate = YAHOO_SAGAWA_1M[pref];
+      if (!rate) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー1m送料データなし</h3></div>'; return; }
+      const yahooFee = rate * qty;
+      const html = `
+        <div class="result-box">
+          <h3>ヤフー送料（税込） <span class="info-badge">佐川急便・都道府県別</span></h3>
+          <table class="result-table">
+            <tr class="sub"><th>セット数</th><td>${qty}束 = ${qty}セット（1束20枚）</td></tr>
+            <tr><th>1セットあたり送料</th><td>${rate.toLocaleString()}円</td></tr>
+            <tr class="total"><th>合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
+          </table>
+        </div>
+      `;
+      document.getElementById('seino-result').innerHTML = html;
+      return;
+    }
+
+    // 2m以上 = 西濃運輸（比例重量別）
     const ys = YAHOO_SEINO[pref];
     if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
 
@@ -407,8 +482,16 @@ function calcSeino() {
     // 混載Yahoo計算
     const ys = YAHOO_SEINO[pref];
     if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
+
+    // 1m佐川（別計算）
+    const q1m = parseInt(document.getElementById('mix-q1').value) || 0;
+    const sagawa1mRate = YAHOO_SAGAWA_1M[pref] || 0;
+    const sagawa1mFee = sagawa1mRate * q1m;
+
+    // 2m以上 西濃
     let totalYW = 0;
     let yahooDetail = [];
+    let qtySeino = 0;
     for (let len = 2; len <= 4; len++) {
       const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
       if (q > 0) {
@@ -416,21 +499,32 @@ function calcSeino() {
         const bps = YAHOO_BUNDLE_PER_SET[len] || 1;
         const sets = Math.ceil(q / bps);
         totalYW += sw * sets;
+        qtySeino += q;
         yahooDetail.push(`${len}m:${sw}×${sets}`);
       }
     }
     if (totalQty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
-    const yahooFee = ys.base + Math.floor(totalYW / 10) * ys.add;
-    const perBundle = Math.round(yahooFee / totalQty);
+    const seinoFee = qtySeino > 0 ? ys.base + Math.floor(totalYW / 10) * ys.add : 0;
+    const yahooFeeTotal = sagawa1mFee + seinoFee;
+    const perBundle = Math.round(yahooFeeTotal / totalQty);
+
+    let rows = '';
+    if (q1m > 0) {
+      rows += `<tr class="sub"><th>1m 佐川（${q1m}束×${sagawa1mRate.toLocaleString()}円）</th><td>${sagawa1mFee.toLocaleString()}円</td></tr>`;
+    }
+    if (qtySeino > 0) {
+      rows += `<tr class="sub"><th>2m以上 西濃 shipWeight</th><td>${yahooDetail.join(' + ')} = ${totalYW}</td></tr>`;
+      rows += `<tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>`;
+      rows += `<tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>`;
+      rows += `<tr class="sub"><th>西濃小計</th><td>${seinoFee.toLocaleString()}円</td></tr>`;
+    }
 
     const html = `
       <div class="result-box">
-        <h3>ヤフー送料（税込） <span class="info-badge">西濃運輸・比例重量別</span></h3>
+        <h3>ヤフー送料（税込） <span class="info-badge">混載</span></h3>
         <table class="result-table">
-          <tr class="sub"><th>Yahoo shipWeight合計</th><td>${yahooDetail.join(' + ')} = ${totalYW}</td></tr>
-          <tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>
-          <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
-          <tr class="total"><th>Yahoo送料合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
+          ${rows}
+          <tr class="total"><th>Yahoo送料合計</th><td>${yahooFeeTotal.toLocaleString()}円</td></tr>
           <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
         </table>
       </div>
@@ -896,6 +990,155 @@ function selectOffice(pref, el) {
 document.getElementById('addr-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') searchOffice();
 });
+
+// ===== 注文処理 =====
+let orderType = 'kojin';
+
+function setOrderType(type) {
+  orderType = type;
+  document.getElementById('btn-kojin').className = 'type-btn' + (type === 'kojin' ? ' active-kojin' : '');
+  document.getElementById('btn-hojin').className = 'type-btn' + (type === 'hojin' ? ' active-hojin' : '');
+  generateMail();
+}
+
+function getSelectedOffice() {
+  const selected = document.querySelector('.office-item.selected');
+  if (!selected) return null;
+  const name = selected.querySelector('.office-name')?.textContent?.replace('営業所', '') || '';
+  const addr = selected.querySelector('.office-addr')?.textContent || '';
+  return { name, addr };
+}
+
+function getCurrentFare() {
+  // 楽天チャネルの合計金額を取得
+  const resultBox = document.getElementById('seino-result');
+  if (!resultBox) return null;
+  const totalRow = resultBox.querySelector('tr.total td');
+  if (!totalRow) return null;
+  return totalRow.textContent.trim();
+}
+
+function generateMail() {
+  const fare = getCurrentFare();
+  const mailArea = document.getElementById('mail-area');
+  const statusDiv = document.getElementById('order-status');
+
+  // チャネルが楽天でない場合の警告
+  if (seinoChannel !== 'rakuten') {
+    statusDiv.innerHTML = '⚠️ チャネルを「楽天（税込）」に切り替えてください';
+    statusDiv.style.color = '#e74c3c';
+    mailArea.style.display = 'none';
+    return;
+  }
+
+  if (!fare) {
+    statusDiv.innerHTML = '⚠️ 送料を計算してください（数量を入力）';
+    statusDiv.style.color = '#e74c3c';
+    mailArea.style.display = 'none';
+    return;
+  }
+
+  if (orderType === 'kojin') {
+    const office = getSelectedOffice();
+    if (!office) {
+      statusDiv.innerHTML = '⚠️ 営業所を検索・選択してください';
+      statusDiv.style.color = '#e74c3c';
+      mailArea.style.display = 'none';
+      return;
+    }
+
+    const mail = `（株）林材木店と申します。
+この度はご注文ありがとうございます。
+
+配送についてご確認したい点がございます。
+
+配送方法で西濃運輸個人様利用（宅配不可支店止め）をお選びいただいております。
+配送先の支店は西濃運輸　${office.name}支店を予定しております。
+住所：${office.addr}
+送料：${fare}（税込み）
+
+上記の支店と送料で問題ないかご返信をお願い致します。
+送料と支店に問題がなければ、下記注文内容で生産発送をさせていただきます。
+
+お手数ですが、ご返信宜しくお願い致します。`;
+
+    statusDiv.innerHTML = `✅ 個人用メール生成完了（${office.name}支店 / ${fare}）`;
+    statusDiv.style.color = '#27ae60';
+    document.getElementById('mail-preview').textContent = mail;
+    mailArea.style.display = '';
+
+  } else {
+    const mail = `（株）林材木店と申します。
+この度はご注文ありがとうございます。
+
+配送についてご確認したい点がございます。
+下記の内容をご確認の上、1～5の回答をご返信ください。
+
+
+１.送料：${fare}(税込)
+
+２.配送先の屋号、会社名
+
+３.配送先（屋号、会社名の記載がある住所）
+
+４.(2階以上の場合)1階引渡しになります
+
+５.(配送先が現場の場合)送料+別途料金が発生します。
+現場卸しの場合はご連絡お願い致します。
+
+
+確認ができ次第、下記注文内容で生産発送をさせていただきます。
+お手数ですが、ご返信宜しくお願い致します。`;
+
+    statusDiv.innerHTML = `✅ 法人用メール生成完了（${fare}）`;
+    statusDiv.style.color = '#27ae60';
+    document.getElementById('mail-preview').textContent = mail;
+    mailArea.style.display = '';
+  }
+}
+
+async function copyMail() {
+  const text = document.getElementById('mail-preview').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 メール文面をコピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  } catch (e) {
+    // フォールバック
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 メール文面をコピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+}
+
+// 計算が変わるたびにメール文面も更新
+const origCalcSeino = calcSeino;
+calcSeino = function() {
+  origCalcSeino();
+  generateMail();
+};
+
+// 営業所選択が変わったらメール文面も更新
+const origSelectOffice = selectOffice;
+selectOffice = function(pref, el) {
+  origSelectOffice(pref, el);
+  generateMail();
+};
 
 init();
 </script>
