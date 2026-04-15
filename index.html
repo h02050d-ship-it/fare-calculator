@@ -1031,43 +1031,24 @@ async function searchOffice() {
     const userLon = data[0].geometry.coordinates[0];
     const userLat = data[0].geometry.coordinates[1];
 
-    // 直線距離で上位10件に絞る
-    const top10 = SEINO_OFFICES
+    // 全営業所との距離を計算
+    const ranked = SEINO_OFFICES
       .filter(o => o.lat !== 0)
       .map(o => ({
         ...o,
-        lineDist: haversine(userLat, userLon, o.lat, o.lng)
+        dist: haversine(userLat, userLon, o.lat, o.lng)
       }))
-      .sort((a, b) => a.lineDist - b.lineDist)
-      .slice(0, 10);
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 3);
 
-    if (!top10.length) {
+    if (!ranked.length) {
       resultDiv.innerHTML = '<p class="searching">営業所データが読み込まれていません。</p>';
       return;
     }
 
-    resultDiv.innerHTML = '<p class="searching">道路距離を取得中...</p>';
-
-    // OSRMで実走行距離を取得
-    const withRoute = await Promise.all(top10.map(async (o) => {
-      try {
-        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${userLon},${userLat};${o.lng},${o.lat}?overview=false`;
-        const r = await fetch(osrmUrl);
-        const d = await r.json();
-        if (d.code === 'Ok' && d.routes && d.routes.length > 0) {
-          return { ...o, dist: d.routes[0].distance / 1000, duration: d.routes[0].duration / 60, isRoute: true };
-        }
-      } catch(e) {}
-      return { ...o, dist: o.lineDist, duration: null, isRoute: false };
-    }));
-
-    const ranked = withRoute.sort((a, b) => a.dist - b.dist).slice(0, 3);
-
     let html = '<div class="office-list">';
     ranked.forEach((o, i) => {
       const distStr = o.dist < 1 ? `${Math.round(o.dist * 1000)}m` : `${o.dist.toFixed(1)}km`;
-      const timeStr = o.duration ? `（約${Math.round(o.duration)}分）` : '';
-      const badge = o.isRoute ? '🚗' : '📍';
       html += `
         <div class="office-item" onclick="selectOffice('${o.p}', this)">
           <span class="office-rank">${i+1}</span>
@@ -1075,7 +1056,7 @@ async function searchOffice() {
             <div class="office-name">${o.n}営業所</div>
             <div class="office-addr">${o.a}</div>
           </div>
-          <span class="office-dist">${badge} ${distStr}${timeStr}</span>
+          <span class="office-dist">${distStr}</span>
         </div>`;
     });
     html += '</div>';
