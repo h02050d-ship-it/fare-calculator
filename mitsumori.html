@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>見積書作成ツール（西濃送料 自動計算）｜株式会社 林材木店</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
+<style>
+  /* ===== 基本 ===== */
+  * { box-sizing: border-box; }
+  :root{
+    --ink:#1a1a1a;
+    --line:#333;
+    --grayhead:#bfbfbf;
+    --grayrow:#f2f2f2;
+    --accent:#1f6feb;
+  }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"Yu Gothic","Meiryo","Hiragino Kaku Gothic ProN",sans-serif;
+    background:#e9edf1; color:var(--ink);
+  }
+  /* ===== 画面レイアウト（操作パネル＋プレビュー） ===== */
+  .app{ display:flex; gap:16px; align-items:flex-start; padding:16px; }
+  .panel{
+    width:720px; flex:0 0 720px; background:#fff; border-radius:10px;
+    box-shadow:0 1px 6px rgba(0,0,0,.12); padding:16px; position:sticky; top:16px;
+    max-height:calc(100vh - 32px); overflow:auto;
+  }
+  .panel h1{ font-size:16px; margin:0 0 4px; }
+  .panel .sub{ font-size:11px; color:#777; margin:0 0 12px; }
+  .field{ margin-bottom:10px; }
+  .field label{ display:block; font-size:11px; color:#555; margin-bottom:3px; font-weight:bold; }
+  .field input,.field textarea,.field select{
+    width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:14px;
+    font-family:inherit;
+  }
+  .hdrfields{ display:grid; grid-template-columns: 130px 1fr 150px; gap:8px; align-items:end; }
+  .hdrfields .field{ margin-bottom:0; }
+  .hdrfields .field label{ text-align:center; }
+
+  /* スプレッドシート風グリッド（PC） */
+  .grid-wrap{ border:1px solid #d5d9de; border-radius:8px; overflow:hidden; margin-top:6px; }
+  .items-head, .item-row{ display:grid; grid-template-columns: 2.4fr 1.3fr .7fr .7fr .7fr .7fr .9fr 1fr 1.2fr 30px; gap:0; align-items:stretch; }
+  .items-head{ font-size:12px; color:#33415c; font-weight:bold; background:#eef1f5; }
+  .items-head span{ padding:7px 6px; text-align:center; border-right:1px solid #e0e4e9; min-width:0; overflow:hidden; }
+  .items-head span:last-child{ border-right:none; }
+  .item-row{ border-top:1px solid #e8ebef; }
+  .item-row:nth-child(even){ background:#fafbfc; }
+  .item-row input{ width:100%; min-width:0; padding:7px 6px; font-size:14px; border:none; border-right:1px solid #eceff2; border-radius:0; background:transparent; }
+  .item-row input:focus{ outline:2px solid var(--accent); outline-offset:-2px; background:#eef5ff; position:relative; z-index:1; }
+  .item-row input.i-name,.item-row input.i-grade{ text-align:left; }
+  .item-row input.i-t,.item-row input.i-w,.item-row input.i-l,.item-row input.i-in{ text-align:center; }
+  .item-row input.i-qty,.item-row input.i-price{ text-align:right; }
+  .item-row .amtcell{ display:flex; align-items:center; justify-content:flex-end; min-width:0; overflow:hidden; padding:0 7px; font-size:14px; color:#333; border-right:1px solid #eceff2; background:#f6f8fa; font-variant-numeric:tabular-nums; }
+  .item-row .del{ border:none; background:transparent; cursor:pointer; font-size:14px; color:#c33; }
+  .item-row .del:hover{ background:#fde2e2; }
+
+  .btnbar{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  button.act{ border:none; border-radius:7px; padding:9px 12px; font-size:13px; cursor:pointer; font-weight:bold; }
+  .add{ background:#eef4ff; color:var(--accent); }
+  .ghost{ background:#f0f0f0; color:#444; }
+  .hint{ font-size:10px; color:#999; margin-top:8px; line-height:1.5; }
+
+  /* ツールバー */
+  .toolbar{ display:flex; align-items:center; gap:10px; margin:4px 0 12px; flex-wrap:wrap; }
+  .btn-print{ background:var(--accent); color:#fff; font-size:15px; padding:11px 20px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(31,111,235,.3); }
+  .btn-print:hover{ background:#1a5fd0; }
+  .btn-clear2{ background:#eef1f5; color:#33415c; border:none; border-radius:8px; padding:11px 14px; font-weight:bold; cursor:pointer; }
+
+  /* ===== 西濃送料 自動計算ボックス ===== */
+  .freight-box{ border:1px solid #cdd6e0; border-radius:10px; padding:12px 14px; margin-top:6px; background:#f6f9fc; }
+  .freight-box .fb-title{ font-size:13px; font-weight:bold; color:#33415c; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .fb-grid{ display:grid; grid-template-columns: 1.4fr .8fr .8fr; gap:8px; align-items:end; }
+  .fb-grid label{ display:block; font-size:11px; color:#555; margin-bottom:3px; font-weight:bold; }
+  .fb-grid select, .fb-grid input{ width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; font-family:inherit; }
+  .fb-opts{ display:flex; align-items:center; gap:14px; margin-top:9px; flex-wrap:wrap; font-size:12px; color:#555; }
+  .fb-opts label{ display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .fb-result{ margin-top:10px; font-size:13px; }
+  .fb-result table{ width:100%; border-collapse:collapse; }
+  .fb-result td{ padding:4px 2px; border-bottom:1px solid #e4e9ef; }
+  .fb-result td.k{ color:#667; }
+  .fb-result td.v{ text-align:right; font-variant-numeric:tabular-nums; }
+  .fb-result tr.tot td{ font-weight:bold; color:#0a6; border-bottom:none; font-size:15px; padding-top:7px; }
+  .fb-apply{ width:100%; margin-top:10px; border:none; background:#0a8a4a; color:#fff; border-radius:8px; padding:11px; font-size:14px; font-weight:bold; cursor:pointer; }
+  .fb-apply:hover{ background:#097a41; }
+  .fb-warn{ color:#c0392b; font-size:12px; margin-top:7px; font-weight:bold; }
+  .fb-applied{ color:#0a8a4a; font-size:12px; margin-top:7px; font-weight:bold; }
+
+  /* ===== A4シート（印刷物・mm基準） ===== */
+  .stage{ flex:1; display:flex; justify-content:center; }
+  .sheet{
+    width:210mm; height:297mm; background:#fff; color:#000;
+    padding:17mm 18mm 14mm 17.6mm; position:relative;
+    box-shadow:0 2px 14px rgba(0,0,0,.2);
+    font-family:Arial,"MS PGothic","ＭＳ Ｐゴシック",sans-serif;
+    font-size:10.5pt; line-height:1.15;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet .title{ position:absolute; top:19mm; left:17.6mm; right:18mm; text-align:center; font-size:20.9pt; letter-spacing:.5em; font-weight:bold; margin:0; line-height:1; }
+  .sheet .docdate{ position:absolute; top:26.6mm; right:18mm; font-size:10.5pt; }
+  .sheet .docno{ position:absolute; top:26.6mm; left:17.6mm; font-size:10.5pt; }
+
+  /* 中段：宛名/合計 と 自社情報 */
+  .mid{ display:flex; margin-top:20.6mm; }
+  .mid .left{ width:101mm; padding:3.8mm 2mm 0 0; }
+  .mid .right{ flex:1; display:flex; justify-content:flex-end; font-size:10.5pt; line-height:1.14; padding-top:0; }
+  .mid .right .rinfo{ text-align:left; }
+  .addressee{ text-align:center; font-size:14pt; padding:2mm 2mm 1.5mm; border-bottom:1px solid #000; }
+  .addressee .on{ font-size:12.6pt; margin-left:1.2em; }
+  .leadtxt{ font-size:9.5pt; margin-top:3mm; line-height:1.5; }
+  .totalbox{ margin-top:6mm; display:flex; border:1px solid #000; height:12.8mm; }
+  .totalbox .lbl{ width:40mm; display:flex; align-items:center; justify-content:center; font-size:15pt; border-right:1px solid #000; }
+  .totalbox .val{ flex:1; display:flex; align-items:center; justify-content:center; font-size:17.4pt; font-weight:bold; }
+  .right .nm{ font-size:11.5pt; font-weight:bold; }
+
+  /* 明細テーブル */
+  table.items{ width:100%; border-collapse:collapse; margin-top:8.2mm; table-layout:fixed; }
+  table.items th, table.items td{ border:1px solid #000; font-size:10.5pt; height:6.63mm; line-height:1; padding:0 1mm; vertical-align:middle; }
+  table.items td.hdr{ background:var(--grayhead); text-align:center; }
+  table.items tr.oddrow td{ background:#fff; }
+  table.items tr.evenrow td{ background:#f2f2f2; }
+  td.name{ text-align:center; }
+  td.grade{ text-align:center; }
+  td.num{ text-align:right; }
+  td.center{ text-align:center; }
+
+  /* フッター */
+  .foot{ display:flex; margin-top:0; gap:4mm; }
+  .foot .fleft{ flex:1; padding-top:3mm; }
+  .foot .legal{ font-size:10.5pt; line-height:1.55; }
+  .remarks{ border:1px solid #000; margin-top:3.5mm; height:34mm; }
+  .remarks .rhead{ background:var(--grayhead); text-align:center; font-weight:bold; font-size:10.5pt; border-bottom:1px solid #000; padding:.5mm 0; }
+  .remarks .rbody{ padding:1.5mm 2mm; font-size:10.5pt; white-space:pre-wrap; line-height:1.4; }
+  .foot .fright{ width:64mm; }
+  table.sum{ width:100%; border-collapse:collapse; }
+  table.sum td{ border:1px solid #000; height:6.6mm; font-size:10.5pt; padding:0 2mm; }
+  table.sum td.v{ font-weight:bold; }
+  table.sum td.k{ background:var(--grayhead); text-align:center; font-weight:bold; width:30mm; }
+  table.sum td.v{ text-align:right; }
+  .qrwrap{ text-align:center; margin-top:6mm; }
+  .qrwrap img{ width:24mm; height:24mm; image-rendering:pixelated; }
+  .qrwrap .url{ font-size:7.7pt; font-family:Calibri,Arial,sans-serif; margin-top:1mm; }
+
+  /* ===== モバイル（スマホ・タブレット） ===== */
+  @media (max-width: 980px){
+    .app{ flex-direction:column; padding:10px; gap:12px; }
+    .panel{ width:auto; flex:none; position:static; max-height:none; }
+    .field input,.field textarea,.field select,.item-row input,.fb-grid select,.fb-grid input{ font-size:16px; } /* iOSの自動ズーム防止 */
+    .stage{ width:100%; overflow:hidden; }
+    .hdrfields{ grid-template-columns:1fr 1fr; }
+    .hdrfields .field:nth-child(2){ grid-column:1 / -1; }
+    .toolbar{ position:sticky; top:0; background:#fff; z-index:5; padding:6px 0; }
+    .btn-print{ flex:1; }
+    .grid-wrap{ border:none; }
+    .items-head{ display:none; }
+    .item-row{ display:flex; flex-wrap:wrap; gap:6px; border:1px solid #e3e3e3; border-radius:10px; padding:10px 10px 12px; margin-bottom:10px; position:relative; background:#fafbfc; }
+    .item-row input{ flex:1 1 26%; min-width:60px; padding:8px 6px; border:1px solid #ddd; border-radius:6px; }
+    .item-row .i-name{ flex:1 1 100%; }
+    .item-row .i-grade{ flex:1 1 40%; }
+    .item-row .amtcell{ flex:1 1 100%; justify-content:flex-start; border:none; background:transparent; color:#0a8a4a; font-weight:bold; padding:0 2px; }
+    .item-row .amtcell:not(:empty)::before{ content:"金額 "; color:#888; font-weight:normal; }
+    .item-row .del{ position:absolute; top:-9px; right:-9px; width:26px; height:26px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+    .fb-grid{ grid-template-columns:1fr 1fr; }
+  }
+
+  /* ===== 印刷 ===== */
+  @page{ size:A4 portrait; margin:0; }
+  @media print{
+    body{ background:#fff; }
+    body > *:not(.app){ display:none !important; }
+    .panel,.stage>.no-print,#flash{ display:none !important; }
+    .app{ padding:0; display:block; }
+    .stage{ display:block; }
+    .sheet{ box-shadow:none; margin:0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 操作パネル -->
+  <div class="panel no-print">
+    <h1>📝 見積書作成ツール</h1>
+    <p class="sub">市場向け／西濃運輸の送料を自動計算して見積書を作成・印刷（PDF）</p>
+
+    <div class="toolbar">
+      <button class="btn-print" id="btn-print">🖨 印刷 / PDF保存</button>
+      <button class="btn-clear2" id="btn-clear">クリア</button>
+    </div>
+
+    <div class="hdrfields">
+      <div class="field"><label>日付</label><input type="date" id="f-date"></div>
+      <div class="field"><label>宛先（お客様名）</label>
+        <input id="f-customer" placeholder="例：〇〇木材（株）" autocomplete="off"></div>
+      <div class="field"><label>見積番号</label><input id="f-no" placeholder="（任意）"></div>
+    </div>
+
+    <!-- 明細 -->
+    <datalist id="dl-name"></datalist>
+    <datalist id="dl-grade"></datalist>
+    <div class="grid-wrap">
+      <div class="items-head">
+        <span>品名</span><span>等級</span><span>厚</span><span>幅</span><span>長</span><span>入数</span><span>数量</span><span>単価</span><span>金額</span><span></span>
+      </div>
+      <div id="items"></div>
+    </div>
+    <div class="btnbar">
+      <button class="act add" id="btn-add">＋ 行を追加</button>
+    </div>
+
+    <!-- 西濃送料 自動計算 -->
+    <div class="freight-box">
+      <div class="fb-title">🚚 西濃運輸の送料を自動計算（税抜）</div>
+      <div class="fb-grid">
+        <div>
+          <label>送付先（都道府県）</label>
+          <select id="fb-pref"></select>
+        </div>
+        <div>
+          <label>長さ</label>
+          <select id="fb-length">
+            <option value="1">1m</option>
+            <option value="2">2m</option>
+            <option value="3">3m</option>
+            <option value="4" selected>4m</option>
+          </select>
+        </div>
+        <div>
+          <label>数量（束）</label>
+          <input type="number" id="fb-qty" value="10" min="0" step="1">
+        </div>
+      </div>
+      <div class="fb-opts">
+        <label><input type="checkbox" id="fb-box" checked> ダンボール代を含める</label>
+        <span style="color:#999">※1束＝1m20kg／2m20kg／3m30kg／4m40kg</span>
+      </div>
+      <div class="fb-result" id="fb-result"></div>
+      <button class="fb-apply" id="fb-apply">この送料を見積書の「運賃」に入れる →</button>
+      <div id="fb-msg"></div>
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <label>運賃（税抜）</label><input type="number" id="f-freight" placeholder="0" step="1">
+    </div>
+
+    <div class="field">
+      <label>備考</label>
+      <textarea id="f-remarks" rows="2" placeholder="（任意）本見積書の有効期限は発行日より2週間です。"></textarea>
+    </div>
+
+    <div class="hint">
+      ・<b>商品金額</b>＝単価×数量を自動計算。品名・寸法は任意です（数量・単価だけでもOK）。<br>
+      ・<b>送料</b>は「都道府県・長さ・数量」を選んで自動計算 →「運賃に入れる」で見積書へ反映。<br>
+      ・<b>消費税</b>は（商品＋運賃）に10%。市売・付売で税抜運用のときは運賃欄を0にして商品単価で調整してください。<br>
+      ・<b>印刷</b>はA4・余白「なし」推奨。PDFは印刷ダイアログで「PDFに保存」を選択。<br>
+      ・入力内容はこの端末に自動保存されます（次回開いたとき復元）。
+    </div>
+  </div>
+
+  <!-- A4プレビュー -->
+  <div class="stage">
+    <div class="sheet" id="sheet">
+      <p class="title">見　積　書</p>
+      <div class="docno" id="o-no"></div>
+      <div class="docdate" id="o-date">2026年6月1日</div>
+
+      <div class="mid">
+        <div class="left">
+          <div class="addressee"><span id="o-customer">　</span><span class="on">御中</span></div>
+          <div class="leadtxt">下記の通りお見積り申し上げます。</div>
+          <div class="totalbox">
+            <div class="lbl">御見積金額</div>
+            <div class="val" id="o-grandtop">¥0</div>
+          </div>
+        </div>
+        <div class="right"><div class="rinfo">
+          <div class="nm">株式会社 林材木店</div>
+          <div>〒437-1203</div>
+          <div>静岡県磐田市福田 5490-47</div>
+          <div>TEL　：0538-58-2395</div>
+          <div>FAX　：050-3146-7566</div>
+          <div>email：info@hayazai.com</div>
+          <div style="margin-top:1mm;">取引銀行</div>
+          <div>遠州信用金庫　和田支店（013）</div>
+          <div>普通　1004660　カ）ハヤシザイモクテン</div>
+          <div>登録番号　T3-0804-0100-4226</div>
+        </div></div>
+      </div>
+
+      <table class="items" id="itemstable"></table>
+
+      <div class="foot">
+        <div class="fleft">
+          <div class="legal">※本品は合法木材です</div>
+          <div class="legal">合法木材認定番号静岡県木連 1831</div>
+          <div class="remarks">
+            <div class="rhead">備考</div>
+            <div class="rbody" id="o-remarks"></div>
+          </div>
+        </div>
+        <div class="fright">
+          <table class="sum">
+            <tr><td class="k">小計</td><td class="v" id="o-subtotal">0</td></tr>
+            <tr><td class="k">運賃</td><td class="v" id="o-freight"></td></tr>
+            <tr><td class="k">消費税（10％）</td><td class="v" id="o-tax">0</td></tr>
+            <tr><td class="k">合計金額</td><td class="v" id="o-grand">0</td></tr>
+          </table>
+          <div class="qrwrap">
+            <img id="o-qr" alt="QR">
+            <div class="url">https://hayazai.com/</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   西濃運輸 運賃データ（fare-calculator と同一）
+   ============================================================ */
+const SEINO_DISTANCES = [150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400];
+const SEINO_PREF_MAP = {
+  "静岡":0,"愛知":1,"岐阜":2,"神奈川":3,"滋賀":4,"三重":5,
+  "東京":6,"奈良":7,"京都":8,"山梨":9,"埼玉":10,"千葉":11,
+  "大阪":12,"長野":13,"栃木":14,"和歌山":15,"石川":16,"徳島":17,
+  "茨城":18,"群馬":19,"兵庫":20,"福島":21,"鳥取":22,"岡山":23,
+  "高知":24,"新潟":25,"香川":26,"福井":27,"富山":28,"宮城":29,
+  "広島":30,"愛媛":31,"山形":32,"島根":33,"秋田":34,"岩手":35,
+  "山口":36,"福岡":37,"佐賀":38,"青森":39,"長崎":40,"熊本":41,
+  "大分":42,"宮崎":43,"鹿児島":44,"北海道":45
+};
+const PREF_TO_DIST = [
+  0,0, 1, 2,2,2, 3,3,3,3, 4,4,4,4, 5,5,5,5, 6,6,6, 7,7,7, 8,8,8, 9,9, 10, 11,11, 12, 13, 14,14, 15, 16, 17, 18,18,18,18, 19,19, 21
+];
+const SEINO_WEIGHTS = [10,20,30,40,60,80,100,120,140,160,180,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000];
+const SEINO_FARES = [
+  [1500,1500,1600,1600,1600,1600,1600,1600,1600,1600,1900,1900,2000,2000,2200,2200,2200,2200,2200,2200,2200,2200],
+  [1700,1800,1800,1800,1800,1900,1900,1900,2000,2000,2400,2400,2600,2600,2700,2700,2800,2800,2900,2900,3000,3100],
+  [2000,2000,2000,2000,2100,2100,2100,2100,2200,2200,2700,2800,2900,2900,3100,3200,3200,3300,3400,3500,3600,3700],
+  [2200,2300,2400,2400,2400,2500,2500,2600,2700,2700,3300,3300,3600,3600,3900,4000,4100,4200,4300,4500,4600,4800],
+  [2400,2500,2600,2700,2800,3000,3100,3100,3100,3200,3900,4000,4200,4300,4700,4800,4900,4900,5200,5400,5600,5800],
+  [2900,3000,3100,3300,3400,3600,3700,3800,3900,4000,4900,5000,5400,5600,5900,6100,6300,6500,6800,7100,7400,7800],
+  [3300,3500,3600,3800,4000,4200,4400,4500,4600,4800,5800,6000,6400,6600,7200,7300,7500,7800,8200,8600,9000,9400],
+  [3700,4000,4300,4400,4600,4900,5100,5200,5400,5600,7100,7200,7800,8000,8500,8800,9000,9300,9800,10300,10800,11300],
+  [4200,4500,4700,5100,5200,5500,5800,6000,6200,6400,8000,8300,8900,9300,9800,10100,10500,10700,11300,11900,12600,13200],
+  [4600,4900,5300,5600,5800,6100,6400,6700,6900,7200,9000,9300,10100,10400,11100,11400,11700,12100,12800,13500,14200,15000],
+  [5000,5400,5700,6100,6400,6700,7000,7400,7600,8000,10000,10300,11100,11500,12200,12600,13000,13500,14300,15100,15900,16700],
+  [5400,5700,6200,6400,6700,7200,7400,7700,8100,8400,10500,10800,11700,12200,12900,13300,13700,14200,15000,15900,16800,17600],
+  [6300,6900,7300,7800,8200,8700,9000,9500,9900,10300,12800,13400,14400,15000,15700,16200,16800,17400,18500,19600,20700,21700],
+  [7500,8100,8700,9200,9700,10200,10800,11300,11700,12300,15300,15900,17200,17900,18800,19500,20100,20700,22100,23400,24700,26000],
+  [8500,9100,9900,10600,11100,11700,12400,12900,13600,14200,17700,18400,19900,20700,21800,22500,23400,24200,25700,27300,28900,30500],
+  [9700,10500,11300,12000,12600,13400,14100,14800,15400,16200,20100,21000,22700,23600,24900,25800,26700,27600,29400,31200,33000,34800],
+  [10700,11700,12600,13400,14200,14900,15700,16500,17300,18100,22500,23500,25500,26500,27900,29000,30000,31000,33100,35100,37100,39200],
+  [11700,12700,13800,14700,15500,16500,17400,18200,19100,20000,25000,26100,28300,29400,31000,32200,33300,34400,36700,39000,41300,43600],
+  [15200,16500,18000,19100,20300,21500,22600,23900,25100,26200,27900,29000,31500,32800,35400,36800,38000,39400,42000,44700,47300,49900],
+  [16400,17800,19500,20700,22000,23400,24700,26000,27200,28600,30300,31600,34300,35800,38600,40000,41400,42900,45800,48700,51500,54400],
+  [17600,19300,21000,22400,23800,25200,26600,28000,29500,30800,32800,34200,37100,38700,41800,43300,44900,46500,49600,52800,55900,59000],
+  [18900,20700,22500,24000,25500,27000,28600,30100,31700,33200,35200,36900,40000,41600,45000,46700,48300,50000,53400,56700,60100,63500],
+  [20200,22100,24000,25700,27300,28900,30600,32300,33900,35500,37800,39400,42800,44600,48100,49900,51800,53500,57100,60800,64400,68000],
+  [21500,23500,25600,27300,29000,30800,32600,34300,36000,37800,40200,42000,45600,47500,51200,53200,55200,57100,61000,64900,68800,72700],
+  [22700,24900,27000,28900,30800,32600,34500,36400,38300,40200,42600,44600,48500,50400,54500,56600,58500,60700,64900,69000,73100,77300],
+  [24000,26300,28600,30600,32500,34500,36500,38600,40500,42400,45100,47100,51300,53300,57600,59800,62100,64200,68600,73000,77400,81800],
+  [25300,27700,30200,32300,34300,36400,38500,40600,42700,44800,47700,49800,54100,56300,60800,63100,65500,67800,72500,77100,81700,86400],
+  [26600,29100,31600,33900,36000,38300,40500,42700,45000,47100,50100,52300,56800,59300,64000,66500,68900,71300,76200,81100,86000,90900]
+];
+// ダンボール代・重量/束
+const DANBALL = {
+  1: { weight: 20, box: 320 },
+  2: { weight: 20, box: 160 },
+  3: { weight: 30, box: 240 },
+  4: { weight: 40, box: 320 }
+};
+// 1m は佐川急便（都道府県別固定×束数）
+const SAGAWA_1M = {
+  "北海道":3000,"青森":2700,"岩手":2700,"宮城":2500,"秋田":2700,"山形":2500,"福島":2500,
+  "東京":2400,"神奈川":2400,"埼玉":2400,"千葉":2400,"茨城":2400,"栃木":2400,"群馬":2400,
+  "山梨":2400,"新潟":2400,"長野":2400,"富山":2400,"石川":2400,"福井":2400,
+  "愛知":2400,"岐阜":2400,"静岡":2400,"三重":2400,"大阪":2400,"兵庫":2400,"京都":2400,
+  "滋賀":2400,"奈良":2400,"和歌山":2400,
+  "鳥取":2500,"島根":2500,"岡山":2500,"広島":2500,"山口":2500,
+  "徳島":2700,"香川":2700,"愛媛":2700,"高知":2700,
+  "福岡":2700,"佐賀":2700,"長崎":2700,"熊本":2700,"大分":2700,"宮崎":2700,"鹿児島":2700
+};
+const MAX_BUNDLE = 20;
+
+/* ============================================================
+   送料計算（シンプル版：都道府県×長さ×数量）
+   ============================================================ */
+function calcFreight(pref, length, qty, includeBox){
+  const out = { ok:false, total:0, fare:0, box:0, weight:0, tier:"", distance:0, carrier:"西濃運輸", note:"" };
+  if(!pref || !(qty>0)) return out;
+  const d = DANBALL[length];
+
+  // 1m = 佐川急便
+  if(length === 1){
+    const rate = SAGAWA_1M[pref];
+    if(rate == null){ out.note = "1m送料データなし"; return out; }
+    out.carrier = "佐川急便";
+    out.fare = rate * qty;
+    out.box = includeBox ? qty * d.box : 0;
+    out.weight = Math.ceil(qty * d.weight);
+    out.total = Math.round((out.fare + out.box) / 100) * 100;
+    out.tier = "1束20枚×" + qty;
+    out.ok = true;
+    return out;
+  }
+
+  // 2m以上 = 西濃運輸
+  const weight = Math.ceil(qty * d.weight);
+  const maxWeight = SEINO_WEIGHTS[SEINO_WEIGHTS.length - 1];
+  let tierIdx = SEINO_WEIGHTS.findIndex(w => w >= weight);
+  const over = tierIdx === -1;
+  if(over){ out.weight = weight; out.note = "重量超過（" + weight + "kg＞" + maxWeight + "kg）"; return out; }
+  const prefIdx = SEINO_PREF_MAP[pref];
+  const distIdx = PREF_TO_DIST[prefIdx];
+  out.distance = SEINO_DISTANCES[distIdx];
+  out.fare = SEINO_FARES[tierIdx][distIdx];
+  out.box = includeBox ? qty * d.box : 0;
+  out.weight = weight;
+  out.tier = SEINO_WEIGHTS[tierIdx] + "kg";
+  out.total = Math.round((out.fare + out.box) / 100) * 100;
+  out.ok = true;
+  if(qty > MAX_BUNDLE) out.note = "※" + qty + "束は複数口（1便" + MAX_BUNDLE + "束目安）になる可能性があります";
+  return out;
+}
+
+const $ = s => document.querySelector(s);
+const fmt = n => (Math.round(n)||0).toLocaleString("ja-JP");
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function todayISO(){ const t=new Date(); const z=n=>String(n).padStart(2,"0"); return `${t.getFullYear()}-${z(t.getMonth()+1)}-${z(t.getDate())}`; }
+function fmtDateJP(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-").map(Number); return `${y}年${m}月${d}日`; }
+
+const QR_DATAURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAAEiAQAAAAB1xeIbAAACEElEQVR4nO1ZUYrrMAwcOYF+OpAD7FHcmy17s+Qo7wAL8eeCwyySk6X7eI/2J63dWh+mMYKK8VgeSUJct9nd4AQ0r90aEhUgEWWzcxQBYg85A9h3+7Kjr9yroxngE0SGNR8Agu0uj4vruj2Dl2R6xxMRmMDJdvVCnCuIvlav/vLDfwlnASRM6cFxuVfDHh0lEJDHx+VeBnvmjziA82AZXs3rdnxMXO5FsF9/eN4lCX/6BMQxQbOP7hUcvavaS/6qrcQOQJeLzVZbHabv+13Qq7xUnYOgeWceADmr2iyWOe4p3to4JuopmM7h/JYg8GvPeWg558AT8l+CeVh3LY9O09BWYMl7q62O5H0ct5xvSUZ/SFhW0GQPkAq+ta5qrz7zHiZxlkGV5adSfqRsGnNM5UbvqvYCqU0E2qL55aKn4ElO2u2ZSo3eVe0FQ5wb7NZQU8T9dh4IS8P+SN5zQzyfws81UPLnDmfj/YG8hwl6k/a2l3OOpRu7BqXeWle1F3hhi52CtvN/Lw374+dWMMpvSn+X+wf84w3mXqSu7XKqEfjU536OVrPMLUzf9P1d5lbodG5lcn8VEVX7Nj0sljnuibxWyc+sPr2W/kXeGu/vgn08UWToyA9FXHs8nBrvD8aeVkdZdyEs1kY7cU9Bjfd3mVvFkXlaFZYRErgKWz/nfnOrf1qbWxXzIv/PmtdutyHxDR16D1UwZ19zAAAAAElFTkSuQmCC";
+
+const ROWS_TOTAL = 14;
+const COLS = [
+  {k:"name", h:"品名",  w:38,   cls:"name"},
+  {k:"grade",h:"等級",  w:18,   cls:"grade"},
+  {k:"t",    h:"厚",    w:11,   cls:"center"},
+  {k:"w",    h:"幅",    w:11,   cls:"center"},
+  {k:"l",    h:"長",    w:11,   cls:"center"},
+  {k:"in",   h:"入数",  w:11,   cls:"center"},
+  {k:"qty",  h:"数 量", w:19.9, cls:"num"},
+  {k:"price",h:"単価",  w:20.2, cls:"num"},
+  {k:"amt",  h:"金 額", w:33.5, cls:"num"},
+];
+
+/* ---- 明細行 ---- */
+const ITEM_COLS = ["i-name","i-grade","i-t","i-w","i-l","i-in","i-qty","i-price"];
+function itemRowHTML(){
+  return `<div class="item-row">
+    <input class="i-name"  list="dl-name"  placeholder="品名">
+    <input class="i-grade" list="dl-grade" placeholder="等級">
+    <input class="i-t"  inputmode="numeric" placeholder="厚">
+    <input class="i-w"  inputmode="numeric" placeholder="幅">
+    <input class="i-l"  inputmode="numeric" placeholder="長">
+    <input class="i-in" inputmode="numeric" placeholder="入数">
+    <input class="i-qty" inputmode="numeric" placeholder="数量">
+    <input class="i-price" inputmode="numeric" placeholder="単価">
+    <div class="amtcell"></div>
+    <button class="del" title="この行を削除">✕</button>
+  </div>`;
+}
+function readRow(row){
+  const num=s=> parseFloat((row.querySelector(s).value||"").toString().replace(/,/g,""))||0;
+  return {
+    name: row.querySelector(".i-name").value.trim(),
+    grade: row.querySelector(".i-grade").value.trim(),
+    t: row.querySelector(".i-t").value.trim(),
+    w: row.querySelector(".i-w").value.trim(),
+    l: row.querySelector(".i-l").value.trim(),
+    in: row.querySelector(".i-in").value.trim(),
+    qty: num(".i-qty"),
+    price: num(".i-price"),
+  };
+}
+function updateAmt(row){
+  const it=readRow(row); const amt=Math.round(it.qty*it.price);
+  row.querySelector(".amtcell").textContent = amt? fmt(amt) : "";
+}
+function addRow(data){
+  const wrap=document.createElement("div"); wrap.innerHTML=itemRowHTML();
+  const row=wrap.firstElementChild;
+  $("#items").appendChild(row);
+  if(data){
+    row.querySelector(".i-name").value=data.name||"";
+    row.querySelector(".i-grade").value=data.grade||"";
+    row.querySelector(".i-t").value=data.t||"";
+    row.querySelector(".i-w").value=data.w||"";
+    row.querySelector(".i-l").value=data.l||"";
+    row.querySelector(".i-in").value=data.in||"";
+    row.querySelector(".i-qty").value=data.qty||"";
+    row.querySelector(".i-price").value=data.price? fmt(data.price) : "";
+  }
+  updateAmt(row);
+  row.querySelector(".del").addEventListener("click",()=>{
+    const rows=[...document.querySelectorAll(".item-row")];
+    if(rows.length<=1){ ITEM_COLS.forEach(c=>row.querySelector("."+c).value=""); }
+    else row.remove();
+    saveDraft(); render();
+  });
+  row.addEventListener("input", ()=>{
+    updateAmt(row); saveDraft(); render();
+    const rows=[...document.querySelectorAll(".item-row")];
+    if(row===rows[rows.length-1] && readRow(row).name) addRow();
+  });
+  const priceInp=row.querySelector(".i-price");
+  priceInp.addEventListener("blur", ()=>{
+    const raw=(priceInp.value||"").toString().replace(/,/g,"").trim();
+    const n=parseFloat(raw);
+    priceInp.value = (raw!=="" && !isNaN(n) && n!==0)? fmt(n) : "";
+  });
+  ITEM_COLS.forEach((cls)=>{
+    const inp=row.querySelector("."+cls);
+    inp.addEventListener("keydown", ev=>{
+      if(ev.key==="Enter"){
+        ev.preventDefault();
+        const rows=[...document.querySelectorAll(".item-row")];
+        const ri=rows.indexOf(row);
+        let next=rows[ri+1];
+        if(!next){ next=addRow(); }
+        next.querySelector("."+cls).focus();
+      }
+    });
+  });
+  return row;
+}
+
+/* ---- 収集・描画 ---- */
+function collect(){
+  const items=[...document.querySelectorAll(".item-row")].map(readRow);
+  return {
+    date: $("#f-date").value,
+    no: $("#f-no").value.trim(),
+    customer: $("#f-customer").value.trim(),
+    freight: parseFloat(($("#f-freight").value||"").toString().replace(/,/g,""))||0,
+    remarks: $("#f-remarks").value,
+    items
+  };
+}
+function render(){
+  const d=collect();
+  $("#o-no").textContent = d.no ? ("No. " + d.no) : "";
+  $("#o-date").textContent = fmtDateJP(d.date);
+  $("#o-customer").textContent = d.customer || "　";
+  $("#o-remarks").textContent = d.remarks;
+
+  const colgroup = COLS.map(c=>`<col style="width:${c.w}mm">`).join("");
+  const headRow = "<tr class='hdrrow'>"+COLS.map(c=>`<td class="hdr">${c.h}</td>`).join("")+"</tr>";
+  let itemsTotal=0; let body="";
+  const filled = d.items.filter(it=> it.name || it.qty || it.price);
+  for(let i=0;i<ROWS_TOTAL;i++){
+    const it=filled[i];
+    const rc = (i%2===0)?"oddrow":"evenrow";
+    if(it){
+      const amt = Math.round(it.qty*it.price);
+      itemsTotal += amt;
+      const cell = k=>{
+        if(k==="qty") return it.qty?fmt(it.qty):"";
+        if(k==="price") return it.price?fmt(it.price):"";
+        if(k==="amt") return amt?fmt(amt):"";
+        return esc(it[k]);
+      };
+      body += `<tr class="${rc}">`+COLS.map(c=>`<td class="${c.cls}">${cell(c.k)}</td>`).join("")+"</tr>";
+    }else{
+      body += `<tr class="${rc}">`+COLS.map((c,j)=>`<td>${j===0?"&nbsp;":""}</td>`).join("")+"</tr>";
+    }
+  }
+  $("#itemstable").innerHTML = `<colgroup>${colgroup}</colgroup><tbody>${headRow}${body}</tbody>`;
+
+  const tax = Math.round((itemsTotal + d.freight) * 0.1);
+  const grand = itemsTotal + d.freight + tax;
+  $("#o-subtotal").textContent = fmt(itemsTotal);
+  $("#o-freight").textContent = d.freight? fmt(d.freight) : "";
+  $("#o-tax").textContent = fmt(tax);
+  $("#o-grand").textContent = fmt(grand);
+  $("#o-grandtop").textContent = "¥"+fmt(grand);
+}
+
+/* ---- 西濃送料 計算UI ---- */
+function renderFreightCalc(){
+  const pref = $("#fb-pref").value;
+  const length = parseInt($("#fb-length").value);
+  const qty = parseInt($("#fb-qty").value)||0;
+  const includeBox = $("#fb-box").checked;
+  const r = calcFreight(pref, length, qty, includeBox);
+  const box = $("#fb-result");
+  const msg = $("#fb-msg");
+  msg.innerHTML = "";
+  if(!r.ok){
+    box.innerHTML = r.note ? `<div class="fb-warn">${esc(r.note)}</div>` : "";
+    $("#fb-apply").disabled = true; $("#fb-apply").style.opacity = .5;
+    return r;
+  }
+  $("#fb-apply").disabled = false; $("#fb-apply").style.opacity = 1;
+  let rows = "";
+  rows += `<tr><td class="k">配送</td><td class="v">${r.carrier}${r.distance?`（${r.distance}km帯）`:""}</td></tr>`;
+  rows += `<tr><td class="k">重量${r.tier&&r.carrier==="西濃運輸"?`（適用 ${r.tier}）`:""}</td><td class="v">${r.weight}kg</td></tr>`;
+  rows += `<tr><td class="k">運賃</td><td class="v">${fmt(r.fare)}円</td></tr>`;
+  if(includeBox) rows += `<tr><td class="k">ダンボール代</td><td class="v">${fmt(r.box)}円</td></tr>`;
+  rows += `<tr class="tot"><td class="k">送料（税抜）</td><td class="v">${fmt(r.total)}円</td></tr>`;
+  box.innerHTML = `<table>${rows}</table>` + (r.note?`<div class="fb-warn">${esc(r.note)}</div>`:"");
+  return r;
+}
+
+/* ---- 下書き（localStorage） ---- */
+const LS = "hayazai_mitsumori_draft";
+function saveDraft(){
+  const d = collect();
+  d._fb = { pref:$("#fb-pref").value, length:$("#fb-length").value, qty:$("#fb-qty").value, box:$("#fb-box").checked };
+  localStorage.setItem(LS, JSON.stringify(d));
+}
+function applyData(d){
+  $("#f-date").value = d.date || todayISO();
+  $("#f-no").value = d.no || "";
+  $("#f-customer").value = d.customer || "";
+  $("#f-freight").value = d.freight || "";
+  $("#f-remarks").value = d.remarks || "";
+  $("#items").innerHTML = "";
+  (d.items && d.items.length ? d.items : [null,null,null]).forEach(it=>addRow(it));
+  if(d._fb){
+    if(d._fb.pref) $("#fb-pref").value = d._fb.pref;
+    if(d._fb.length) $("#fb-length").value = d._fb.length;
+    if(d._fb.qty!=null) $("#fb-qty").value = d._fb.qty;
+    if(d._fb.box!=null) $("#fb-box").checked = d._fb.box;
+  }
+  render(); renderFreightCalc();
+}
+
+/* ---- 印刷 ---- */
+function fitPreview(){
+  const sheet=$("#sheet"); const stage=document.querySelector(".stage");
+  sheet.style.transform="none";
+  const natW=sheet.offsetWidth, natH=sheet.offsetHeight;
+  const scale=Math.min(1, stage.clientWidth/natW);
+  sheet.style.transformOrigin="top center";
+  sheet.style.transform="scale("+scale+")";
+  stage.style.height=(natH*scale)+"px";
+}
+
+/* ---- 初期化 ---- */
+function init(){
+  $("#o-qr").src = QR_DATAURI;
+  // 都道府県セレクト
+  const sel = $("#fb-pref");
+  Object.keys(SEINO_PREF_MAP).forEach(p => sel.appendChild(new Option(p, p)));
+  sel.value = "東京";
+  // 品名・等級の候補（任意）
+  const NAMES=["桧フローリング","桧羽目板","桧板","杉板","桧角","杉角","桧KD","桧プレナー"];
+  const GRADES=["丸節","無節","上小","特上小","生節"];
+  const fillDL=(id,arr)=>{ const dl=$(id); arr.forEach(v=>{const o=document.createElement("option");o.value=v;dl.appendChild(o);}); };
+  fillDL("#dl-name", NAMES); fillDL("#dl-grade", GRADES);
+
+  // ボタン
+  $("#btn-add").addEventListener("click",()=>{ const r=addRow(); r.querySelector(".i-name").focus(); saveDraft(); });
+  $("#btn-print").addEventListener("click", ()=>{ setTimeout(()=>window.print(),150); });
+  $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？")){ applyData({date:todayISO()}); saveDraft(); } });
+
+  // ヘッダー項目
+  ["#f-date","#f-no","#f-customer","#f-freight","#f-remarks"].forEach(s=> $(s).addEventListener("input", ()=>{ saveDraft(); render(); }));
+
+  // 送料計算
+  ["#fb-pref","#fb-length","#fb-qty","#fb-box"].forEach(s=> $(s).addEventListener("input", ()=>{ renderFreightCalc(); saveDraft(); }));
+  $("#fb-apply").addEventListener("click", ()=>{
+    const r = renderFreightCalc();
+    if(!r.ok) return;
+    $("#f-freight").value = r.total;
+    saveDraft(); render();
+    const msg=$("#fb-msg");
+    msg.innerHTML = `<div class="fb-applied">✅ 運賃に ${fmt(r.total)}円（税抜）を入れました</div>`;
+  });
+
+  // 復元 or 新規
+  let saved=null; try{ saved=JSON.parse(localStorage.getItem(LS)); }catch(e){}
+  applyData(saved || { date: todayISO() });
+
+  fitPreview();
+  window.addEventListener("resize", fitPreview);
+  window.addEventListener("beforeprint", ()=>{ $("#sheet").style.transform="none"; document.querySelector(".stage").style.height="auto"; });
+  window.addEventListener("afterprint", fitPreview);
+}
+init();
+</script>
+</body>
+</html>
