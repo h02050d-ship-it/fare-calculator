@@ -59,6 +59,10 @@
 
   .freight-box{ border:1px solid #cdd6e0; border-radius:10px; padding:12px 14px; margin-top:12px; background:#f6f9fc; }
   .freight-box .fb-title{ font-size:13px; font-weight:bold; color:#33415c; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .fb-apply-top{ margin-left:auto; border:none; background:#0a8a4a; color:#fff; border-radius:7px; padding:7px 12px; font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap; }
+  .fb-apply-top:hover{ background:#097a41; }
+  .fb-apply-top:disabled{ opacity:.45; cursor:default; }
+  .fb-auto-tag{ font-size:9px; color:#0a8a4a; background:#eafaf1; border:1px solid #b7e4c7; border-radius:4px; padding:1px 4px; margin-left:4px; font-weight:normal; }
   .fb-grid{ display:grid; grid-template-columns: 1.4fr .8fr .8fr; gap:8px; align-items:end; }
   .fb-grid label{ display:block; font-size:11px; color:#555; margin-bottom:3px; font-weight:bold; }
   .fb-grid select, .fb-grid input{ width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; font-family:inherit; }
@@ -194,7 +198,12 @@
     </div>
     <div class="hdrfields2">
       <div class="field"><label>担当</label><input id="f-tanto" value="林大樹"></div>
-      <div class="field"><label>納期</label><input id="f-nouki" value="お支払から10営業日前後で発送"></div>
+      <div class="field"><label>納期</label><input id="f-nouki" list="dl-nouki" value="お支払から2〜5営業日前後で発送">
+        <datalist id="dl-nouki">
+          <option value="お支払から1〜3営業日前後で発送"></option>
+          <option value="お支払から2〜5営業日前後で発送"></option>
+          <option value="お支払から7〜10営業日前後で発送"></option>
+        </datalist></div>
       <div class="field"><label>支払条件</label><input id="f-shiharai" value="銀行振込"></div>
       <div class="field"><label>有効期限</label><input type="date" id="f-limit"></div>
     </div>
@@ -211,17 +220,16 @@
     </div>
 
     <div class="freight-box">
-      <div class="fb-title">🚚 送料を自動計算（運賃ツールと同一・税込）</div>
+      <div class="fb-title"><span>🚚 送料を自動計算（運賃ツールと同一・税込）</span><button class="fb-apply-top" id="fb-apply">＋ 見積書の運賃に追加</button></div>
       <div class="fb-grid">
         <div><label>送付先（都道府県）</label><select id="fb-pref"></select></div>
-        <div><label>長さ</label>
+        <div><label>長さ <span class="fb-auto-tag">明細から自動</span></label>
           <select id="fb-length"><option value="1">1m</option><option value="2">2m</option><option value="3">3m</option><option value="4" selected>4m</option></select>
         </div>
-        <div><label>数量（束）</label><select id="fb-qty"></select></div>
+        <div><label>数量（束）<span class="fb-auto-tag">明細から自動</span></label><select id="fb-qty"></select></div>
       </div>
-      <div class="fb-note">※運賃ツール（実費×1.25×税込・切り上げ）と全く同じ計算を呼び出して表示しています。改定も自動反映。</div>
+      <div class="fb-note">※長さ・数量は見積書の明細から自動反映（手動変更も可）。運賃ツール（実費×1.25×税込・切り上げ）と同じ計算を呼び出しています。</div>
       <div class="fb-result" id="fb-result"></div>
-      <button class="fb-apply" id="fb-apply">この送料を見積書の「運賃」に入れる →</button>
       <div id="fb-msg"></div>
       <iframe id="fare-frame" src="index.html" title="運賃ツール" style="position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px;" aria-hidden="true"></iframe>
     </div>
@@ -537,15 +545,15 @@ function addRow(data){
     const rows=[...document.querySelectorAll(".item-row")];
     if(rows.length<=1){ row.querySelectorAll("input,select").forEach(e=>e.value=""); row.querySelector(".i-price").classList.remove("auto"); }
     else row.remove();
-    saveDraft(); render();
+    saveDraft(); render(); deriveFreightFromItems();
   });
-  ["i-grade","i-t","i-w","i-l"].forEach(c=> row.querySelector("."+c).addEventListener("change",()=>{ applyAutoPrice(row); updateAmt(row); saveDraft(); render(); }));
+  ["i-grade","i-t","i-w","i-l"].forEach(c=> row.querySelector("."+c).addEventListener("change",()=>{ applyAutoPrice(row); updateAmt(row); saveDraft(); render(); deriveFreightFromItems(); }));
   row.querySelector(".i-name").addEventListener("input",()=>{ applyAutoPrice(row); updateAmt(row); saveDraft(); render();
     const rows=[...document.querySelectorAll(".item-row")]; if(row===rows[rows.length-1] && readRow(row).name) addRow(); });
   const pe=row.querySelector(".i-price");
   pe.addEventListener("input",()=>{ pe.classList.remove("auto"); updateAmt(row); saveDraft(); render(); });
   pe.addEventListener("blur",()=>{ const raw=(pe.value||"").toString().replace(/,/g,"").trim(); const n=parseFloat(raw); pe.value=(raw!==""&&!isNaN(n)&&n!==0)?fmt(n):""; });
-  row.querySelector(".i-qty").addEventListener("change",()=>{ updateAmt(row); saveDraft(); render(); });
+  row.querySelector(".i-qty").addEventListener("change",()=>{ updateAmt(row); saveDraft(); render(); deriveFreightFromItems(); });
   row.querySelector(".i-in").addEventListener("input",()=>{ saveDraft(); render(); });
   return row;
 }
@@ -600,9 +608,32 @@ function renderFreightCalc(){
   const r=calcViaFrame(); const box=$("#fb-result"); $("#fb-msg").innerHTML="";
   if(!r){ box.innerHTML='<div class="fb-note">運賃ツールを読み込み中…（数秒お待ちください）</div>'; $("#fb-apply").disabled=true; $("#fb-apply").style.opacity=.5; return null; }
   box.innerHTML=r.html;
-  if(r.total){ $("#fb-apply").disabled=false; $("#fb-apply").style.opacity=1; }
-  else{ $("#fb-apply").disabled=true; $("#fb-apply").style.opacity=.5; }
+  $("#fb-apply").disabled = !r.total;
   return r;
+}
+// 見積書の明細から 長さ(m)・数量(束) を割り出して送料ツールに反映
+function deriveFreightFromItems(){
+  const items=[...document.querySelectorAll(".item-row")].map(readRow).filter(it=> it.qty>0 && it.l);
+  if(!items.length) return; // 明細が無ければ現状維持（手動）
+  const bracket = l => Math.min(4, Math.max(1, Math.ceil((parseInt(l)||0)/1000))); // 910→1,1820→2,2000→2,3000→3,4000→4
+  const byB={}; let totalQty=0;
+  items.forEach(it=>{ const b=bracket(it.l); byB[b]=(byB[b]||0)+it.qty; totalQty+=it.qty; });
+  let domB=4, max=-1; Object.keys(byB).forEach(b=>{ if(byB[b]>max){ max=byB[b]; domB=parseInt(b); } });
+  $("#fb-length").value=String(domB);
+  const q=Math.min(30, Math.max(1, Math.round(totalQty)));
+  if(![...$("#fb-qty").options].some(o=>o.value===String(q))) $("#fb-qty").add(new Option(String(q),String(q)));
+  $("#fb-qty").value=String(q);
+  const r=renderFreightCalc();
+  if(freightLinked && r && r.total){ $("#f-freight").value=r.total; if(r.carrier) $("#f-carrier").value=r.carrier; render(); }
+  saveDraft();
+}
+// 運賃未入力チェック（配送業者「引取」のみ運賃不要）
+function freightOkToProceed(actionName){
+  const d=collect();
+  if((!d.freight || d.freight<=0) && d.carrier!=="引取"){
+    return confirm(`⚠️ 運賃が未入力です。\nこのまま${actionName}しますか？\n（配送業者が「引取」なら運賃は不要です）`);
+  }
+  return true;
 }
 
 /* ---- 履歴（呼出・取消）：見積りDBスプシ同期＋localストレージ ---- */
@@ -629,6 +660,7 @@ function saveToHistory(){
   const d=collect();
   if(!d.customer){ flash("取引先を入力してください"); return; }
   if(!d.items.filter(x=>x.name||x.qty).length){ flash("明細がありません"); return; }
+  if(!freightOkToProceed("確定して保存")) return;
   const t=computeTotals(d);
   const denpyo="Q"+Date.now().toString(36);
   // ローカル（オフライン保険）
@@ -692,7 +724,7 @@ function applyData(d){
   $("#f-customer").value=d.customer||"";
   $("#f-carrier").value=d.carrier||"西濃運輸";
   $("#f-tanto").value=d.tanto!=null?d.tanto:"林大樹";
-  $("#f-nouki").value=d.nouki!=null?d.nouki:"お支払から10営業日前後で発送";
+  $("#f-nouki").value=d.nouki!=null?d.nouki:"お支払から2〜5営業日前後で発送";
   $("#f-shiharai").value=d.shiharai!=null?d.shiharai:"銀行振込";
   $("#f-limit").value=d.limit||addDaysISO(d.date||todayISO(),30);
   $("#f-freight").value=d.freight||"";
@@ -726,7 +758,7 @@ function init(){
   renderCustomerDatalist();
 
   $("#btn-add").addEventListener("click",()=>{ const r=addRow(); r.querySelector(".i-name").focus(); saveDraft(); });
-  $("#btn-print").addEventListener("click",()=>{ setTimeout(()=>window.print(),150); });
+  $("#btn-print").addEventListener("click",()=>{ if(!freightOkToProceed("印刷")) return; setTimeout(()=>window.print(),150); });
   $("#btn-save").addEventListener("click", saveToHistory);
   $("#btn-db").addEventListener("click",()=> window.open(DB_SHEET_URL,"_blank","noopener"));
   $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？（履歴は残ります）")){ freightLinked=false; applyData({date:todayISO(),kubun:kubun,remarks:DEFAULT_REMARKS}); saveDraft(); } });
@@ -751,7 +783,7 @@ function init(){
   });
   // 運賃ツール(iframe)の準備完了で送料表示を更新
   const ff=document.getElementById("fare-frame");
-  if(ff){ ff.addEventListener("load",()=>{ setTimeout(renderFreightCalc,150); }); let tries=0; const t=setInterval(()=>{ if(fareFrameReady()){ clearInterval(t); renderFreightCalc(); } else if(++tries>40) clearInterval(t); },250); }
+  if(ff){ const onReady=()=>{ renderFreightCalc(); deriveFreightFromItems(); }; ff.addEventListener("load",()=>{ setTimeout(onReady,150); }); let tries=0; const t=setInterval(()=>{ if(fareFrameReady()){ clearInterval(t); onReady(); } else if(++tries>40) clearInterval(t); },250); }
 
   let saved=null; try{ saved=JSON.parse(localStorage.getItem(LS_DRAFT)); }catch(e){}
   applyData(saved || { date:todayISO(), kubun:"市売", remarks:DEFAULT_REMARKS });
