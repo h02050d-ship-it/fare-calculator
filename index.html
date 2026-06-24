@@ -75,7 +75,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 </head>
 <body>
 <h1>運賃自動計算ツール（2026改定版）</h1>
-<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">実費×倍率方式｜全チャネル一律×1.25×税込（×1.1）に統一（市売・付売も税込）｜運賃・売価とも切り上げ</p>
+<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">売価＝実費×1.25×税込（×1.1）｜全チャネル統一（自社EC・ヤフー・楽天・市売付売）｜運賃・売価とも切り上げ</p>
 
 <div class="panel" style="border-radius:8px; margin-bottom:16px;">
   <div class="form-row">
@@ -523,7 +523,7 @@ function calcSeino() {
   const MAX_BUNDLE = 20;
   const chName = '全チャネル';
   const channelLabel = '（税込）';
-  const multLabel = '利幅 ×1.25 ＋ 税';
+  const multLabel = '実費 ×1.25 ×税';
   const length = parseInt(document.getElementById('s-length').value);
   const isLen1 = !mixMode && length === 1;
   const quoteList = isLen1 ? QUOTE_ONLY_1M : QUOTE_ONLY_2M;
