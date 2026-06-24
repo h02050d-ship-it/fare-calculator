@@ -436,28 +436,44 @@ async function syncFaresFromCalculator(){
     if(ptd && Array.isArray(ptd)) PREF_TO_DIST=ptd;
     if(pm && Object.keys(pm).length) SEINO_PREF_MAP=pm;
     if(sg && Object.keys(sg).length) SAGAWA_1M=sg;
-    renderFreightCalc(); if(freightLinked) setFreightField(); render();
+    renderFreightCalc(); if(freightLinked) reapplyFreight(); render();
   }catch(e){ /* 取得失敗時は内蔵データのまま */ }
 }
 
-/* ========== 送料計算（西濃/佐川・ダンボール代込み固定） ========== */
-function calcFreight(pref, length, qty){
-  const out={ ok:false, total:0, fare:0, box:0, weight:0, tier:"", distance:0, carrier:"西濃運輸", note:"" };
+/* ========== 送料計算（fare-calculator と同一ロジック：税の丸め順・20束超の便分割を再現） ==========
+   taxIncl=true（直売＝ネット相当・税込）／false（市売・付売＝税抜）。返すtotalはその税基準の確定額。 */
+function calcFreight(pref, length, qty, taxIncl){
+  const out={ ok:false, total:0, fare:0, box:0, tax:0, weight:0, tier:"", distance:0, carrier:"西濃運輸", split:null, note:"" };
   if(!pref || !(qty>0)) return out;
   const d=DANBALL[length];
+  // 1m = 佐川急便（都道府県別固定×束数）
   if(length===1){
     const rate=SAGAWA_1M[pref]; if(rate==null){ out.note="1m送料データなし"; return out; }
     out.carrier="佐川急便"; out.fare=rate*qty; out.box=qty*d.box; out.weight=Math.ceil(qty*d.weight);
-    out.total=Math.round((out.fare+out.box)/100)*100; out.tier="1束20枚×"+qty; out.ok=true; return out;
+    const subtotal=out.fare+out.box; out.tax=taxIncl?Math.round(subtotal*0.1):0;
+    out.total=Math.round((subtotal+out.tax)/100)*100; out.tier="1束20枚×"+qty; out.ok=true; return out;
   }
-  const weight=Math.ceil(qty*d.weight); const maxWeight=SEINO_WEIGHTS[SEINO_WEIGHTS.length-1];
+  const distIdx=PREF_TO_DIST[SEINO_PREF_MAP[pref]]; out.distance=SEINO_DISTANCES[distIdx];
+  const maxWeight=SEINO_WEIGHTS[SEINO_WEIGHTS.length-1];
+  // 20束超 → 便分割（fare-calculator と同じ：均等割り・各便で重量帯を引く）
+  if(qty>MAX_BUNDLE){
+    const shipCount=Math.ceil(qty/MAX_BUNDLE); const baseQty=Math.floor(qty/shipCount); const rem=qty%shipCount;
+    let fareSum=0, boxSum=0, wSum=0, parts=[];
+    for(let i=0;i<shipCount;i++){
+      const sq=baseQty+(i<rem?1:0); const sw=Math.ceil(sq*d.weight);
+      let ti=SEINO_WEIGHTS.findIndex(w=>w>=sw); if(ti===-1) ti=SEINO_WEIGHTS.length-1;
+      fareSum+=SEINO_FARES[ti][distIdx]; boxSum+=sq*d.box; wSum+=sw; parts.push(sq);
+    }
+    out.fare=fareSum; out.box=boxSum; out.weight=wSum; out.tier=shipCount+"便分割"; out.split=parts;
+    const subtotal=fareSum+boxSum; out.tax=taxIncl?Math.round(subtotal*0.1):0;
+    out.total=Math.round((subtotal+out.tax)/100)*100; out.ok=true; return out;
+  }
+  const weight=Math.ceil(qty*d.weight);
   let tierIdx=SEINO_WEIGHTS.findIndex(w=>w>=weight);
-  if(tierIdx===-1){ out.weight=weight; out.note="重量超過（"+weight+"kg＞"+maxWeight+"kg）"; return out; }
-  const distIdx=PREF_TO_DIST[SEINO_PREF_MAP[pref]];
-  out.distance=SEINO_DISTANCES[distIdx]; out.fare=SEINO_FARES[tierIdx][distIdx]; out.box=qty*d.box;
-  out.weight=weight; out.tier=SEINO_WEIGHTS[tierIdx]+"kg"; out.total=Math.round((out.fare+out.box)/100)*100; out.ok=true;
-  if(qty>MAX_BUNDLE) out.note="※"+qty+"束は複数口（1便"+MAX_BUNDLE+"束目安）になる可能性があります";
-  return out;
+  if(tierIdx===-1){ out.weight=weight; out.note="重量超過（"+weight+"kg＞"+maxWeight+"kg）。分割配送をご検討ください。"; return out; }
+  out.fare=SEINO_FARES[tierIdx][distIdx]; out.box=qty*d.box; out.weight=weight; out.tier=SEINO_WEIGHTS[tierIdx]+"kg";
+  const subtotal=out.fare+out.box; out.tax=taxIncl?Math.round(subtotal*0.1):0;
+  out.total=Math.round((subtotal+out.tax)/100)*100; out.ok=true; return out;
 }
 
 const $ = s => document.querySelector(s);
@@ -598,20 +614,25 @@ function render(){
 }
 
 /* ---- 送料UI ---- */
-let freightLinked=false, freightBaseExcl=0;
-function setFreightField(){ const taxIncl=(kubun==="直売"); $("#f-freight").value=(taxIncl?Math.round(freightBaseExcl*1.1):freightBaseExcl)||""; }
+let freightLinked=false;
+function reapplyFreight(){
+  const r=calcFreight($("#fb-pref").value, parseInt($("#fb-length").value), parseInt($("#fb-qty").value)||0, kubun==="直売");
+  if(r.ok){ $("#f-freight").value=r.total; $("#f-carrier").value=r.carrier; }
+}
 function renderFreightCalc(){
   const pref=$("#fb-pref").value, length=parseInt($("#fb-length").value), qty=parseInt($("#fb-qty").value)||0;
-  const r=calcFreight(pref,length,qty); const box=$("#fb-result"); $("#fb-msg").innerHTML=""; const taxIncl=(kubun==="直売");
+  const taxIncl=(kubun==="直売");
+  const r=calcFreight(pref,length,qty,taxIncl); const box=$("#fb-result"); $("#fb-msg").innerHTML="";
   if(!r.ok){ box.innerHTML=r.note?`<div class="fb-warn">${esc(r.note)}</div>`:""; $("#fb-apply").disabled=true; $("#fb-apply").style.opacity=.5; return r; }
-  $("#fb-apply").disabled=false; $("#fb-apply").style.opacity=1; const inclTotal=Math.round(r.total*1.1);
+  $("#fb-apply").disabled=false; $("#fb-apply").style.opacity=1;
   let rows="";
   rows+=`<tr><td class="k">配送</td><td class="v">${r.carrier}${r.distance?`（${r.distance}km帯）`:""}</td></tr>`;
-  rows+=`<tr><td class="k">重量${r.tier&&r.carrier==="西濃運輸"?`（適用 ${r.tier}）`:""}</td><td class="v">${r.weight}kg</td></tr>`;
+  if(r.split){ rows+=`<tr><td class="k">分割</td><td class="v">${r.split.length}便（${r.split.join("束 ＋ ")}束）</td></tr>`; }
+  else { rows+=`<tr><td class="k">重量${r.tier&&r.carrier==="西濃運輸"?`（適用 ${r.tier}）`:""}</td><td class="v">${r.weight}kg</td></tr>`; }
   rows+=`<tr><td class="k">運賃</td><td class="v">${fmt(r.fare)}円</td></tr>`;
   rows+=`<tr><td class="k">ダンボール代</td><td class="v">${fmt(r.box)}円</td></tr>`;
-  if(taxIncl){ rows+=`<tr><td class="k">送料（税抜）</td><td class="v">${fmt(r.total)}円</td></tr>`; rows+=`<tr class="tot"><td class="k">送料（税込）</td><td class="v">${fmt(inclTotal)}円</td></tr>`; }
-  else{ rows+=`<tr class="tot"><td class="k">送料（税抜）</td><td class="v">${fmt(r.total)}円</td></tr>`; }
+  if(taxIncl) rows+=`<tr><td class="k">消費税（10%）</td><td class="v">${fmt(r.tax)}円</td></tr>`;
+  rows+=`<tr class="tot"><td class="k">送料（${taxIncl?"税込":"税抜"}）</td><td class="v">${fmt(r.total)}円</td></tr>`;
   box.innerHTML=`<table>${rows}</table>`+(r.note?`<div class="fb-warn">${esc(r.note)}</div>`:""); return r;
 }
 
@@ -694,9 +715,9 @@ function cancelHist(key,src){
 
 /* ---- 下書き ---- */
 const LS_DRAFT="hayazai_mitsumori_draft";
-function saveDraft(){ const d=collect(); d._fb={ pref:$("#fb-pref").value, length:$("#fb-length").value, qty:$("#fb-qty").value, linked:freightLinked, base:freightBaseExcl }; localStorage.setItem(LS_DRAFT, JSON.stringify(d)); }
+function saveDraft(){ const d=collect(); d._fb={ pref:$("#fb-pref").value, length:$("#fb-length").value, qty:$("#fb-qty").value, linked:freightLinked }; localStorage.setItem(LS_DRAFT, JSON.stringify(d)); }
 function rememberCustomer(){ const n=$("#f-customer").value.trim(); if(n){ addCandidate(n,true); renderCustomerDatalist(); } }
-function setKubun(k){ kubun=k; $("#f-kubun").value=k; autofillPrices(true); if(freightLinked) setFreightField(); renderFreightCalc(); saveDraft(); render(); }
+function setKubun(k){ kubun=k; $("#f-kubun").value=k; autofillPrices(true); if(freightLinked) reapplyFreight(); renderFreightCalc(); saveDraft(); render(); }
 function applyData(d){
   $("#f-date").value=d.date||todayISO();
   $("#f-customer").value=d.customer||"";
@@ -711,7 +732,7 @@ function applyData(d){
   (d.items&&d.items.length?d.items:[null,null,null]).forEach(it=>addRow(it));
   if(d._fb){ if(d._fb.pref)$("#fb-pref").value=d._fb.pref; if(d._fb.length)$("#fb-length").value=d._fb.length;
     if(d._fb.qty!=null){ const fq2=$("#fb-qty"); if(![...fq2.options].some(o=>o.value===String(d._fb.qty))) fq2.add(new Option(String(d._fb.qty),String(d._fb.qty))); fq2.value=String(d._fb.qty); }
-    freightLinked=!!d._fb.linked; freightBaseExcl=d._fb.base||0; }
+    freightLinked=!!d._fb.linked; }
   setKubun(d.kubun||"市売"); renderFreightCalc(); render();
 }
 
@@ -739,7 +760,7 @@ function init(){
   $("#btn-print").addEventListener("click",()=>{ setTimeout(()=>window.print(),150); });
   $("#btn-save").addEventListener("click", saveToHistory);
   $("#btn-db").addEventListener("click",()=> window.open(DB_SHEET_URL,"_blank","noopener"));
-  $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？（履歴は残ります）")){ freightLinked=false; freightBaseExcl=0; applyData({date:todayISO(),kubun:kubun,remarks:DEFAULT_REMARKS}); saveDraft(); } });
+  $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？（履歴は残ります）")){ freightLinked=false; applyData({date:todayISO(),kubun:kubun,remarks:DEFAULT_REMARKS}); saveDraft(); } });
   $("#cust-add").addEventListener("click",()=>{ const n=$("#f-customer").value.trim(); if(n){ addCandidate(n,true); renderCustomerDatalist(); flash("取引先候補に追加しました"); } });
 
   $("#f-kubun").addEventListener("change",()=>setKubun($("#f-kubun").value));
@@ -756,9 +777,9 @@ function init(){
   ["#fb-pref","#fb-length","#fb-qty"].forEach(s=> $(s).addEventListener("input",()=>{ renderFreightCalc(); saveDraft(); }));
   $("#fb-apply").addEventListener("click",()=>{
     const r=renderFreightCalc(); if(!r.ok) return;
-    freightBaseExcl=r.total; freightLinked=true; setFreightField(); $("#f-carrier").value=r.carrier; saveDraft(); render();
-    const taxIncl=(kubun==="直売"); const applied=taxIncl?Math.round(r.total*1.1):r.total;
-    $("#fb-msg").innerHTML=`<div class="fb-applied">✅ 運賃に ${fmt(applied)}円（${taxIncl?"税込":"税抜"}・${r.carrier}）を入れました</div>`;
+    freightLinked=true; $("#f-freight").value=r.total; $("#f-carrier").value=r.carrier; saveDraft(); render();
+    const taxIncl=(kubun==="直売");
+    $("#fb-msg").innerHTML=`<div class="fb-applied">✅ 運賃に ${fmt(r.total)}円（${taxIncl?"税込":"税抜"}・${r.carrier}）を入れました</div>`;
   });
 
   let saved=null; try{ saved=JSON.parse(localStorage.getItem(LS_DRAFT)); }catch(e){}
