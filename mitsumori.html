@@ -393,6 +393,8 @@ function priceFor(kubun, it){
   return null;
 }
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
+// 見積りデータベース（新規スプシ＋GAS）。初回認可後に同期が有効化される
+const DB_URL = "https://script.google.com/macros/s/AKfycbzskqossGk7mBeZEY2XrfqE2-MNS5b0PfgX65tpBfowD7mMwqXvueRe7E6Cclob2iFQ/exec";
 async function refreshPricebook(){
   try{
     for(const m of ["市売","付売"]){
@@ -584,43 +586,82 @@ function renderFreightCalc(){
   box.innerHTML=`<table>${rows}</table>`+(r.note?`<div class="fb-warn">${esc(r.note)}</div>`:""); return r;
 }
 
-/* ---- 履歴（呼出・取消） ---- */
+/* ---- 履歴（呼出・取消）：見積りDBスプシ同期＋localストレージ ---- */
 const LS_HIST="hayazai_mitsumori_history";
+let dbQuotes=null; // null=DB未取得（オフライン）。配列=DB取得済み
 function loadHist(){ try{ return JSON.parse(localStorage.getItem(LS_HIST))||[]; }catch(e){ return []; } }
 function saveHist(a){ localStorage.setItem(LS_HIST, JSON.stringify(a.slice(0,200))); }
-function grandOf(d){
+function computeTotals(d){
   let it=0; (d.items||[]).forEach(x=> it+=Math.round((x.qty||0)*(x.price||0)));
-  if(d.kubun==="直売") return it+(d.freight||0);
-  return it+(d.freight||0)+Math.round((it+(d.freight||0))*0.1);
+  if(d.kubun==="直売"){ const grand=it+(d.freight||0); return { itemsTotal:it, tax:Math.round((it+(d.freight||0))*10/110), grand }; }
+  const tax=Math.round((it+(d.freight||0))*0.1); return { itemsTotal:it, tax, grand:it+(d.freight||0)+tax };
+}
+async function loadDbHistory(){
+  if(!DB_URL){ renderHist(); return; }
+  try{
+    const r=await fetch(DB_URL+"?action=getQuotes",{cache:"no-store"});
+    const j=await r.json();
+    if(j && j.ok){ dbQuotes=j.quotes||[]; $("#hist-status").textContent="スプシDBと同期"; }
+    else { dbQuotes=null; $("#hist-status").textContent="この端末に保存（DB未認可）"; }
+  }catch(e){ dbQuotes=null; $("#hist-status").textContent="この端末に保存（オフライン）"; }
+  renderHist();
 }
 function saveToHistory(){
   const d=collect();
   if(!d.customer){ flash("取引先を入力してください"); return; }
   if(!d.items.filter(x=>x.name||x.qty).length){ flash("明細がありません"); return; }
+  const t=computeTotals(d);
+  const denpyo="Q"+Date.now().toString(36);
+  // ローカル（オフライン保険）
   const a=loadHist();
-  const id="Q"+Date.now().toString(36);
-  a.unshift({ id, ts:Date.now(), date:d.date, customer:d.customer, kubun:d.kubun, total:grandOf(d), canceled:false, data:d });
-  saveHist(a); renderHist(); rememberCustomer(); flash("履歴に保存しました");
+  a.unshift({ id:denpyo, ts:Date.now(), date:d.date, customer:d.customer, kubun:d.kubun, total:t.grand, canceled:false, data:d });
+  saveHist(a); rememberCustomer();
+  // 見積りDBスプシへ送信（no-cors：応答は読めないが書き込みは行われる）
+  if(DB_URL){
+    const quote=Object.assign({denpyo, tax:t.tax, grand:t.grand}, d);
+    fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
+    flash("見積りDBに保存しました");
+    setTimeout(loadDbHistory,1500);
+  }else{ flash("履歴に保存しました"); }
+  renderHist();
+}
+function unifiedList(){
+  if(dbQuotes){ return dbQuotes.map(q=>({ key:q.denpyo, date:q.date, customer:q.customer, kubun:q.kubun, total:q.grand, canceled:(q.status==="取消"), src:"db", rec:q })); }
+  return loadHist().map(r=>({ key:r.id, date:r.date, customer:r.customer, kubun:r.kubun, total:r.total, canceled:r.canceled, src:"local", rec:r }));
 }
 function renderHist(){
-  const a=loadHist(); const b=$("#histbody");
-  if(!a.length){ b.innerHTML='<div class="hempty">保存した見積りはまだありません。「💾 履歴に保存」で記録します。</div>'; return; }
+  const list=unifiedList(); const b=$("#histbody");
+  if(!list.length){ b.innerHTML='<div class="hempty">保存した見積りはまだありません。「💾 履歴に保存」で記録します。</div>'; return; }
   let h='<div class="hrow hhead"><span>見積日</span><span>取引先</span><span class="hamt">合計</span><span></span><span></span></div>';
-  a.forEach(r=>{
+  list.forEach(r=>{
     h+=`<div class="hrow ${r.canceled?'canceled':''}">
       <span>${esc((r.date||"").replace(/-/g,"/"))}</span>
       <span>${esc(r.customer||"")} <span style="color:#999;font-size:11px">${esc(r.kubun||"")}</span></span>
       <span class="hamt">¥${fmt(r.total||0)}</span>
-      <span><button class="b-recall" data-id="${r.id}">呼出</button></span>
-      <span>${r.canceled?'<span style="color:#999;font-size:11px">取消済</span>':`<button class="b-cancel" data-id="${r.id}">取消</button>`}</span>
+      <span><button class="b-recall" data-k="${esc(r.key)}" data-s="${r.src}">呼出</button></span>
+      <span>${r.canceled?'<span style="color:#999;font-size:11px">取消済</span>':`<button class="b-cancel" data-k="${esc(r.key)}" data-s="${r.src}">取消</button>`}</span>
     </div>`;
   });
   b.innerHTML=h;
-  b.querySelectorAll(".b-recall").forEach(x=> x.addEventListener("click",()=>recallHist(x.dataset.id)));
-  b.querySelectorAll(".b-cancel").forEach(x=> x.addEventListener("click",()=>cancelHist(x.dataset.id)));
+  b.querySelectorAll(".b-recall").forEach(x=> x.addEventListener("click",()=>recallHist(x.dataset.k,x.dataset.s)));
+  b.querySelectorAll(".b-cancel").forEach(x=> x.addEventListener("click",()=>cancelHist(x.dataset.k,x.dataset.s)));
 }
-function recallHist(id){ const r=loadHist().find(x=>x.id===id); if(!r){ flash("見つかりません"); return; } applyData(r.data); flash("呼び出しました"); }
-function cancelHist(id){ if(!confirm("この見積りを取消にしますか？")) return; const a=loadHist(); const r=a.find(x=>x.id===id); if(r){ r.canceled=true; saveHist(a); renderHist(); flash("取消にしました"); } }
+function recallHist(key,src){
+  let data=null;
+  if(src==="db" && dbQuotes){ const q=dbQuotes.find(x=>x.denpyo===key); if(q) data=q; }
+  else{ const r=loadHist().find(x=>x.id===key); if(r) data=r.data; }
+  if(!data){ flash("見つかりません"); return; }
+  applyData(data); flash("呼び出しました");
+}
+function cancelHist(key,src){
+  if(!confirm("この見積りを取消にしますか？")) return;
+  if(src==="db"){
+    fetch(DB_URL+"?action=cancelQuote&denpyo="+encodeURIComponent(key)).then(()=>{}).catch(()=>{});
+    flash("取消にしました"); setTimeout(loadDbHistory,1200);
+  }else{
+    const a=loadHist(); const r=a.find(x=>x.id===key); if(r){ r.canceled=true; saveHist(a); renderHist(); flash("取消にしました"); }
+  }
+}
 
 /* ---- 下書き ---- */
 const LS_DRAFT="hayazai_mitsumori_draft";
@@ -692,7 +733,7 @@ function init(){
   renderHist();
 
   $("#price-status").textContent="価格表：内蔵データ";
-  refreshPricebook(); loadCustomerCandidates();
+  refreshPricebook(); loadCustomerCandidates(); loadDbHistory();
 
   fitPreview(); window.addEventListener("resize", fitPreview);
   window.addEventListener("beforeprint",()=>{ $("#sheet").style.transform="none"; document.querySelector(".stage").style.height="auto"; });
