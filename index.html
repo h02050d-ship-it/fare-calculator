@@ -75,7 +75,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 </head>
 <body>
 <h1>運賃自動計算ツール（2026改定版）</h1>
-<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">実費×倍率方式｜全チャネル一律×1.25（EC=税込×1.1／市売付売=税抜）｜運賃・売価とも切り上げ</p>
+<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">実費×倍率方式｜全チャネル一律×1.25 → 税込（×1.1）に統一（市売・付売も税込）｜運賃・売価とも切り上げ</p>
 
 <div class="panel" style="border-radius:8px; margin-bottom:16px;">
   <div class="form-row">
@@ -92,8 +92,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 
 <div id="seino-panel" class="panel active" style="border-radius:8px;">
   <div class="channel-row">
-    <div class="channel-btn active" onclick="setChannel(this,'ec')">EC（自社EC・ヤフー・楽天／税込）</div>
-    <div class="channel-btn" onclick="setChannel(this,'ichi')">市売・付売（税抜）</div>
+    <span style="font-weight:bold;color:#1a7a4a;background:#eafaf1;border:1px solid #b7e4c7;border-radius:6px;padding:7px 14px;font-size:0.92em;">送料（税込）｜自社EC・ヤフー・楽天・市売・付売 すべて統一</span>
     <label style="display:flex;align-items:center;gap:6px;margin-left:12px;font-size:0.9em;cursor:pointer;">
       <input type="checkbox" id="s-genba" onchange="calcSeino()"> 現場渡し（+25円/kg）
     </label>
@@ -125,7 +124,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
       </div>
       <div class="form-group">
         <label id="qty-label">数量 (束)</label>
-        <input type="number" id="s-qty" value="15" min="0" step="1" onchange="calcSeino()" oninput="calcSeino()">
+        <select id="s-qty" onchange="calcSeino()"></select>
       </div>
       <div class="form-group" style="align-self:flex-end;">
         <button class="mix-btn" onclick="toggleMixMode(true)">混載</button>
@@ -372,6 +371,11 @@ function init() {
   sPref.appendChild(new Option('沖縄', '沖縄'));
   sPrefMix.appendChild(new Option('沖縄', '沖縄'));
 
+  // 数量プルダウン（1〜30束・初期15）
+  const sQty = document.getElementById('s-qty');
+  for (let q = 1; q <= 30; q++) sQty.appendChild(new Option(`${q}束`, q));
+  sQty.value = 15;
+
   updateQtyLabel();
   calcSeino();
   buildBundleRef();
@@ -525,13 +529,13 @@ function calcSeino() {
     return;
   }
 
-  const isEC = seinoChannel === 'ec';
+  const isEC = true; // 全チャネル税込統一（市売・付売も税込）
   const isGenba = document.getElementById('s-genba').checked;
   const GENBA_RATE = 25; // 円/kg
   const MAX_BUNDLE = 20;
-  const chName = isEC ? 'EC（自社EC・ヤフー・楽天）' : '市売・付売';
-  const channelLabel = isEC ? 'EC（自社EC・ヤフー・楽天／税込）' : '市売・付売（税抜）';
-  const multLabel = isEC ? '利幅 ×1.25 ＋ 税' : '利幅 ×1.25';
+  const chName = '全チャネル';
+  const channelLabel = '（税込）';
+  const multLabel = '利幅 ×1.25 ＋ 税';
   const length = parseInt(document.getElementById('s-length').value);
   const isLen1 = !mixMode && length === 1;
   const quoteList = isLen1 ? QUOTE_ONLY_1M : QUOTE_ONLY_2M;
