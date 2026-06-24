@@ -374,7 +374,7 @@ function init() {
   // 数量プルダウン（1〜30束・初期15）
   const sQty = document.getElementById('s-qty');
   for (let q = 1; q <= 30; q++) sQty.appendChild(new Option(`${q}束`, q));
-  sQty.value = 15;
+  sQty.value = 1;
 
   updateQtyLabel();
   calcSeino();
