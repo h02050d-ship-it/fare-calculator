@@ -64,11 +64,17 @@
   .fb-grid select, .fb-grid input{ width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; font-family:inherit; }
   .fb-note{ font-size:11px; color:#999; margin-top:7px; }
   .fb-result{ margin-top:10px; font-size:13px; }
-  .fb-result table{ width:100%; border-collapse:collapse; }
-  .fb-result td{ padding:4px 2px; border-bottom:1px solid #e4e9ef; }
-  .fb-result td.k{ color:#667; }
-  .fb-result td.v{ text-align:right; font-variant-numeric:tabular-nums; }
-  .fb-result tr.tot td{ font-weight:bold; color:#0a6; border-bottom:none; font-size:15px; padding-top:7px; }
+  /* 運賃ツール(index.html)の結果表示をそのまま反映するためのスタイル */
+  .fb-result .result-box{ background:#fff; border:2px solid #dee2e6; border-radius:8px; padding:14px; margin-top:6px; }
+  .fb-result .result-box h3{ margin:0 0 10px; font-size:1.05em; }
+  .fb-result .result-table{ width:100%; border-collapse:collapse; }
+  .fb-result .result-table th,.fb-result .result-table td{ padding:6px 10px; text-align:right; border-bottom:1px solid #eee; }
+  .fb-result .result-table th{ text-align:left; font-weight:normal; color:#666; width:50%; }
+  .fb-result .result-table tr.total td{ font-size:1.25em; font-weight:bold; color:#0a8a4a; border-top:2px solid #333; }
+  .fb-result .result-table tr.total th{ border-top:2px solid #333; font-weight:bold; }
+  .fb-result .result-table tr.sub td{ color:#888; font-size:0.9em; }
+  .fb-result .error-box{ background:#fdedec; border-color:#e74c3c; }
+  .fb-result .info-badge{ display:inline-block; background:#eaf2f8; color:#2471a3; padding:2px 8px; border-radius:4px; font-size:0.8em; margin-left:4px; }
   .fb-apply{ width:100%; margin-top:10px; border:none; background:#0a8a4a; color:#fff; border-radius:8px; padding:11px; font-size:14px; font-weight:bold; cursor:pointer; }
   .fb-apply:hover{ background:#097a41; }
   .fb-warn{ color:#c0392b; font-size:12px; margin-top:7px; font-weight:bold; }
@@ -205,7 +211,7 @@
     </div>
 
     <div class="freight-box">
-      <div class="fb-title">🚚 送料を自動計算（区分の税で連動・西濃/佐川はダンボール代込み）</div>
+      <div class="fb-title">🚚 送料を自動計算（運賃ツールと同一・税込）</div>
       <div class="fb-grid">
         <div><label>送付先（都道府県）</label><select id="fb-pref"></select></div>
         <div><label>長さ</label>
@@ -213,10 +219,11 @@
         </div>
         <div><label>数量（束）</label><select id="fb-qty"></select></div>
       </div>
-      <div class="fb-note">※1束＝1m20kg／2m20kg／3m30kg／4m40kg。1m＝佐川、2m以上＝西濃。運賃＋ダンボール代を自動加算。</div>
+      <div class="fb-note">※運賃ツール（実費×1.25×税込・切り上げ）と全く同じ計算を呼び出して表示しています。改定も自動反映。</div>
       <div class="fb-result" id="fb-result"></div>
       <button class="fb-apply" id="fb-apply">この送料を見積書の「運賃」に入れる →</button>
       <div id="fb-msg"></div>
+      <iframe id="fare-frame" src="index.html" title="運賃ツール" style="position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px;" aria-hidden="true"></iframe>
     </div>
 
     <div class="field" style="margin-top:14px;">
@@ -283,7 +290,7 @@
         </div>
         <div class="fright">
           <table class="sum">
-            <tr><td class="k">運賃</td><td class="v" id="o-freight"></td></tr>
+            <tr><td class="k">運賃（税込）</td><td class="v" id="o-freight"></td></tr>
             <tr><td class="k" id="o-taxlabel">消費税（10％）</td><td class="v" id="o-tax">0</td></tr>
             <tr><td class="k">合計金額</td><td class="v" id="o-grand">0</td></tr>
           </table>
@@ -420,60 +427,30 @@ async function loadCustomerCandidates(){
   }catch(e){ /* オフライン時はローカル候補のみ */ }
 }
 
-/* ========== 運賃表を fare-calculator(index.html) から随時反映 ========== */
-async function syncFaresFromCalculator(){
-  try{
-    const html = await fetch("index.html",{cache:"no-store"}).then(r=>r.text());
-    const arr = (name)=>{ const m=html.match(new RegExp("(?:const|let)\\s+"+name+"\\s*=\\s*(\\[[\\s\\S]*?\\])\\s*;")); return m?JSON.parse(m[1]):null; };
-    const obj = (name)=>{ const m=html.match(new RegExp("(?:const|let)\\s+"+name+"\\s*=\\s*(\\{[\\s\\S]*?\\})\\s*;")); return m?JSON.parse(m[1]):null; };
-    const faresM = html.match(/(?:const|let)\s+SEINO_FARES\s*=\s*(\[[\s\S]*?\n\])\s*;/);
-    const d=arr("SEINO_DISTANCES"), w=arr("SEINO_WEIGHTS"), ptd=arr("PREF_TO_DIST"), pm=obj("SEINO_PREF_MAP"), sg=obj("YAHOO_SAGAWA_1M");
-    const fares=faresM?JSON.parse(faresM[1]):null;
-    // 整合性が取れる場合のみ差し替え（運賃表は重量帯×距離帯）
-    if(fares && Array.isArray(fares) && fares.length && w && d && fares.length===w.length && fares[0].length===d.length){
-      SEINO_FARES=fares; SEINO_WEIGHTS=w; SEINO_DISTANCES=d;
-    }
-    if(ptd && Array.isArray(ptd)) PREF_TO_DIST=ptd;
-    if(pm && Object.keys(pm).length) SEINO_PREF_MAP=pm;
-    if(sg && Object.keys(sg).length) SAGAWA_1M=sg;
-    renderFreightCalc(); if(freightLinked) reapplyFreight(); render();
-  }catch(e){ /* 取得失敗時は内蔵データのまま */ }
-}
 
-/* ========== 送料計算（fare-calculator と同一ロジック：税の丸め順・20束超の便分割を再現） ==========
-   taxIncl=true（直売＝ネット相当・税込）／false（市売・付売＝税抜）。返すtotalはその税基準の確定額。 */
-function calcFreight(pref, length, qty, taxIncl){
-  const out={ ok:false, total:0, fare:0, box:0, tax:0, weight:0, tier:"", distance:0, carrier:"西濃運輸", split:null, note:"" };
-  if(!pref || !(qty>0)) return out;
-  const d=DANBALL[length];
-  // 1m = 佐川急便（都道府県別固定×束数）
-  if(length===1){
-    const rate=SAGAWA_1M[pref]; if(rate==null){ out.note="1m送料データなし"; return out; }
-    out.carrier="佐川急便"; out.fare=rate*qty; out.box=qty*d.box; out.weight=Math.ceil(qty*d.weight);
-    const subtotal=out.fare+out.box; out.tax=taxIncl?Math.round(subtotal*0.1):0;
-    out.total=Math.round((subtotal+out.tax)/100)*100; out.tier="1束20枚×"+qty; out.ok=true; return out;
-  }
-  const distIdx=PREF_TO_DIST[SEINO_PREF_MAP[pref]]; out.distance=SEINO_DISTANCES[distIdx];
-  const maxWeight=SEINO_WEIGHTS[SEINO_WEIGHTS.length-1];
-  // 20束超 → 便分割（fare-calculator と同じ：均等割り・各便で重量帯を引く）
-  if(qty>MAX_BUNDLE){
-    const shipCount=Math.ceil(qty/MAX_BUNDLE); const baseQty=Math.floor(qty/shipCount); const rem=qty%shipCount;
-    let fareSum=0, boxSum=0, wSum=0, parts=[];
-    for(let i=0;i<shipCount;i++){
-      const sq=baseQty+(i<rem?1:0); const sw=Math.ceil(sq*d.weight);
-      let ti=SEINO_WEIGHTS.findIndex(w=>w>=sw); if(ti===-1) ti=SEINO_WEIGHTS.length-1;
-      fareSum+=SEINO_FARES[ti][distIdx]; boxSum+=sq*d.box; wSum+=sw; parts.push(sq);
-    }
-    out.fare=fareSum; out.box=boxSum; out.weight=wSum; out.tier=shipCount+"便分割"; out.split=parts;
-    const subtotal=fareSum+boxSum; out.tax=taxIncl?Math.round(subtotal*0.1):0;
-    out.total=Math.round((subtotal+out.tax)/100)*100; out.ok=true; return out;
-  }
-  const weight=Math.ceil(qty*d.weight);
-  let tierIdx=SEINO_WEIGHTS.findIndex(w=>w>=weight);
-  if(tierIdx===-1){ out.weight=weight; out.note="重量超過（"+weight+"kg＞"+maxWeight+"kg）。分割配送をご検討ください。"; return out; }
-  out.fare=SEINO_FARES[tierIdx][distIdx]; out.box=qty*d.box; out.weight=weight; out.tier=SEINO_WEIGHTS[tierIdx]+"kg";
-  const subtotal=out.fare+out.box; out.tax=taxIncl?Math.round(subtotal*0.1):0;
-  out.total=Math.round((subtotal+out.tax)/100)*100; out.ok=true; return out;
+/* ========== 送料計算：運賃ツール(index.html)を隠しiframeで呼び出し、その結果をそのまま使う ==========
+   → 数値も内訳も運賃ツールと完全一致。改定も自動反映。送料は全チャネル統一の「税込」。 */
+function fareFrameReady(){
+  const f=document.getElementById("fare-frame");
+  try{ return !!(f && f.contentWindow && f.contentWindow.calcSeino && f.contentDocument && f.contentDocument.getElementById("s-pref") && f.contentDocument.getElementById("s-pref").options.length); }catch(e){ return false; }
+}
+function calcViaFrame(){
+  if(!fareFrameReady()) return null;
+  const f=document.getElementById("fare-frame"), w=f.contentWindow, doc=f.contentDocument;
+  try{
+    if(doc.getElementById("s-mix-mode") && doc.getElementById("s-mix-mode").style.display!=="none" && typeof w.toggleMixMode==="function") w.toggleMixMode(false);
+    doc.getElementById("s-pref").value=$("#fb-pref").value;
+    doc.getElementById("s-length").value=$("#fb-length").value;
+    if(typeof w.updateQtyLabel==="function") w.updateQtyLabel();
+    doc.getElementById("s-qty").value=$("#fb-qty").value;
+    w.calcSeino();
+    const resEl=doc.getElementById("seino-result");
+    const html=resEl?resEl.innerHTML:"";
+    const totalEl=doc.querySelector("#seino-result tr.total td");
+    let total=null; if(totalEl){ const n=parseInt(totalEl.textContent.replace(/[^0-9]/g,"")); if(n>0) total=n; }
+    const h3=doc.querySelector("#seino-result h3"); const m=h3?h3.textContent.match(/佐川急便|西濃運輸/):null;
+    return { html, total, carrier:m?m[0]:"" };
+  }catch(e){ return null; }
 }
 
 const $ = s => document.querySelector(s);
@@ -606,34 +583,26 @@ function render(){
   }
   $("#itemstable").innerHTML=`<colgroup>${colgroup}</colgroup><tbody>${headRow}${body}</tbody>`;
 
+  // 送料(運賃)は運賃ツール準拠で常に「税込」。商品は区分で税抜/税込。
   let tax, grand;
-  if(taxIncl){ grand=itemsTotal+d.freight; tax=Math.round((itemsTotal+d.freight)*10/110); $("#o-taxlabel").textContent="消費税（10％・内税）"; }
-  else{ tax=Math.round((itemsTotal+d.freight)*0.1); grand=itemsTotal+d.freight+tax; $("#o-taxlabel").textContent="消費税（10％）"; }
+  if(d.kubun==="直売"){ // 商品も送料も税込
+    grand=itemsTotal+d.freight; tax=Math.round((itemsTotal+d.freight)*10/110); $("#o-taxlabel").textContent="消費税（10％・内税）";
+  }else{ // 市売/付売：商品=税抜＋消費税、送料=税込
+    const ptax=Math.round(itemsTotal*0.1); tax=ptax; grand=itemsTotal+ptax+d.freight; $("#o-taxlabel").textContent="消費税（10％）";
+  }
   $("#o-freight").textContent=d.freight?fmt(d.freight):"";
   $("#o-tax").textContent=fmt(tax); $("#o-grand").textContent=fmt(grand); $("#o-grandtop").textContent="¥"+fmt(grand);
 }
 
-/* ---- 送料UI ---- */
+/* ---- 送料UI（運賃ツールの結果をそのまま表示） ---- */
 let freightLinked=false;
-function reapplyFreight(){
-  const r=calcFreight($("#fb-pref").value, parseInt($("#fb-length").value), parseInt($("#fb-qty").value)||0, kubun==="直売");
-  if(r.ok){ $("#f-freight").value=r.total; $("#f-carrier").value=r.carrier; }
-}
 function renderFreightCalc(){
-  const pref=$("#fb-pref").value, length=parseInt($("#fb-length").value), qty=parseInt($("#fb-qty").value)||0;
-  const taxIncl=(kubun==="直売");
-  const r=calcFreight(pref,length,qty,taxIncl); const box=$("#fb-result"); $("#fb-msg").innerHTML="";
-  if(!r.ok){ box.innerHTML=r.note?`<div class="fb-warn">${esc(r.note)}</div>`:""; $("#fb-apply").disabled=true; $("#fb-apply").style.opacity=.5; return r; }
-  $("#fb-apply").disabled=false; $("#fb-apply").style.opacity=1;
-  let rows="";
-  rows+=`<tr><td class="k">配送</td><td class="v">${r.carrier}${r.distance?`（${r.distance}km帯）`:""}</td></tr>`;
-  if(r.split){ rows+=`<tr><td class="k">分割</td><td class="v">${r.split.length}便（${r.split.join("束 ＋ ")}束）</td></tr>`; }
-  else { rows+=`<tr><td class="k">重量${r.tier&&r.carrier==="西濃運輸"?`（適用 ${r.tier}）`:""}</td><td class="v">${r.weight}kg</td></tr>`; }
-  rows+=`<tr><td class="k">運賃</td><td class="v">${fmt(r.fare)}円</td></tr>`;
-  rows+=`<tr><td class="k">ダンボール代</td><td class="v">${fmt(r.box)}円</td></tr>`;
-  if(taxIncl) rows+=`<tr><td class="k">消費税（10%）</td><td class="v">${fmt(r.tax)}円</td></tr>`;
-  rows+=`<tr class="tot"><td class="k">送料（${taxIncl?"税込":"税抜"}）</td><td class="v">${fmt(r.total)}円</td></tr>`;
-  box.innerHTML=`<table>${rows}</table>`+(r.note?`<div class="fb-warn">${esc(r.note)}</div>`:""); return r;
+  const r=calcViaFrame(); const box=$("#fb-result"); $("#fb-msg").innerHTML="";
+  if(!r){ box.innerHTML='<div class="fb-note">運賃ツールを読み込み中…（数秒お待ちください）</div>'; $("#fb-apply").disabled=true; $("#fb-apply").style.opacity=.5; return null; }
+  box.innerHTML=r.html;
+  if(r.total){ $("#fb-apply").disabled=false; $("#fb-apply").style.opacity=1; }
+  else{ $("#fb-apply").disabled=true; $("#fb-apply").style.opacity=.5; }
+  return r;
 }
 
 /* ---- 履歴（呼出・取消）：見積りDBスプシ同期＋localストレージ ---- */
@@ -717,7 +686,7 @@ function cancelHist(key,src){
 const LS_DRAFT="hayazai_mitsumori_draft";
 function saveDraft(){ const d=collect(); d._fb={ pref:$("#fb-pref").value, length:$("#fb-length").value, qty:$("#fb-qty").value, linked:freightLinked }; localStorage.setItem(LS_DRAFT, JSON.stringify(d)); }
 function rememberCustomer(){ const n=$("#f-customer").value.trim(); if(n){ addCandidate(n,true); renderCustomerDatalist(); } }
-function setKubun(k){ kubun=k; $("#f-kubun").value=k; autofillPrices(true); if(freightLinked) reapplyFreight(); renderFreightCalc(); saveDraft(); render(); }
+function setKubun(k){ kubun=k; $("#f-kubun").value=k; autofillPrices(true); renderFreightCalc(); saveDraft(); render(); }
 function applyData(d){
   $("#f-date").value=d.date||todayISO();
   $("#f-customer").value=d.customer||"";
@@ -750,7 +719,7 @@ function flash(msg){ let el=$("#flash"); if(!el){ el=document.createElement("div
 function init(){
   $("#o-qr").src=QR_DATAURI;
   const sel=$("#fb-pref"); Object.keys(SEINO_PREF_MAP).forEach(p=>sel.appendChild(new Option(p,p))); sel.value="東京";
-  const fq=$("#fb-qty"); fq.innerHTML=qtyOptions(false); fq.value="10";
+  const fq=$("#fb-qty"); let fqo=''; for(let i=1;i<=30;i++) fqo+=`<option value="${i}">${i}</option>`; fq.innerHTML=fqo; fq.value="1";
   const dl=$("#dl-name"); ["桧フローリング","桧羽目板"].forEach(v=>{const o=document.createElement("option");o.value=v;dl.appendChild(o);});
   // 取引先の初期候補
   if(!loadCands().length){ ["ナイス（株）相模原","ナイス（株）浜松","ナイス（株）沼津","川広建材","（株）HIKARI","（有）滝川","（株）ニッチ"].forEach(n=>addCandidate(n,true)); }
@@ -774,20 +743,22 @@ function init(){
   $("#f-carrier").addEventListener("change",()=>{ saveDraft(); render(); });
   $("#f-freight").addEventListener("input",()=>{ freightLinked=false; saveDraft(); render(); });
 
-  ["#fb-pref","#fb-length","#fb-qty"].forEach(s=> $(s).addEventListener("input",()=>{ renderFreightCalc(); saveDraft(); }));
+  ["#fb-pref","#fb-length","#fb-qty"].forEach(s=> $(s).addEventListener("input",()=>{ const r=renderFreightCalc(); if(freightLinked && r && r.total){ $("#f-freight").value=r.total; if(r.carrier) $("#f-carrier").value=r.carrier; render(); } saveDraft(); }));
   $("#fb-apply").addEventListener("click",()=>{
-    const r=renderFreightCalc(); if(!r.ok) return;
-    freightLinked=true; $("#f-freight").value=r.total; $("#f-carrier").value=r.carrier; saveDraft(); render();
-    const taxIncl=(kubun==="直売");
-    $("#fb-msg").innerHTML=`<div class="fb-applied">✅ 運賃に ${fmt(r.total)}円（${taxIncl?"税込":"税抜"}・${r.carrier}）を入れました</div>`;
+    const r=renderFreightCalc(); if(!r||!r.total){ flash("送料を算出できません（個別見積りの地域など）"); return; }
+    freightLinked=true; $("#f-freight").value=r.total; if(r.carrier) $("#f-carrier").value=r.carrier; saveDraft(); render();
+    $("#fb-msg").innerHTML=`<div class="fb-applied">✅ 運賃に ${fmt(r.total)}円（税込・${r.carrier||"配送"}）を入れました</div>`;
   });
+  // 運賃ツール(iframe)の準備完了で送料表示を更新
+  const ff=document.getElementById("fare-frame");
+  if(ff){ ff.addEventListener("load",()=>{ setTimeout(renderFreightCalc,150); }); let tries=0; const t=setInterval(()=>{ if(fareFrameReady()){ clearInterval(t); renderFreightCalc(); } else if(++tries>40) clearInterval(t); },250); }
 
   let saved=null; try{ saved=JSON.parse(localStorage.getItem(LS_DRAFT)); }catch(e){}
   applyData(saved || { date:todayISO(), kubun:"市売", remarks:DEFAULT_REMARKS });
   renderHist();
 
   $("#price-status").textContent="価格表：内蔵データ";
-  refreshPricebook(); loadCustomerCandidates(); loadDbHistory(); syncFaresFromCalculator();
+  refreshPricebook(); loadCustomerCandidates(); loadDbHistory();
 
   fitPreview(); window.addEventListener("resize", fitPreview);
   window.addEventListener("beforeprint",()=>{ $("#sheet").style.transform="none"; document.querySelector(".stage").style.height="auto"; });
