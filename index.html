@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -74,7 +74,8 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 </style>
 </head>
 <body>
-<h1>運賃自動計算ツール（西濃）</h1>
+<h1>運賃自動計算ツール（2026改定版）</h1>
+<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">実費×倍率方式｜全チャネル一律×1.25（EC=税込×1.1／市売付売=税抜）｜運賃・売価とも切り上げ</p>
 
 <div class="panel" style="border-radius:8px; margin-bottom:16px;">
   <div class="form-row">
@@ -115,12 +116,24 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
           <option value="4" selected>4m</option>
         </select>
       </div>
+      <div class="form-group" id="nyusu-group" style="display:none;">
+        <label>入数 (枚)</label>
+        <select id="s-nyusu" onchange="calcSeino()">
+          <option value="10">10枚</option>
+          <option value="20" selected>20枚</option>
+          <option value="30">30枚</option>
+          <option value="40">40枚</option>
+        </select>
+      </div>
       <div class="form-group">
         <label id="qty-label">数量 (束)</label>
         <input type="number" id="s-qty" value="15" min="0" step="1" onchange="calcSeino()" oninput="calcSeino()">
       </div>
       <div class="form-group" style="align-self:flex-end;">
         <button class="mix-btn" onclick="toggleMixMode(true)">混載</button>
+      </div>
+      <div class="form-group" style="align-self:flex-end;">
+        <button class="mix-btn" style="border-color:#16a34a;color:#16a34a;background:#f0fdf4;" onclick="exportSoryoCSV()">正本CSV出力</button>
       </div>
     </div>
   </div>
@@ -156,7 +169,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
   </div>
   <div id="seino-result"></div>
   <div id="bundle-ref" style="margin-top:12px;padding:10px 14px;background:#f8f8f8;border-radius:6px;font-size:13px;color:#666;">
-    <div style="font-weight:bold;margin-bottom:4px;color:#555;">1束あたり運賃の目安（ネット税込）</div>
+    <div style="font-weight:bold;margin-bottom:4px;color:#555;">1束あたり送料の目安（EC税込・実費×1.3）</div>
     <div id="bundle-ref-table"></div>
   </div>
 </div>
@@ -229,13 +242,65 @@ const SEINO_FARES = [
   [26600,29100,31600,33900,36000,38300,40500,42700,45000,47100,50100,52300,56800,59300,64000,66500,68900,71300,76200,81100,86000,90900]
 ];
 
-// ダンボール代・重量/束
+// ダンボール代・重量/束（1m20枚=半切2枚=160円）
 const DANBALL = {
   1: { weight: 20, box: 160 },
   2: { weight: 20, box: 160 },
   3: { weight: 30, box: 240 },
   4: { weight: 40, box: 320 }
 };
+
+// ===== 改定2026-06：価格ロジック定数 =====
+const SEINO_DISCOUNT = 0.90;   // 西濃テーブル→実費（契約割引）。3年585便の実請求÷標準表=0.901で確定（旧0.88は4&3月17便のみ）
+const FUEL_SC_RATE = 0.028;    // 燃料サーチャージ（西濃運賃比例・別建て）。3年26通実測=運賃の2.84%(2.1〜3.3%)。自社負担に戻すなら0に
+const EC_MULT  = 1.25;         // 改定2026-06-23: 全チャネル一律×1.25。EC（自社EC/ヤフー/楽天）= ×1.25 → ×1.1税
+const ICHI_MULT = 1.25;        // 改定2026-06-23: 市売・付売も ×1.25（税抜）。従来1.2から統一
+
+// 佐川 1m 実費（税抜・1束20枚=140サイズ相当・地帯別）※要照合：佐川運賃表PDF
+const SAGAWA_1M_COST = {
+  "北海道":1940,
+  "青森":1670,"岩手":1670,"秋田":1670,
+  "宮城":1590,"山形":1590,"福島":1590,
+  "茨城":1490,"栃木":1490,"群馬":1490,"埼玉":1490,"千葉":1490,"東京":1490,"神奈川":1490,"山梨":1490,
+  "新潟":1490,"長野":1490,
+  "岐阜":1490,"静岡":1490,"愛知":1490,"三重":1490,
+  "富山":1490,"石川":1490,"福井":1490,
+  "滋賀":1490,"京都":1490,"大阪":1490,"兵庫":1490,"奈良":1490,"和歌山":1490,
+  "鳥取":1590,"島根":1590,"岡山":1590,"広島":1590,"山口":1590,
+  "徳島":1670,"香川":1670,"愛媛":1670,"高知":1670,
+  "福岡":1670,"佐賀":1670,"長崎":1670,"大分":1670,
+  "熊本":1670,"宮崎":1670,"鹿児島":1670
+};
+// 個別見積（別途見積り）：1m=佐川は沖縄/離島、2m以上=西濃は北海道/沖縄/離島。離島はドロップ未掲載のため県名ベース
+const QUOTE_ONLY_1M = ["沖縄"];          // 佐川(1m)：沖縄・離島
+const QUOTE_ONLY_2M = ["沖縄","北海道"]; // 西濃(2m+)：北海道・沖縄・離島
+
+// 佐川 1m 160サイズ実費（30/40枚・地帯別）※要照合
+const SAGAWA_1M_COST_160 = {
+  "北海道":2120,
+  "青森":1850,"岩手":1850,"秋田":1850,
+  "宮城":1760,"山形":1760,"福島":1760,
+  "茨城":1670,"栃木":1670,"群馬":1670,"埼玉":1670,"千葉":1670,"東京":1670,"神奈川":1670,"山梨":1670,
+  "新潟":1670,"長野":1670,
+  "岐阜":1670,"静岡":1670,"愛知":1670,"三重":1670,
+  "富山":1670,"石川":1670,"福井":1670,
+  "滋賀":1670,"京都":1670,"大阪":1670,"兵庫":1670,"奈良":1670,"和歌山":1670,
+  "鳥取":1760,"島根":1760,"岡山":1760,"広島":1760,"山口":1760,
+  "徳島":1850,"香川":1850,"愛媛":1850,"高知":1850,
+  "福岡":1850,"佐賀":1850,"長崎":1850,"大分":1850,
+  "熊本":1850,"宮崎":1850,"鹿児島":1850
+};
+// 1m 入数定義：size(140/160)・段ボール・重量(現場渡し用)
+const NYUSU_1M = {
+  10:{ t140:true,  box:80,  w:10 },
+  20:{ t140:true,  box:160, w:20 },
+  30:{ t140:false, box:240, w:30 },
+  40:{ t140:false, box:320, w:40 }
+};
+function sagawa1mCost(pref, nyusu){
+  const def = NYUSU_1M[nyusu] || NYUSU_1M[20];
+  return (def.t140 ? SAGAWA_1M_COST : SAGAWA_1M_COST_160)[pref];
+}
 
 // ===== Yahoo送料データ（西濃運輸・都道府県×比例重量別） =====
 // base: 初期送料(重量0), add: 10増加ごとの追加送料
@@ -284,9 +349,15 @@ let seinoChannel = 'net';
 const SHEETS_PER_BUNDLE = { 1: 20, 2: 20, 3: 10, 4: 10 };
 function updateQtyLabel() {
   const len = parseInt(document.getElementById('s-length').value);
-  const sheets = SHEETS_PER_BUNDLE[len] || '';
   const label = document.getElementById('qty-label');
-  label.textContent = len === 1 ? `数量 (束=20枚)` : '数量 (束)';
+  const ng = document.getElementById('nyusu-group');
+  if (len === 1) {
+    ng.style.display = '';
+    label.textContent = '数量 (口)';
+  } else {
+    ng.style.display = 'none';
+    label.textContent = '数量 (束)';
+  }
 }
 
 // ===== 初期化 =====
@@ -299,6 +370,9 @@ function init() {
     sPref.appendChild(new Option(p, p));
     sPrefMix.appendChild(new Option(p, p));
   });
+  // 沖縄（個別見積）
+  sPref.appendChild(new Option('沖縄', '沖縄'));
+  sPrefMix.appendChild(new Option('沖縄', '沖縄'));
 
   updateQtyLabel();
   calcSeino();
@@ -317,9 +391,9 @@ function buildBundleRef() {
       if (ti === -1) ti = SEINO_WEIGHTS.length - 1;
       for (let di = 0; di < SEINO_DISTANCES.length; di++) {
         if (di > maxDistIdx) continue;
-        const fare = SEINO_FARES[ti][di];
+        const fare = Math.ceil(SEINO_FARES[ti][di] * SEINO_DISCOUNT * (1 + FUEL_SC_RATE) / 10) * 10;
         const sub = fare + qty * d.box;
-        const total = Math.round((sub + Math.round(sub * 0.1)) / 100) * 100;
+        const total = Math.ceil(sub * EC_MULT * 1.1 / 100) * 100;
         const pb = Math.round(total / qty);
         if (pb < minPB) minPB = pb;
         if (pb > maxPB) maxPB = pb;
@@ -328,6 +402,45 @@ function buildBundleRef() {
     html += `<span style="margin-right:16px;">${len}m：${minPB.toLocaleString()}円〜${maxPB.toLocaleString()}円</span>`;
   }
   document.getElementById('bundle-ref-table').innerHTML = html;
+}
+
+// ===== 正本送料表CSV出力（改定2026-06-23・全チャネル×1.25・切り上げ）=====
+// 1m=口建て(160サイズ+箱320・現場渡しなし)／2m,3m,4m=束数別(西濃0.90+SC・段ボール)。個別見積=1m佐川:沖縄／2m+西濃:沖縄,北海道
+function exportSoryoCSV() {
+  const ecP   = b => Math.ceil(b * EC_MULT * 1.1 / 100) * 100;   // EC税込・100円切上
+  const ichiP = b => Math.ceil(b * ICHI_MULT / 100) * 100;       // 市売税抜・100円切上
+  const seinoC = (ti, di) => Math.ceil(SEINO_FARES[ti][di] * SEINO_DISCOUNT * (1 + FUEL_SC_RATE) / 10) * 10;
+  const prefs = Object.keys(SEINO_PREF_MAP).concat(['沖縄']);
+  const rows = ['都道府県,商品区分,数量(束),枚数/重量,口数/帯,EC送料(税込),市売送料(税抜)'];
+  prefs.forEach(p => {
+    const di = PREF_TO_DIST[SEINO_PREF_MAP[p]];
+    // --- 1m（佐川・20枚束・口建て） 1〜8束 ---
+    for (let taba = 1; taba <= 8; taba++) {
+      if (QUOTE_ONLY_1M.includes(p)) { rows.push(`${p},1m,${taba},${taba*20}枚,個別,個別見積,個別見積`); continue; }
+      const cost = SAGAWA_1M_COST_160[p];
+      if (!cost) { rows.push(`${p},1m,${taba},${taba*20}枚,,データなし,データなし`); continue; }
+      const kuchi = Math.ceil(taba / 2);
+      const base = kuchi * (cost + 320);
+      rows.push(`${p},1m,${taba},${taba*20}枚,${kuchi}口,${ecP(base)},${ichiP(base)}`);
+    }
+    // --- 2m / 3m / 4m（西濃・束数別） 1〜20束 ---
+    for (let len = 2; len <= 4; len++) {
+      const d = DANBALL[len];
+      for (let taba = 1; taba <= 20; taba++) {
+        if (QUOTE_ONLY_2M.includes(p)) { rows.push(`${p},${len}m,${taba},${taba*d.weight}kg,個別,個別見積,個別見積`); continue; }
+        const w = Math.ceil(taba * d.weight);
+        let ti = SEINO_WEIGHTS.findIndex(v => v >= w); if (ti === -1) ti = SEINO_WEIGHTS.length - 1;
+        const base = seinoC(ti, di) + taba * d.box;
+        rows.push(`${p},${len}m,${taba},${w}kg,${SEINO_WEIGHTS[ti]}kg帯,${ecP(base)},${ichiP(base)}`);
+      }
+    }
+  });
+  const csv = '﻿' + rows.join('\r\n'); // BOM付きUTF-8
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '正本送料表_改定2026.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 function setChannel(btn, ch) {
@@ -414,63 +527,65 @@ function calcSeino() {
     return;
   }
 
-  const isYahoo = seinoChannel === 'yahoo';
-  const isTaxIncl = seinoChannel === 'net' || seinoChannel === 'rakuten' || isYahoo;
-  const isRakuten = seinoChannel === 'rakuten';
+  const isEC = seinoChannel === 'net' || seinoChannel === 'yahoo' || seinoChannel === 'rakuten';
   const isGenba = document.getElementById('s-genba').checked;
   const GENBA_RATE = 25; // 円/kg
-  const RAKUTEN_RATE = 1.15;
   const MAX_BUNDLE = 20;
+  const chName = seinoChannel==='net'?'自社EC':seinoChannel==='yahoo'?'ヤフー':seinoChannel==='rakuten'?'楽天':'市売・付売';
+  const channelLabel = isEC ? `${chName}（税込）` : '市売・付売（税抜）';
+  const multLabel = isEC ? '利幅 ×1.25 ＋ 税' : '利幅 ×1.25';
+  const length = parseInt(document.getElementById('s-length').value);
+  const isLen1 = !mixMode && length === 1;
+  const quoteList = isLen1 ? QUOTE_ONLY_1M : QUOTE_ONLY_2M;
 
-  const channelLabel = isYahoo ? 'ヤフー（税込）' : isRakuten ? '楽天（税込）' : isTaxIncl ? '（税込）' : '（税抜）';
+  // 実費(税抜)ベース → 売価。全ch×1.25、ECのみ×1.1税、最終は100円切り上げ
+  function priceFrom(baseAll){
+    return isEC ? Math.ceil(baseAll * EC_MULT * 1.1 / 100) * 100
+                : Math.ceil(baseAll * ICHI_MULT / 100) * 100;
+  }
+  // 西濃テーブル→実費（×0.90＋燃料SC2.8%）・10円切り上げ
+  function seinoCost(tIdx, dIdx){ return Math.ceil(SEINO_FARES[tIdx][dIdx] * SEINO_DISCOUNT * (1 + FUEL_SC_RATE) / 10) * 10; }
 
-  // ===== Yahoo計算（別ロジック） =====
-  if (isYahoo && !mixMode) {
-    const length = parseInt(document.getElementById('s-length').value);
-    const qty = parseInt(document.getElementById('s-qty').value) || 0;
-    if (qty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
+  // ===== 個別見積（別途見積り）：1m佐川=沖縄/離島、2m+西濃=北海道/沖縄/離島 =====
+  if (quoteList.includes(pref)) {
+    const scope = isLen1 ? '沖縄・離島' : '北海道・沖縄・離島';
+    document.getElementById('seino-result').innerHTML = `
+      <div class="result-box" style="background:#fff8e1;border-color:#e0b000;">
+        <h3>${pref}（別途見積り） <span class="info-badge">要相談</span></h3>
+        <p class="note">${scope}は便ごとに運賃が変わるため、個別にお見積りします。</p>
+      </div>`;
+    return;
+  }
 
-    // 1m = 佐川急便（都道府県別固定×セット数）
-    if (length === 1) {
-      const rate = YAHOO_SAGAWA_1M[pref];
-      if (!rate) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー1m送料データなし</h3></div>'; return; }
-      const yahooFee = rate * qty;
-      const html = `
-        <div class="result-box">
-          <h3>ヤフー送料（税込） <span class="info-badge">佐川急便・都道府県別</span></h3>
-          <table class="result-table">
-            <tr class="sub"><th>セット数</th><td>${qty}束 = ${qty}セット（1束20枚）</td></tr>
-            <tr><th>1セットあたり送料</th><td>${rate.toLocaleString()}円</td></tr>
-            <tr class="total"><th>合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
-          </table>
-        </div>
-      `;
-      document.getElementById('seino-result').innerHTML = html;
-      return;
-    }
+  // ===== 1m = 佐川急便（20枚統一・口建て・160サイズ・箱320・現場渡しなし） =====
+  if (isLen1) {
+    const taba = totalQty;                          // 束数（1束=20枚）
+    if (taba <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
+    const mai = taba * 20;                           // 枚数
+    const kuchi = Math.ceil(mai / 40);               // 口数（40枚=1口・160サイズ）
+    const cost = SAGAWA_1M_COST_160[pref];           // 佐川160サイズ実費（10円単位）
+    if (!cost) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>佐川1m実費データなし</h3></div>'; return; }
+    const BOX_1M = 320;                              // 段ボール（1口=320円）
+    const sagawaFee = cost * kuchi;                  // 実費(税抜)
+    const box1m = BOX_1M * kuchi;
+    const baseAll = sagawaFee + box1m;               // ※1mに現場渡しは付けない
+    const total = priceFrom(baseAll);
+    const perTaba = Math.round(total / taba);
 
-    // 2m以上 = 西濃運輸（比例重量別）
-    const ys = YAHOO_SEINO[pref];
-    if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
-
-    const sw = YAHOO_SHIP_WEIGHT[length] || 40;
-    const bps = YAHOO_BUNDLE_PER_SET[length] || 1;
-    const sets = Math.ceil(qty / bps);
-    const totalYW = sw * sets;
-    const yahooFee = ys.base + Math.floor(totalYW / 10) * ys.add;
-    const perBundle = Math.round(yahooFee / qty);
-    const setLabel = bps > 1 ? `${qty}束 → ${sets}セット（1セット${bps}束）` : `${qty}セット`;
+    document.getElementById('s-total-weight').value = Math.ceil(mai * 0.6); // 表示用(桧0.6kg/枚)
+    document.getElementById('s-tier-weight').value = `佐川160`;
 
     const html = `
       <div class="result-box">
-        <h3>ヤフー送料（税込） <span class="info-badge">西濃運輸・比例重量別</span></h3>
+        <h3>佐川急便 ${channelLabel} <span class="info-badge">1m・20枚入(160サイズ)×${kuchi}口</span></h3>
         <table class="result-table">
-          <tr class="sub"><th>Yahooセット数</th><td>${setLabel}</td></tr>
-          <tr class="sub"><th>Yahoo shipWeight</th><td>${sw} × ${sets} = ${totalYW}</td></tr>
-          <tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>
-          <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add.toLocaleString()}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
-          <tr class="total"><th>合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
-          <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>数量 / 口数</th><td>${taba}束（${mai}枚）＝ ${kuchi}口　<span class="note">※40枚=1口</span></td></tr>
+          <tr class="sub"><th>佐川実費（${cost.toLocaleString()}円×${kuchi}口）</th><td>${sagawaFee.toLocaleString()}円</td></tr>
+          <tr><th>ダンボール代（320×${kuchi}）</th><td>${box1m.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
+          <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
+          <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>1束あたり</th><td>${perTaba.toLocaleString()}円</td></tr>
         </table>
       </div>
     `;
@@ -478,132 +593,43 @@ function calcSeino() {
     return;
   }
 
-  if (isYahoo && mixMode) {
-    // 混載Yahoo計算
-    const ys = YAHOO_SEINO[pref];
-    if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
-
-    // 1m佐川（別計算）
-    const q1m = parseInt(document.getElementById('mix-q1').value) || 0;
-    const sagawa1mRate = YAHOO_SAGAWA_1M[pref] || 0;
-    const sagawa1mFee = sagawa1mRate * q1m;
-
-    // 2m以上 西濃
-    let totalYW = 0;
-    let yahooDetail = [];
-    let qtySeino = 0;
-    for (let len = 2; len <= 4; len++) {
-      const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
-      if (q > 0) {
-        const sw = YAHOO_SHIP_WEIGHT[len] || 40;
-        const bps = YAHOO_BUNDLE_PER_SET[len] || 1;
-        const sets = Math.ceil(q / bps);
-        totalYW += sw * sets;
-        qtySeino += q;
-        yahooDetail.push(`${len}m:${sw}×${sets}`);
-      }
-    }
-    if (totalQty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
-    const seinoFee = qtySeino > 0 ? ys.base + Math.floor(totalYW / 10) * ys.add : 0;
-    const yahooFeeTotal = sagawa1mFee + seinoFee;
-    const perBundle = Math.round(yahooFeeTotal / totalQty);
-
-    let rows = '';
-    if (q1m > 0) {
-      rows += `<tr class="sub"><th>1m 佐川（${q1m}束×${sagawa1mRate.toLocaleString()}円）</th><td>${sagawa1mFee.toLocaleString()}円</td></tr>`;
-    }
-    if (qtySeino > 0) {
-      rows += `<tr class="sub"><th>2m以上 西濃 shipWeight</th><td>${yahooDetail.join(' + ')} = ${totalYW}</td></tr>`;
-      rows += `<tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>`;
-      rows += `<tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>`;
-      rows += `<tr class="sub"><th>西濃小計</th><td>${seinoFee.toLocaleString()}円</td></tr>`;
-    }
-
-    const html = `
-      <div class="result-box">
-        <h3>ヤフー送料（税込） <span class="info-badge">混載</span></h3>
-        <table class="result-table">
-          ${rows}
-          <tr class="total"><th>Yahoo送料合計</th><td>${yahooFeeTotal.toLocaleString()}円</td></tr>
-          <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
-        </table>
-      </div>
-    `;
-    document.getElementById('seino-result').innerHTML = html;
-    return;
-  }
-
-  // ===== 1m = 佐川急便（非Yahoo、通常モード） =====
-  if (!isYahoo && !mixMode && parseInt(document.getElementById('s-length').value) === 1) {
-    const qty = totalQty;
-    if (qty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
-    const rate = YAHOO_SAGAWA_1M[pref];
-    if (!rate) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>佐川1m送料データなし</h3></div>'; return; }
-    const sagawaFee = rate * qty;
-    const subtotal = sagawaFee + boxCost;
-    const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
-    const genba = isGenba ? totalWeight * GENBA_RATE : 0;
-    let totalRaw = subtotal + tax + genba;
-    if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
-    const total = Math.round(totalRaw / 100) * 100;
-    const perBdl = Math.round(total / qty);
-
-    document.getElementById('s-tier-weight').value = '佐川';
-
-    const html = `
-      <div class="result-box">
-        <h3>佐川急便 ${channelLabel} <span class="info-badge">1m・都道府県別</span></h3>
-        <table class="result-table">
-          <tr class="sub"><th>1束（20枚）あたり送料</th><td>${rate.toLocaleString()}円 × ${qty}束</td></tr>
-          <tr><th>送料</th><td>${sagawaFee.toLocaleString()}円</td></tr>
-          <tr><th>ダンボール代（${DANBALL[1].box}×${qty}）</th><td>${boxCost.toLocaleString()}円</td></tr>
-          ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
-          ${isGenba ? `<tr><th>現場渡し（${totalWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
-          ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
-          <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
-          <tr class="sub"><th>1束あたり</th><td>${perBdl.toLocaleString()}円</td></tr>
-        </table>
-      </div>
-    `;
-    document.getElementById('seino-result').innerHTML = html;
-    return;
-  }
-
-  // ===== 混載で1mあり（非Yahoo）→ 佐川+西濃 分離計算 =====
-  if (!isYahoo && mixMode) {
+  // ===== 混載（1mあり）→ 佐川+西濃 分離計算 =====
+  if (mixMode) {
     const q1m = parseInt(document.getElementById('mix-q1').value) || 0;
     if (q1m > 0 && totalQty > 0) {
-      const sagawaRate = YAHOO_SAGAWA_1M[pref] || 0;
-      const sagawa1mFee = sagawaRate * q1m;
-      const sagawa1mBox = q1m * DANBALL[1].box;
+      const sagawaCost = SAGAWA_1M_COST_160[pref] || 0;   // 1mは160サイズ実費
+      const sagawa1mKuchi = Math.ceil(q1m / 2);            // 1束20枚・40枚=1口
+      const sagawa1mFee = sagawaCost * sagawa1mKuchi;      // 実費
+      const sagawa1mBox = 320 * sagawa1mKuchi;             // 箱320/口
 
-      // 2m以上の重量で西濃計算
+      // 2m以上の重量で西濃計算（実費）
       const weight2plus = totalWeight - Math.ceil(q1m * DANBALL[1].weight);
       const qty2plus = totalQty - q1m;
-      const box2plus = boxCost - sagawa1mBox;
+      let box2plus = 0;
+      for (let len = 2; len <= 4; len++) {
+        const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
+        box2plus += q * DANBALL[len].box;
+      }
       let seinoFare = 0;
       let seinoTier = '';
       if (qty2plus > 0 && weight2plus > 0) {
         let tIdx = SEINO_WEIGHTS.findIndex(w => w >= weight2plus);
         if (tIdx === -1) tIdx = SEINO_WEIGHTS.length - 1;
-        seinoFare = SEINO_FARES[tIdx][distIdx];
+        seinoFare = seinoCost(tIdx, distIdx);
         seinoTier = `${SEINO_WEIGHTS[tIdx]}kg`;
       }
 
-      const subtotal = sagawa1mFee + sagawa1mBox + seinoFare + box2plus;
-      const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
-      const genba = isGenba ? totalWeight * GENBA_RATE : 0;
-      let totalRaw = subtotal + tax + genba;
-      if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
-      const total = Math.round(totalRaw / 100) * 100;
+      const genba = isGenba ? weight2plus * GENBA_RATE : 0; // 現場渡しは西濃(2m+)重量のみ
+      const baseAll = sagawa1mFee + sagawa1mBox + seinoFare + box2plus + genba;
+      const total = priceFrom(baseAll);
       const perBdl = Math.round(total / totalQty);
 
       let rows = '';
-      rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【1m 佐川急便】</th><td></td></tr>`;
-      rows += `<tr><th>送料（${sagawaRate.toLocaleString()}円×${q1m}束）</th><td>${sagawa1mFee.toLocaleString()}円</td></tr>`;
-      rows += `<tr><th>ダンボール代（${DANBALL[1].box}×${q1m}）</th><td>${sagawa1mBox.toLocaleString()}円</td></tr>`;
+      rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【1m 佐川急便（160サイズ・実費）】</th><td></td></tr>`;
+      rows += `<tr><th>送料（${sagawaCost.toLocaleString()}円×${sagawa1mKuchi}口）</th><td>${sagawa1mFee.toLocaleString()}円　<span class="note">${q1m}束=${sagawa1mKuchi}口</span></td></tr>`;
+      rows += `<tr><th>ダンボール代（320×${sagawa1mKuchi}）</th><td>${sagawa1mBox.toLocaleString()}円</td></tr>`;
       if (qty2plus > 0) {
-        rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【2m以上 西濃運輸】</th><td></td></tr>`;
+        rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【2m以上 西濃運輸（実費）】</th><td></td></tr>`;
         rows += `<tr class="sub"><th>重量帯</th><td>${seinoTier}（実重量 ${weight2plus}kg）</td></tr>`;
         rows += `<tr><th>運賃</th><td>${seinoFare.toLocaleString()}円</td></tr>`;
         const boxDet2 = [];
@@ -619,10 +645,10 @@ function calcSeino() {
           <h3>混載 ${channelLabel} <span class="info-badge">佐川+西濃</span></h3>
           <table class="result-table">
             ${rows}
-            ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
-            ${isGenba ? `<tr><th>現場渡し（${totalWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
-            ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
-            <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
+            ${isGenba && genba>0 ? `<tr><th>現場渡し（西濃${weight2plus}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
+            <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
+            <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
+            <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
             <tr class="sub"><th>1束あたり</th><td>${perBdl.toLocaleString()}円</td></tr>
           </table>
         </div>
@@ -654,7 +680,7 @@ function calcSeino() {
       const sbox = sq * danball.box;
       let sTierIdx = SEINO_WEIGHTS.findIndex(w => w >= sw);
       if (sTierIdx === -1) sTierIdx = SEINO_WEIGHTS.length - 1;
-      const sFare = SEINO_FARES[sTierIdx][distIdx];
+      const sFare = seinoCost(sTierIdx, distIdx);
       totalFareSum += sFare;
       totalBoxSum += sbox;
       totalShipWeight += sw;
@@ -662,12 +688,9 @@ function calcSeino() {
       shipRows += `<tr><th>便${i+1}: ${sq}束（${sw}kg → ${SEINO_WEIGHTS[sTierIdx]}kg帯）</th><td>運賃 ${sFare.toLocaleString()}円 + ダンボール ${sbox.toLocaleString()}円</td></tr>`;
     }
 
-    const subtotal = totalFareSum + totalBoxSum;
-    const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
     const genba = isGenba ? totalShipWeight * GENBA_RATE : 0;
-    let totalRaw = subtotal + tax + genba;
-    if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
-    const total = Math.round(totalRaw / 100) * 100;
+    const baseAll = totalFareSum + totalBoxSum + genba;   // 実費(税抜)
+    const total = priceFrom(baseAll);
     const perBundle = Math.round(total / qty);
 
     document.getElementById('s-total-weight').value = totalWeight;
@@ -679,12 +702,12 @@ function calcSeino() {
         <table class="result-table">
           <tr class="sub"><th>距離帯</th><td>${distance}km（${pref}）</td></tr>
           ${shipRows}
-          <tr><th>運賃合計</th><td>${totalFareSum.toLocaleString()}円</td></tr>
+          <tr><th>運賃合計（実費）</th><td>${totalFareSum.toLocaleString()}円</td></tr>
           <tr><th>ダンボール代合計</th><td>${totalBoxSum.toLocaleString()}円</td></tr>
-          ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
           ${isGenba ? `<tr><th>現場渡し（${totalShipWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
-          ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
-          <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
+          <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
+          <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
           <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
         </table>
         <p class="note">※ ${qty}束 → ${shipments.map(s => s.qty + '束').join(' + ')} に分割。</p>
@@ -718,16 +741,12 @@ function calcSeino() {
     return;
   }
 
-  // 運賃
-  const fare = SEINO_FARES[tierIdx][distIdx];
+  // 運賃（実費＝テーブル×0.90）
+  const fare = seinoCost(tierIdx, distIdx);
 
-  // 合計
-  const subtotal = fare + boxCost;
-  const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
   const genba = isGenba ? totalWeight * GENBA_RATE : 0;
-  let totalRaw = subtotal + tax + genba;
-  if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
-  const total = Math.round(totalRaw / 100) * 100;
+  const baseAll = fare + boxCost + genba;   // 実費(税抜)
+  const total = priceFrom(baseAll);
   const perBundle = totalQty > 0 ? Math.round(total / totalQty) : 0;
 
   const html = `
@@ -736,12 +755,12 @@ function calcSeino() {
       <table class="result-table">
         <tr class="sub"><th>距離帯</th><td>${distance}km（${pref}）</td></tr>
         <tr class="sub"><th>適用重量帯</th><td>${tierWeight}kg（実重量 ${totalWeight}kg）</td></tr>
-        <tr><th>運賃</th><td>${fare.toLocaleString()}円</td></tr>
+        <tr><th>運賃（実費）</th><td>${fare.toLocaleString()}円</td></tr>
         <tr><th>ダンボール代（${boxDetail.join(' + ')}）</th><td>${boxCost.toLocaleString()}円</td></tr>
-        ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
         ${isGenba ? `<tr><th>現場渡し（${totalWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
-        ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
-        <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
+        <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
+        <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
+        <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
         <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
       </table>
     </div>
