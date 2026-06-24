@@ -167,8 +167,8 @@
     <p class="sub">区分（直売・付売・市売）で単価と送料を自動算出 → A4見積書を印刷・PDF・履歴保存</p>
 
     <div class="toolbar">
-      <button class="btn-print" id="btn-print">🖨 印刷 / PDF</button>
-      <button class="btn-save" id="btn-save">💾 履歴に保存</button>
+      <button class="btn-save" id="btn-save">✅ 確定して保存</button>
+      <button class="btn-print" id="btn-print">🖨 印刷</button>
       <button class="btn-clear2" id="btn-clear">クリア</button>
       <span class="pricestatus" id="price-status"></span>
     </div>
@@ -620,9 +620,9 @@ function saveToHistory(){
   if(DB_URL){
     const quote=Object.assign({denpyo, tax:t.tax, grand:t.grand}, d);
     fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
-    flash("見積りDBに保存しました");
+    flash("✅ 確定して見積りDBに保存しました");
     setTimeout(loadDbHistory,1500);
-  }else{ flash("履歴に保存しました"); }
+  }else{ flash("✅ 確定して保存しました"); }
   renderHist();
 }
 function unifiedList(){
