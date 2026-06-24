@@ -52,6 +52,8 @@
   .btn-print:hover{ background:#1a5fd0; }
   .btn-save{ background:#0a8a4a; color:#fff; font-size:15px; padding:11px 18px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(10,138,74,.3); }
   .btn-save:hover{ background:#097a41; }
+  .btn-db{ background:#0f9d58; color:#fff; border:none; border-radius:8px; padding:11px 14px; font-weight:bold; cursor:pointer; }
+  .btn-db:hover{ background:#0c8043; }
   .btn-clear2{ background:#eef1f5; color:#33415c; border:none; border-radius:8px; padding:11px 14px; font-weight:bold; cursor:pointer; }
   .pricestatus{ font-size:11px; color:#888; }
 
@@ -169,6 +171,7 @@
     <div class="toolbar">
       <button class="btn-save" id="btn-save">✅ 確定して保存</button>
       <button class="btn-print" id="btn-print">🖨 印刷</button>
+      <button class="btn-db" id="btn-db">📊 データベース</button>
       <button class="btn-clear2" id="btn-clear">クリア</button>
       <span class="pricestatus" id="price-status"></span>
     </div>
@@ -395,6 +398,8 @@ function priceFor(kubun, it){
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
 // 見積りデータベース（新規スプシ＋GAS）。初回認可後に同期が有効化される
 const DB_URL = "https://script.google.com/macros/s/AKfycbzskqossGk7mBeZEY2XrfqE2-MNS5b0PfgX65tpBfowD7mMwqXvueRe7E6Cclob2iFQ/exec";
+// 見積りデータベースのスプレッドシート（ボタンで開く）
+const DB_SHEET_URL = "https://docs.google.com/spreadsheets/d/1qaHLTYfQPGU8lT9K1UIkzXxnMwhY-r0Df3rBcjIuwCM/edit";
 async function refreshPricebook(){
   try{
     for(const m of ["市売","付売"]){
@@ -706,6 +711,7 @@ function init(){
   $("#btn-add").addEventListener("click",()=>{ const r=addRow(); r.querySelector(".i-name").focus(); saveDraft(); });
   $("#btn-print").addEventListener("click",()=>{ setTimeout(()=>window.print(),150); });
   $("#btn-save").addEventListener("click", saveToHistory);
+  $("#btn-db").addEventListener("click",()=> window.open(DB_SHEET_URL,"_blank","noopener"));
   $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？（履歴は残ります）")){ freightLinked=false; freightBaseExcl=0; applyData({date:todayISO(),kubun:kubun,remarks:DEFAULT_REMARKS}); saveDraft(); } });
   $("#cust-add").addEventListener("click",()=>{ const n=$("#f-customer").value.trim(); if(n){ addCandidate(n,true); renderCustomerDatalist(); flash("取引先候補に追加しました"); } });
 
