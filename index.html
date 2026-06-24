@@ -341,7 +341,7 @@ function updateQtyLabel() {
   const label = document.getElementById('qty-label');
   // 入数は表示のみ（計算には影響しない・束単位で計算）
   const nyusu = { 1: '20枚', 2: '8〜10枚', 3: '10枚', 4: '8枚' }[len] || '';
-  label.textContent = `数量 (束 ・ 1束=${nyusu})`;
+  label.textContent = `数量 ( 1束=${nyusu})`;
 }
 
 // ===== 初期化 =====
