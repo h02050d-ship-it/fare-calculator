@@ -75,7 +75,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 </head>
 <body>
 <h1>運賃自動計算ツール（2026改定版）</h1>
-<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">実費×倍率方式｜全チャネル一律×1.25 → 税込（×1.1）に統一（市売・付売も税込）｜運賃・売価とも切り上げ</p>
+<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">実費×倍率方式｜全チャネル一律×1.25×税込（×1.1）に統一（市売・付売も税込）｜運賃・売価とも切り上げ</p>
 
 <div class="panel" style="border-radius:8px; margin-bottom:16px;">
   <div class="form-row">
@@ -479,7 +479,7 @@ function calcSeino() {
 
       document.getElementById(`mix-sw${len}`).textContent = sw > 0 ? `${sw}kg` : '0';
       document.getElementById(`mix-db${len}`).textContent = db > 0 ? `${db.toLocaleString()}円` : '0';
-      if (q > 0) boxDetail.push(`${d.box}×${q}`);
+      if (q > 0) boxDetail.push(`160×${(d.box/160)*q}枚`);
     }
     totalWeight = Math.ceil(totalWeight);
     document.getElementById('mix-qtotal').textContent = totalQty;
@@ -493,7 +493,7 @@ function calcSeino() {
     totalWeight = Math.ceil(qty * danball.weight);
     boxCost = qty * danball.box;
     totalQty = qty;
-    boxDetail = [`${danball.box}×${qty}`];
+    boxDetail = [`160×${(danball.box/160)*qty}枚`];
     primaryLength = length;
   }
 
@@ -571,7 +571,7 @@ function calcSeino() {
         <table class="result-table">
           <tr class="sub"><th>数量 / 口数</th><td>${taba}束（${mai}枚）＝ ${kuchi}口　<span class="note">※40枚=1口</span></td></tr>
           <tr class="sub"><th>佐川実費（${cost.toLocaleString()}円×${kuchi}口）</th><td>${sagawaFee.toLocaleString()}円</td></tr>
-          <tr><th>ダンボール代（320×${kuchi}）</th><td>${box1m.toLocaleString()}円</td></tr>
+          <tr><th>ダンボール代（160×${2*kuchi}枚）</th><td>${box1m.toLocaleString()}円</td></tr>
           <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
           <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
           <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
@@ -617,7 +617,7 @@ function calcSeino() {
       let rows = '';
       rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【1m 佐川急便（160サイズ・実費）】</th><td></td></tr>`;
       rows += `<tr><th>送料（${sagawaCost.toLocaleString()}円×${sagawa1mKuchi}口）</th><td>${sagawa1mFee.toLocaleString()}円　<span class="note">${q1m}束=${sagawa1mKuchi}口</span></td></tr>`;
-      rows += `<tr><th>ダンボール代（320×${sagawa1mKuchi}）</th><td>${sagawa1mBox.toLocaleString()}円</td></tr>`;
+      rows += `<tr><th>ダンボール代（160×${2*sagawa1mKuchi}枚）</th><td>${sagawa1mBox.toLocaleString()}円</td></tr>`;
       if (qty2plus > 0) {
         rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【2m以上 西濃運輸（実費）】</th><td></td></tr>`;
         rows += `<tr class="sub"><th>重量帯</th><td>${seinoTier}（実重量 ${weight2plus}kg）</td></tr>`;
@@ -625,7 +625,7 @@ function calcSeino() {
         const boxDet2 = [];
         for (let len = 2; len <= 4; len++) {
           const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
-          if (q > 0) boxDet2.push(`${DANBALL[len].box}×${q}`);
+          if (q > 0) boxDet2.push(`160×${(DANBALL[len].box/160)*q}枚`);
         }
         rows += `<tr><th>ダンボール代（${boxDet2.join(' + ')}）</th><td>${box2plus.toLocaleString()}円</td></tr>`;
       }
