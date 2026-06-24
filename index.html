@@ -92,9 +92,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 
 <div id="seino-panel" class="panel active" style="border-radius:8px;">
   <div class="channel-row">
-    <div class="channel-btn active" onclick="setChannel(this,'net')">ネット販売（税込）</div>
-    <div class="channel-btn" onclick="setChannel(this,'yahoo')">ヤフー（税込）</div>
-    <div class="channel-btn" onclick="setChannel(this,'rakuten')">楽天（税込）</div>
+    <div class="channel-btn active" onclick="setChannel(this,'ec')">EC（自社EC・ヤフー・楽天／税込）</div>
     <div class="channel-btn" onclick="setChannel(this,'ichi')">市売・付売（税抜）</div>
     <label style="display:flex;align-items:center;gap:6px;margin-left:12px;font-size:0.9em;cursor:pointer;">
       <input type="checkbox" id="s-genba" onchange="calcSeino()"> 現場渡し（+25円/kg）
@@ -343,7 +341,7 @@ const YAHOO_SAGAWA_1M = {
 };
 
 // ===== 状態 =====
-let seinoChannel = 'net';
+let seinoChannel = 'ec';
 
 // ===== 数量ラベル更新 =====
 const SHEETS_PER_BUNDLE = { 1: 20, 2: 20, 3: 10, 4: 10 };
@@ -527,12 +525,12 @@ function calcSeino() {
     return;
   }
 
-  const isEC = seinoChannel === 'net' || seinoChannel === 'yahoo' || seinoChannel === 'rakuten';
+  const isEC = seinoChannel === 'ec';
   const isGenba = document.getElementById('s-genba').checked;
   const GENBA_RATE = 25; // 円/kg
   const MAX_BUNDLE = 20;
-  const chName = seinoChannel==='net'?'自社EC':seinoChannel==='yahoo'?'ヤフー':seinoChannel==='rakuten'?'楽天':'市売・付売';
-  const channelLabel = isEC ? `${chName}（税込）` : '市売・付売（税抜）';
+  const chName = isEC ? 'EC（自社EC・ヤフー・楽天）' : '市売・付売';
+  const channelLabel = isEC ? 'EC（自社EC・ヤフー・楽天／税込）' : '市売・付売（税抜）';
   const multLabel = isEC ? '利幅 ×1.25 ＋ 税' : '利幅 ×1.25';
   const length = parseInt(document.getElementById('s-length').value);
   const isLen1 = !mixMode && length === 1;
@@ -1138,7 +1136,7 @@ function getSelectedOffice() {
 }
 
 function getCurrentFare() {
-  // 楽天チャネルの合計金額を取得
+  // 現在表示中の合計金額を取得
   const resultBox = document.getElementById('seino-result');
   if (!resultBox) return null;
   const totalRow = resultBox.querySelector('tr.total td');
@@ -1151,9 +1149,9 @@ function generateMail() {
   const mailArea = document.getElementById('mail-area');
   const statusDiv = document.getElementById('order-status');
 
-  // チャネルが楽天でない場合の警告
-  if (seinoChannel !== 'rakuten') {
-    statusDiv.innerHTML = '⚠️ チャネルを「楽天（税込）」に切り替えてください';
+  // 市売チャネルでは注文メール不要
+  if (seinoChannel !== 'ec') {
+    statusDiv.innerHTML = '⚠️ チャネルを「EC（税込）」に切り替えてください';
     statusDiv.style.color = '#e74c3c';
     mailArea.style.display = 'none';
     return;
