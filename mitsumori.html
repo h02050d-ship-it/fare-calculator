@@ -22,7 +22,7 @@
   .hdrfields{ display:grid; grid-template-columns: 120px 1fr 110px 130px 100px; gap:8px; align-items:end; }
   .hdrfields .field{ margin-bottom:0; }
   .hdrfields .field label{ text-align:center; }
-  .hdrfields2{ display:grid; grid-template-columns: 120px 1fr 1fr 130px; gap:8px; align-items:end; margin-top:8px; }
+  .hdrfields2{ display:grid; grid-template-columns: 90px 110px 1fr 1fr 130px; gap:8px; align-items:end; margin-top:8px; }
   .hdrfields2 .field{ margin-bottom:0; }
 
   .grid-wrap{ border:1px solid #d5d9de; border-radius:8px; overflow:hidden; margin-top:10px; }
@@ -197,6 +197,7 @@
       <div class="field"><label>運賃</label><input type="number" id="f-freight" placeholder="0" step="1"></div>
     </div>
     <div class="hdrfields2">
+      <div class="field"><label>敬称</label><select id="f-keisho"><option value="御中">御中</option><option value="様">様（個人）</option></select></div>
       <div class="field"><label>担当</label><input id="f-tanto" value="林大樹"></div>
       <div class="field"><label>納期</label><input id="f-nouki" list="dl-nouki" value="お支払から2〜5営業日前後で発送">
         <datalist id="dl-nouki">
@@ -258,7 +259,7 @@
       <p class="title">見　積　書</p>
       <div class="mid">
         <div class="left">
-          <div class="addressee"><span class="nmc" id="o-customer">　</span><span class="on">御中</span></div>
+          <div class="addressee"><span class="nmc" id="o-customer">　</span><span class="on" id="o-keisho">御中</span></div>
           <table class="terms">
             <tr><td class="k">納期</td><td id="o-nouki"></td></tr>
             <tr><td class="k">支払条件</td><td id="o-shiharai"></td></tr>
@@ -568,14 +569,14 @@ function autofillPrices(force){
 /* ---- 収集・描画 ---- */
 function collect(){
   const items=[...document.querySelectorAll(".item-row")].map(row=>{ const it=readRow(row); it.priceAuto=row.querySelector(".i-price").classList.contains("auto"); return it; });
-  return { date:$("#f-date").value, customer:$("#f-customer").value.trim(), kubun:kubun, carrier:$("#f-carrier").value,
+  return { date:$("#f-date").value, customer:$("#f-customer").value.trim(), keisho:$("#f-keisho").value, kubun:kubun, carrier:$("#f-carrier").value,
     tanto:$("#f-tanto").value.trim(), nouki:$("#f-nouki").value.trim(), shiharai:$("#f-shiharai").value.trim(), limit:$("#f-limit").value,
     freight:parseFloat(($("#f-freight").value||"").toString().replace(/,/g,""))||0, remarks:$("#f-remarks").value, items };
 }
 function render(){
   const d=collect(); const taxIncl=(d.kubun==="直売");
   $("#o-date").textContent=fmtDateJP(d.date);
-  $("#o-customer").textContent=d.customer||"　";
+  $("#o-customer").textContent=d.customer||"　"; $("#o-keisho").textContent=d.keisho||"御中";
   $("#o-nouki").textContent=d.nouki; $("#o-shiharai").textContent=d.shiharai; $("#o-limit").textContent=fmtDateJP(d.limit);
   $("#o-tanto").textContent=d.tanto; $("#o-remarks").textContent=d.remarks;
 
@@ -722,6 +723,7 @@ function setKubun(k){ kubun=k; $("#f-kubun").value=k; autofillPrices(true); rend
 function applyData(d){
   $("#f-date").value=d.date||todayISO();
   $("#f-customer").value=d.customer||"";
+  $("#f-keisho").value=d.keisho||"御中";
   $("#f-carrier").value=d.carrier||"西濃運輸";
   $("#f-tanto").value=d.tanto!=null?d.tanto:"林大樹";
   $("#f-nouki").value=d.nouki!=null?d.nouki:"お支払から2〜5営業日前後で発送";
@@ -773,6 +775,7 @@ function init(){
   $("#f-limit").addEventListener("input",()=>{ $("#f-limit").dataset.auto="0"; });
   $("#f-customer").addEventListener("blur", rememberCustomer);
   $("#f-carrier").addEventListener("change",()=>{ saveDraft(); render(); });
+  $("#f-keisho").addEventListener("change",()=>{ saveDraft(); render(); });
   $("#f-freight").addEventListener("input",()=>{ freightLinked=false; saveDraft(); render(); });
 
   ["#fb-pref","#fb-length","#fb-qty"].forEach(s=> $(s).addEventListener("input",()=>{ const r=renderFreightCalc(); if(freightLinked && r && r.total){ $("#f-freight").value=r.total; if(r.carrier) $("#f-carrier").value=r.carrier; render(); } saveDraft(); }));
