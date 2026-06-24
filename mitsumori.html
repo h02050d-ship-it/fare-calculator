@@ -54,6 +54,8 @@
   .btn-save:hover{ background:#097a41; }
   .btn-db{ background:#0f9d58; color:#fff; border:none; border-radius:8px; padding:11px 14px; font-weight:bold; cursor:pointer; }
   .btn-db:hover{ background:#0c8043; }
+  .btn-folder{ background:#f4b400; color:#5c4400; border:none; border-radius:8px; padding:11px 14px; font-weight:bold; cursor:pointer; }
+  .btn-folder:hover{ background:#e0a500; }
   .btn-clear2{ background:#eef1f5; color:#33415c; border:none; border-radius:8px; padding:11px 14px; font-weight:bold; cursor:pointer; }
   .pricestatus{ font-size:11px; color:#888; }
 
@@ -171,6 +173,8 @@
     .sheet{ box-shadow:none; margin:0; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -182,6 +186,7 @@
       <button class="btn-save" id="btn-save">✅ 確定して保存</button>
       <button class="btn-print" id="btn-print">🖨 印刷</button>
       <button class="btn-db" id="btn-db">📊 データベース</button>
+      <button class="btn-folder" id="btn-folder">📁 PDFフォルダ</button>
       <button class="btn-clear2" id="btn-clear">クリア</button>
       <span class="pricestatus" id="price-status"></span>
     </div>
@@ -657,6 +662,30 @@ async function loadDbHistory(){
   }catch(e){ dbQuotes=null; $("#hist-status").textContent="この端末に保存（オフライン）"; }
   renderHist();
 }
+/* ---- 見積書PDFをDriveフォルダへ保存（確定時） ---- */
+let dbFolderUrl="";
+async function fetchFolderUrl(){
+  if(!DB_URL) return;
+  try{ const j=await fetch(DB_URL+"?action=getFolderUrl",{cache:"no-store"}).then(r=>r.json()); if(j&&j.ok&&j.url) dbFolderUrl=j.url; }catch(e){}
+}
+async function saveQuotePdf(filename){
+  if(!DB_URL || !window.html2canvas || !window.jspdf){ return; }
+  const sheet=document.getElementById("sheet"), stage=document.querySelector(".stage");
+  const prevT=sheet.style.transform, prevH=stage.style.height;
+  sheet.style.transform="none"; stage.style.height="auto";
+  try{
+    const canvas=await window.html2canvas(sheet,{scale:2,useCORS:true,backgroundColor:"#ffffff"});
+    const img=canvas.toDataURL("image/jpeg",0.92);
+    const { jsPDF }=window.jspdf;
+    const pdf=new jsPDF({unit:"mm",format:"a4",orientation:"portrait"});
+    pdf.addImage(img,"JPEG",0,0,210,297);
+    const b64=pdf.output("datauristring").split(",")[1];
+    fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"savePdf",filename,pdfBase64:b64})}).catch(()=>{});
+    flash("📄 見積書PDFをフォルダに保存しました");
+  }catch(e){ console.log("pdf error",e); }
+  finally{ sheet.style.transform=prevT; stage.style.height=prevH; fitPreview(); }
+}
+
 function saveToHistory(){
   const d=collect();
   if(!d.customer){ flash("取引先を入力してください"); return; }
@@ -672,6 +701,8 @@ function saveToHistory(){
   if(DB_URL){
     const quote=Object.assign({denpyo, tax:t.tax, grand:t.grand}, d);
     fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
+    const fn="見積書_"+(d.customer||"").replace(/[\\\/:*?"<>|\s]/g,"")+"_"+(d.date||"").replace(/-/g,"");
+    saveQuotePdf(fn);
     flash("✅ 確定して見積りDBに保存しました");
     setTimeout(loadDbHistory,1500);
   }else{ flash("✅ 確定して保存しました"); }
@@ -763,6 +794,7 @@ function init(){
   $("#btn-print").addEventListener("click",()=>{ if(!freightOkToProceed("印刷")) return; setTimeout(()=>window.print(),150); });
   $("#btn-save").addEventListener("click", saveToHistory);
   $("#btn-db").addEventListener("click",()=> window.open(DB_SHEET_URL,"_blank","noopener"));
+  $("#btn-folder").addEventListener("click", async ()=>{ if(!dbFolderUrl) await fetchFolderUrl(); if(dbFolderUrl) window.open(dbFolderUrl,"_blank","noopener"); else flash("PDFフォルダはまだ準備されていません（DB認可後に有効）"); });
   $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？（履歴は残ります）")){ freightLinked=false; applyData({date:todayISO(),kubun:kubun,remarks:DEFAULT_REMARKS}); saveDraft(); } });
   $("#cust-add").addEventListener("click",()=>{ const n=$("#f-customer").value.trim(); if(n){ addCandidate(n,true); renderCustomerDatalist(); flash("取引先候補に追加しました"); } });
 
@@ -793,7 +825,7 @@ function init(){
   renderHist();
 
   $("#price-status").textContent="価格表：内蔵データ";
-  refreshPricebook(); loadCustomerCandidates(); loadDbHistory();
+  refreshPricebook(); loadCustomerCandidates(); loadDbHistory(); fetchFolderUrl();
 
   fitPreview(); window.addEventListener("resize", fitPreview);
   window.addEventListener("beforeprint",()=>{ $("#sheet").style.transform="none"; document.querySelector(".stage").style.height="auto"; });
