@@ -113,15 +113,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
           <option value="4" selected>4m</option>
         </select>
       </div>
-      <div class="form-group" id="nyusu-group" style="display:none;">
-        <label>入数 (枚)</label>
-        <select id="s-nyusu" onchange="calcSeino()">
-          <option value="10">10枚</option>
-          <option value="20" selected>20枚</option>
-          <option value="30">30枚</option>
-          <option value="40">40枚</option>
-        </select>
-      </div>
+      <!-- 入数は20枚固定（口数=切上げ束数÷2で自動算出） -->
       <div class="form-group">
         <label id="qty-label">数量 (束)</label>
         <select id="s-qty" onchange="calcSeino()"></select>
@@ -347,14 +339,8 @@ const SHEETS_PER_BUNDLE = { 1: 20, 2: 20, 3: 10, 4: 10 };
 function updateQtyLabel() {
   const len = parseInt(document.getElementById('s-length').value);
   const label = document.getElementById('qty-label');
-  const ng = document.getElementById('nyusu-group');
-  if (len === 1) {
-    ng.style.display = '';
-    label.textContent = '数量 (口)';
-  } else {
-    ng.style.display = 'none';
-    label.textContent = '数量 (束)';
-  }
+  // 1mは20枚束単位、2m以上も束単位。入数選択は廃止（20枚固定）
+  label.textContent = len === 1 ? '数量 (20枚束)' : '数量 (束)';
 }
 
 // ===== 初期化 =====
