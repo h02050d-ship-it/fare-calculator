@@ -211,7 +211,7 @@
         <div><label>長さ</label>
           <select id="fb-length"><option value="1">1m</option><option value="2">2m</option><option value="3">3m</option><option value="4" selected>4m</option></select>
         </div>
-        <div><label>数量（束）</label><input type="number" id="fb-qty" value="10" min="0" step="1"></div>
+        <div><label>数量（束）</label><select id="fb-qty"></select></div>
       </div>
       <div class="fb-note">※1束＝1m20kg／2m20kg／3m30kg／4m40kg。1m＝佐川、2m以上＝西濃。運賃＋ダンボール代を自動加算。</div>
       <div class="fb-result" id="fb-result"></div>
@@ -299,16 +299,16 @@
 
 <script>
 /* ========== 西濃運輸 運賃データ（fare-calculator と同一） ========== */
-const SEINO_DISTANCES = [150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400];
-const SEINO_PREF_MAP = {
+let SEINO_DISTANCES = [150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400];
+let SEINO_PREF_MAP = {
   "静岡":0,"愛知":1,"岐阜":2,"神奈川":3,"滋賀":4,"三重":5,"東京":6,"奈良":7,"京都":8,"山梨":9,"埼玉":10,"千葉":11,
   "大阪":12,"長野":13,"栃木":14,"和歌山":15,"石川":16,"徳島":17,"茨城":18,"群馬":19,"兵庫":20,"福島":21,"鳥取":22,"岡山":23,
   "高知":24,"新潟":25,"香川":26,"福井":27,"富山":28,"宮城":29,"広島":30,"愛媛":31,"山形":32,"島根":33,"秋田":34,"岩手":35,
   "山口":36,"福岡":37,"佐賀":38,"青森":39,"長崎":40,"熊本":41,"大分":42,"宮崎":43,"鹿児島":44,"北海道":45
 };
-const PREF_TO_DIST = [0,0,1,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,7,7,7,8,8,8,9,9,10,11,11,12,13,14,14,15,16,17,18,18,18,18,19,19,21];
-const SEINO_WEIGHTS = [10,20,30,40,60,80,100,120,140,160,180,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000];
-const SEINO_FARES = [
+let PREF_TO_DIST = [0,0,1,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,7,7,7,8,8,8,9,9,10,11,11,12,13,14,14,15,16,17,18,18,18,18,19,19,21];
+let SEINO_WEIGHTS = [10,20,30,40,60,80,100,120,140,160,180,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000];
+let SEINO_FARES = [
   [1500,1500,1600,1600,1600,1600,1600,1600,1600,1600,1900,1900,2000,2000,2200,2200,2200,2200,2200,2200,2200,2200],
   [1700,1800,1800,1800,1800,1900,1900,1900,2000,2000,2400,2400,2600,2600,2700,2700,2800,2800,2900,2900,3000,3100],
   [2000,2000,2000,2000,2100,2100,2100,2100,2200,2200,2700,2800,2900,2900,3100,3200,3200,3300,3400,3500,3600,3700],
@@ -339,7 +339,7 @@ const SEINO_FARES = [
   [26600,29100,31600,33900,36000,38300,40500,42700,45000,47100,50100,52300,56800,59300,64000,66500,68900,71300,76200,81100,86000,90900]
 ];
 const DANBALL = { 1:{weight:20,box:320}, 2:{weight:20,box:160}, 3:{weight:30,box:240}, 4:{weight:40,box:320} };
-const SAGAWA_1M = {
+let SAGAWA_1M = {
   "北海道":3000,"青森":2700,"岩手":2700,"宮城":2500,"秋田":2700,"山形":2500,"福島":2500,
   "東京":2400,"神奈川":2400,"埼玉":2400,"千葉":2400,"茨城":2400,"栃木":2400,"群馬":2400,"山梨":2400,"新潟":2400,
   "長野":2400,"富山":2400,"石川":2400,"福井":2400,"愛知":2400,"岐阜":2400,"静岡":2400,"三重":2400,
@@ -420,6 +420,26 @@ async function loadCustomerCandidates(){
   }catch(e){ /* オフライン時はローカル候補のみ */ }
 }
 
+/* ========== 運賃表を fare-calculator(index.html) から随時反映 ========== */
+async function syncFaresFromCalculator(){
+  try{
+    const html = await fetch("index.html",{cache:"no-store"}).then(r=>r.text());
+    const arr = (name)=>{ const m=html.match(new RegExp("(?:const|let)\\s+"+name+"\\s*=\\s*(\\[[\\s\\S]*?\\])\\s*;")); return m?JSON.parse(m[1]):null; };
+    const obj = (name)=>{ const m=html.match(new RegExp("(?:const|let)\\s+"+name+"\\s*=\\s*(\\{[\\s\\S]*?\\})\\s*;")); return m?JSON.parse(m[1]):null; };
+    const faresM = html.match(/(?:const|let)\s+SEINO_FARES\s*=\s*(\[[\s\S]*?\n\])\s*;/);
+    const d=arr("SEINO_DISTANCES"), w=arr("SEINO_WEIGHTS"), ptd=arr("PREF_TO_DIST"), pm=obj("SEINO_PREF_MAP"), sg=obj("YAHOO_SAGAWA_1M");
+    const fares=faresM?JSON.parse(faresM[1]):null;
+    // 整合性が取れる場合のみ差し替え（運賃表は重量帯×距離帯）
+    if(fares && Array.isArray(fares) && fares.length && w && d && fares.length===w.length && fares[0].length===d.length){
+      SEINO_FARES=fares; SEINO_WEIGHTS=w; SEINO_DISTANCES=d;
+    }
+    if(ptd && Array.isArray(ptd)) PREF_TO_DIST=ptd;
+    if(pm && Object.keys(pm).length) SEINO_PREF_MAP=pm;
+    if(sg && Object.keys(sg).length) SAGAWA_1M=sg;
+    renderFreightCalc(); if(freightLinked) setFreightField(); render();
+  }catch(e){ /* 取得失敗時は内蔵データのまま */ }
+}
+
 /* ========== 送料計算（西濃/佐川・ダンボール代込み固定） ========== */
 function calcFreight(pref, length, qty){
   const out={ ok:false, total:0, fare:0, box:0, weight:0, tier:"", distance:0, carrier:"西濃運輸", note:"" };
@@ -474,6 +494,8 @@ function addCandidate(name, persist){ name=(name||"").trim(); if(!name) return; 
 function renderCustomerDatalist(){ const dl=$("#dl-customer"); const a=loadCands().sort((x,y)=>x.localeCompare(y,"ja")); dl.innerHTML=a.map(v=>`<option value="${esc(v)}">`).join(""); }
 
 /* ---- 明細行 ---- */
+const QTY_MAX = 40;
+function qtyOptions(blank){ let o=blank?'<option value=""></option>':''; for(let i=1;i<=QTY_MAX;i++) o+=`<option value="${i}">${i}</option>`; return o; }
 function itemRowHTML(){
   const gradeOpts=`<option value=""></option>`+GRADES.map(g=>`<option value="${g}">${g}</option>`).join("");
   const tOpts=`<option value=""></option>`+[15,12].map(v=>`<option value="${v}">${v}</option>`).join("");
@@ -486,7 +508,7 @@ function itemRowHTML(){
     <select class="i-w" title="幅">${wOpts}</select>
     <select class="i-l" title="長">${lOpts}</select>
     <input class="i-in" inputmode="numeric" placeholder="入数">
-    <input class="i-qty" inputmode="numeric" placeholder="数量">
+    <select class="i-qty" title="数量">${qtyOptions(true)}</select>
     <input class="i-price" inputmode="numeric" placeholder="単価">
     <div class="amtcell"></div>
     <button class="del" title="この行を削除">✕</button>
@@ -512,7 +534,9 @@ function addRow(data){
   if(data){
     row.querySelector(".i-name").value=data.name||""; row.querySelector(".i-grade").value=data.grade||"";
     row.querySelector(".i-t").value=data.t||""; row.querySelector(".i-w").value=data.w||""; row.querySelector(".i-l").value=data.l||"";
-    row.querySelector(".i-in").value=data.in||""; row.querySelector(".i-qty").value=data.qty||"";
+    row.querySelector(".i-in").value=data.in||"";
+    const qe=row.querySelector(".i-qty");
+    if(data.qty){ if(![...qe.options].some(o=>o.value===String(data.qty))) qe.add(new Option(String(data.qty),String(data.qty))); qe.value=String(data.qty); }
     const pe=row.querySelector(".i-price"); if(data.price){ pe.value=fmt(data.price); if(data.priceAuto) pe.classList.add("auto"); }
   }
   applyAutoPrice(row); updateAmt(row);
@@ -528,7 +552,7 @@ function addRow(data){
   const pe=row.querySelector(".i-price");
   pe.addEventListener("input",()=>{ pe.classList.remove("auto"); updateAmt(row); saveDraft(); render(); });
   pe.addEventListener("blur",()=>{ const raw=(pe.value||"").toString().replace(/,/g,"").trim(); const n=parseFloat(raw); pe.value=(raw!==""&&!isNaN(n)&&n!==0)?fmt(n):""; });
-  row.querySelector(".i-qty").addEventListener("input",()=>{ updateAmt(row); saveDraft(); render(); });
+  row.querySelector(".i-qty").addEventListener("change",()=>{ updateAmt(row); saveDraft(); render(); });
   row.querySelector(".i-in").addEventListener("input",()=>{ saveDraft(); render(); });
   return row;
 }
@@ -685,7 +709,9 @@ function applyData(d){
   $("#f-remarks").value=d.remarks!=null?d.remarks:DEFAULT_REMARKS;
   $("#items").innerHTML="";
   (d.items&&d.items.length?d.items:[null,null,null]).forEach(it=>addRow(it));
-  if(d._fb){ if(d._fb.pref)$("#fb-pref").value=d._fb.pref; if(d._fb.length)$("#fb-length").value=d._fb.length; if(d._fb.qty!=null)$("#fb-qty").value=d._fb.qty; freightLinked=!!d._fb.linked; freightBaseExcl=d._fb.base||0; }
+  if(d._fb){ if(d._fb.pref)$("#fb-pref").value=d._fb.pref; if(d._fb.length)$("#fb-length").value=d._fb.length;
+    if(d._fb.qty!=null){ const fq2=$("#fb-qty"); if(![...fq2.options].some(o=>o.value===String(d._fb.qty))) fq2.add(new Option(String(d._fb.qty),String(d._fb.qty))); fq2.value=String(d._fb.qty); }
+    freightLinked=!!d._fb.linked; freightBaseExcl=d._fb.base||0; }
   setKubun(d.kubun||"市売"); renderFreightCalc(); render();
 }
 
@@ -703,6 +729,7 @@ function flash(msg){ let el=$("#flash"); if(!el){ el=document.createElement("div
 function init(){
   $("#o-qr").src=QR_DATAURI;
   const sel=$("#fb-pref"); Object.keys(SEINO_PREF_MAP).forEach(p=>sel.appendChild(new Option(p,p))); sel.value="東京";
+  const fq=$("#fb-qty"); fq.innerHTML=qtyOptions(false); fq.value="10";
   const dl=$("#dl-name"); ["桧フローリング","桧羽目板"].forEach(v=>{const o=document.createElement("option");o.value=v;dl.appendChild(o);});
   // 取引先の初期候補
   if(!loadCands().length){ ["ナイス（株）相模原","ナイス（株）浜松","ナイス（株）沼津","川広建材","（株）HIKARI","（有）滝川","（株）ニッチ"].forEach(n=>addCandidate(n,true)); }
@@ -739,7 +766,7 @@ function init(){
   renderHist();
 
   $("#price-status").textContent="価格表：内蔵データ";
-  refreshPricebook(); loadCustomerCandidates(); loadDbHistory();
+  refreshPricebook(); loadCustomerCandidates(); loadDbHistory(); syncFaresFromCalculator();
 
   fitPreview(); window.addEventListener("resize", fitPreview);
   window.addEventListener("beforeprint",()=>{ $("#sheet").style.transform="none"; document.querySelector(".stage").style.height="auto"; });
