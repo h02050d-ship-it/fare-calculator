@@ -113,7 +113,10 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
           <option value="4" selected>4m</option>
         </select>
       </div>
-      <!-- 入数は20枚固定（口数=切上げ束数÷2で自動算出） -->
+      <div class="form-group">
+        <label>入数 (枚)</label>
+        <input type="text" id="s-nyusu-disp" value="20枚" readonly style="background:#f3f4f6;color:#374151;text-align:center;cursor:default;">
+      </div>
       <div class="form-group">
         <label id="qty-label">数量 (束)</label>
         <select id="s-qty" onchange="calcSeino()"></select>
@@ -341,7 +344,8 @@ function updateQtyLabel() {
   const label = document.getElementById('qty-label');
   // 入数は表示のみ（計算には影響しない・束単位で計算）
   const nyusu = { 1: '20枚', 2: '8〜10枚', 3: '10枚', 4: '8枚' }[len] || '';
-  label.textContent = `数量 ( 1束=${nyusu})`;
+  document.getElementById('s-nyusu-disp').value = nyusu;
+  label.textContent = '数量 (束)';
 }
 
 // ===== 初期化 =====
