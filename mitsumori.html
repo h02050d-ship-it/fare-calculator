@@ -216,11 +216,11 @@
     <div class="hdrfields2">
       <div class="field"><label>敬称</label><select id="f-keisho"><option value="御中">御中</option><option value="様">様（個人）</option></select></div>
       <div class="field"><label>担当</label><input id="f-tanto" value="林大樹"></div>
-      <div class="field"><label>納期</label><input id="f-nouki" list="dl-nouki" value="お支払から2〜5営業日前後で発送">
+      <div class="field"><label>納期</label><input id="f-nouki" list="dl-nouki" value="お支払から2〜5営業日前後で発送予定">
         <datalist id="dl-nouki">
-          <option value="お支払から1〜3営業日前後で発送"></option>
-          <option value="お支払から2〜5営業日前後で発送"></option>
-          <option value="お支払から7〜10営業日前後で発送"></option>
+          <option value="お支払から1〜3営業日前後で発送予定"></option>
+          <option value="お支払から2〜5営業日前後で発送予定"></option>
+          <option value="お支払から7〜10営業日前後で発送予定"></option>
         </datalist></div>
       <div class="field"><label>支払条件</label><input id="f-shiharai" value="銀行振込"></div>
       <div class="field"><label>有効期限</label><input type="date" id="f-limit"></div>
@@ -800,7 +800,9 @@ function applyData(d){
   $("#f-keisho").value=d.keisho||"御中";
   $("#f-carrier").value=d.carrier||"西濃運輸";
   $("#f-tanto").value=d.tanto!=null?d.tanto:"林大樹";
-  $("#f-nouki").value=d.nouki!=null?d.nouki:"お支払から2〜5営業日前後で発送";
+  let nouki=d.nouki!=null?d.nouki:"お支払から2〜5営業日前後で発送予定";
+  if(/前後で発送$/.test(nouki)) nouki+="予定";   // 旧文言「…発送」を「…発送予定」へ自動移行（手入力のカスタム文言は対象外）
+  $("#f-nouki").value=nouki;
   $("#f-shiharai").value=d.shiharai!=null?d.shiharai:"銀行振込";
   $("#f-limit").value=d.limit||addDaysISO(d.date||todayISO(),30);
   $("#f-freight").value=d.freight||"";
