@@ -75,7 +75,7 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 </head>
 <body>
 <h1>運賃自動計算ツール（2026改定版）</h1>
-<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">送料＝実費×1.25×税込（×1.1）｜全チャネル統一（自社EC・ヤフー・楽天・市売付売）｜運賃・送料とも切り上げ</p>
+<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">送料＝実費×1.25（税抜）を100円切上→×1.1（税込・10円単位）｜全チャネル統一（自社EC・ヤフー・楽天・市売付売）｜運賃は10円切上</p>
 
 <div class="panel" style="border-radius:8px; margin-bottom:16px;">
   <div class="form-row">
@@ -383,7 +383,7 @@ function buildBundleRef() {
         if (di > maxDistIdx) continue;
         const fare = Math.ceil(SEINO_FARES[ti][di] * SEINO_DISCOUNT * (1 + FUEL_SC_RATE) / 10) * 10;
         const sub = fare + qty * d.box;
-        const total = Math.ceil(sub * EC_MULT * 1.1 / 100) * 100;
+        const total = Math.round(Math.ceil(sub * EC_MULT / 100) * 100 * 1.1);
         const pb = Math.round(total / qty);
         if (pb < minPB) minPB = pb;
         if (pb > maxPB) maxPB = pb;
@@ -397,7 +397,7 @@ function buildBundleRef() {
 // ===== 正本送料表CSV出力（改定2026-06-23・全チャネル×1.25・切り上げ）=====
 // 1m=口建て(160サイズ+箱320・現場渡しなし)／2m,3m,4m=束数別(西濃0.90+SC・段ボール)。個別見積=1m佐川:沖縄／2m+西濃:沖縄,北海道
 function exportSoryoCSV() {
-  const ecP   = b => Math.ceil(b * EC_MULT * 1.1 / 100) * 100;   // EC税込・100円切上
+  const ecP   = b => Math.round(Math.ceil(b * EC_MULT / 100) * 100 * 1.1);   // EC: 税抜100円切上→×1.1（税込10円単位）
   const ichiP = b => Math.ceil(b * ICHI_MULT / 100) * 100;       // 市売税抜・100円切上
   const seinoC = (ti, di) => Math.ceil(SEINO_FARES[ti][di] * SEINO_DISCOUNT * (1 + FUEL_SC_RATE) / 10) * 10;
   const prefs = Object.keys(SEINO_PREF_MAP).concat(['沖縄']);
@@ -528,9 +528,9 @@ function calcSeino() {
   const isLen1 = !mixMode && length === 1;
   const quoteList = isLen1 ? QUOTE_ONLY_1M : QUOTE_ONLY_2M;
 
-  // 実費(税抜)ベース → 送料。全ch×1.25、ECのみ×1.1税、最終は100円切り上げ
+  // 実費(税抜)ベース → 送料。全ch×1.25。EC=税抜を100円切上→×1.1（税込は10円単位可）。市売=税抜100円切上
   function priceFrom(baseAll){
-    return isEC ? Math.ceil(baseAll * EC_MULT * 1.1 / 100) * 100
+    return isEC ? Math.round(Math.ceil(baseAll * EC_MULT / 100) * 100 * 1.1)
                 : Math.ceil(baseAll * ICHI_MULT / 100) * 100;
   }
   // 西濃テーブル→実費（×0.90＋燃料SC2.8%）・10円切り上げ
