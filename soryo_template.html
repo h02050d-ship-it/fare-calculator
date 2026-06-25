@@ -31,6 +31,15 @@
   .hint{font-size:.8em;color:var(--sub);margin-top:6px;}
   .hint b{color:var(--wood-d);}
 
+  /* 住所貼り付け */
+  .addr-box{background:var(--green-l);border:1px dashed var(--green);border-radius:10px;padding:13px;margin-bottom:18px;}
+  .addr-label{display:block;font-size:.85em;font-weight:700;color:var(--green);margin-bottom:7px;}
+  .addr-box input{width:100%;padding:13px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:1em;background:#fff;color:var(--ink);}
+  .addr-box input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(63,122,79,.15);}
+  .addr-fb{font-size:.82em;margin-top:7px;min-height:1.1em;}
+  .addr-fb.ok{color:var(--green);font-weight:700;}
+  .addr-fb.ng{color:#c0392b;}
+
   /* 結果 */
   .result{background:linear-gradient(180deg,#fbfdfb,#f1f8f2);border:2px solid var(--green);border-radius:16px;
           padding:22px 18px;text-align:center;box-shadow:var(--shadow);}
@@ -67,6 +76,11 @@
   <p class="lead">お届け先・長さ・数量をえらぶだけ。送料（税込）がすぐわかります。</p>
 
   <div class="card">
+    <div class="addr-box">
+      <label class="addr-label" for="addr">📋 住所を貼り付け（都道府県が自動で入ります・任意）</label>
+      <input type="text" id="addr" placeholder="例：静岡県磐田市福田5490-47" autocomplete="off">
+      <div class="addr-fb" id="addr-fb"></div>
+    </div>
     <div class="field">
       <label><span class="num">1</span>お届け先（都道府県）</label>
       <select id="pref"></select>
@@ -74,12 +88,11 @@
     <div class="field">
       <label><span class="num">2</span>長さ</label>
       <select id="len">
-        <option value="1">1m（〜1m）</option>
         <option value="2">2m（〜2m）</option>
         <option value="3">3m（〜3m）</option>
         <option value="4">4m（〜4m）</option>
       </select>
-      <div class="hint">1束の目安：<b id="nyusu">20枚</b>　／　長さは「○m材」のことです</div>
+      <div class="hint">1束の目安：<b id="nyusu">8〜10枚</b>　／　長さは「○m材」のことです</div>
     </div>
     <div class="field">
       <label><span class="num">3</span>数量（束）</label>
@@ -114,10 +127,27 @@ const DATA = /*__DATA__*/{};
 
 // 表示順（北→南）。データに有る県だけ採用。
 const ORDER = ["北海道","青森","岩手","宮城","秋田","山形","福島","茨城","栃木","群馬","埼玉","千葉","東京","神奈川","新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重","滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島","沖縄"];
-const NYUSU = {1:"20枚",2:"8〜10枚",3:"10枚",4:"8枚"};
+const NYUSU = {2:"8〜10枚",3:"10枚",4:"8枚"};
+const LENS = ['2','3','4'];
 
 const $ = id => document.getElementById(id);
 const yen = n => "¥" + n.toLocaleString();
+
+// 都道府県のフルネーム（住所判定用）
+function fullName(p){
+  if(p === '北海道') return '北海道';
+  if(p === '東京') return '東京都';
+  if(p === '大阪' || p === '京都') return p + '府';
+  return p + '県';
+}
+// 貼り付け住所から都道府県を判定（東京都/京都府のような重なりはフル表記で区別）
+function detectPref(addr){
+  if(!addr) return null;
+  for(const p of ORDER){
+    if(DATA.price[p] && addr.indexOf(fullName(p)) !== -1) return p;
+  }
+  return null;
+}
 
 function init(){
   const pref = $('pref'), qty = $('qty');
@@ -125,18 +155,36 @@ function init(){
   pref.value = DATA.price['静岡'] ? '静岡' : pref.options[0].value;
   for(let q=1; q<=DATA.qtyMax; q++) qty.appendChild(new Option(q+'束', q));
   qty.value = 1;
-  $('len').value = '1';
+  $('len').value = '2';
 
   // 入力を記憶
   try{
     const s = JSON.parse(localStorage.getItem('hayazai_soryo')||'{}');
     if(s.pref && DATA.price[s.pref]) pref.value = s.pref;
-    if(s.len) $('len').value = s.len;
+    if(s.len && LENS.indexOf(s.len) !== -1) $('len').value = s.len;
     if(s.qty) qty.value = s.qty;
   }catch(e){}
 
   ['pref','len','qty'].forEach(id => $(id).addEventListener('change', calc));
+  $('addr').addEventListener('input', onAddr);
   calc();
+}
+
+// 住所貼り付け → 都道府県を自動選択
+function onAddr(){
+  const a = $('addr').value.trim();
+  const fb = $('addr-fb');
+  if(a === ''){ fb.textContent = ''; fb.className = 'addr-fb'; return; }
+  const p = detectPref(a);
+  if(p){
+    $('pref').value = p;
+    fb.textContent = '→ ' + p + ' を選びました';
+    fb.className = 'addr-fb ok';
+    calc();
+  }else{
+    fb.textContent = '都道府県が読み取れませんでした。下のリストから選んでください。';
+    fb.className = 'addr-fb ng';
+  }
 }
 
 function calc(){
@@ -150,7 +198,7 @@ function calc(){
   const price = (DATA.price[pref] && DATA.price[pref][len]) ? DATA.price[pref][len][qty-1] : null;
 
   if(price == null){
-    const scope = (len === '1') ? '沖縄・離島' : '北海道・沖縄・離島';
+    const scope = '北海道・沖縄・離島';
     $('out').innerHTML =
       '<div class="quote">'
       + '<div class="qicon">📞</div>'

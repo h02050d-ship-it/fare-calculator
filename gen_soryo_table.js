@@ -122,9 +122,8 @@ const QTY_MAX = 20;
 const prefs = Object.keys(SEINO_PREF_MAP).concat(['沖縄']);
 const PRICE = {};
 for (const p of prefs){
-  PRICE[p] = {1:[],2:[],3:[],4:[]};
+  PRICE[p] = {2:[],3:[],4:[]};   // 1mは市場ツールから削除（2m/3m/4mのみ）
   for (let q=1;q<=QTY_MAX;q++){
-    PRICE[p][1].push(price1m(p,q));
     PRICE[p][2].push(priceSeino(p,2,q));
     PRICE[p][3].push(priceSeino(p,3,q));
     PRICE[p][4].push(priceSeino(p,4,q));
@@ -141,12 +140,10 @@ fs.writeFileSync(__dirname + '/soryo.html', html);
 // 検算ログ
 const t = (p,l,q)=>PRICE[p][l][q-1];
 console.log('検算 静岡2m×5束 =', t('静岡',2,5), '(期待5400)');
-console.log('検算 静岡1m×1束 =', t('静岡',1,1), '(期待2800)');
 console.log('検算 東京2m×5束 =', t('東京',2,5), '(期待6000)');
 console.log('検算 大阪2m×5束 =', t('大阪',2,5), '(期待6300)');
 console.log('検算 福岡2m×5束 =', t('福岡',2,5), '(期待10700)');
-console.log('検算 福岡1m×1束 =', t('福岡',1,1), '(期待3000)');
-console.log('検算 北海道1m×1束 =', t('北海道',1,1), '(期待3400)');
+console.log('検算 静岡4m×1束 =', t('静岡',4,1), '(期待3300)');
 console.log('検算 北海道2m×5束 =', t('北海道',2,5), '(期待 別途見積=null)');
-console.log('検算 沖縄1m×1束 =', t('沖縄',1,1), '(期待 別途見積=null)');
-console.log('生成OK: soryo_table.json /', prefs.length, '都道府県 ×', QTY_MAX, '束 × 4長さ');
+console.log('検算 沖縄2m×1束 =', t('沖縄',2,1), '(期待 別途見積=null)');
+console.log('生成OK: soryo_table.json /', prefs.length, '都道府県 ×', QTY_MAX, '束 × 2〜4m（1m削除）');
