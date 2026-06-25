@@ -126,7 +126,7 @@
       <div class="field">
         <label><span class="num">3</span>数量（束）</label>
         <select id="qty"></select>
-        <div class="hint">大量のご注文もOK。<b>21束以上は便が分かれます</b>（到着日が分かれる場合あり）</div>
+        <div class="hint">大量のご注文もOK。<b>10束以上は便が分かれる場合があります</b>（到着日が分かれることあり）</div>
       </div>
     </div>
 
@@ -152,7 +152,7 @@
       <li><b>個人のお客様</b>は西濃運輸の<b>支店止め</b>（最寄り支店でのお受け取り）となります。</li>
       <li><b>現場でのお降ろし（現場渡し）は別途費用</b>がかかります。</li>
       <li><b>北海道・沖縄・離島</b>は便ごとに運賃が変わるため、別途お見積りいたします。</li>
-      <li><b>20束を超える数量</b>は複数の便に分かれて発送するため、<b>到着日が分かれる</b>場合があります。</li>
+      <li><b>10束以上</b>のご注文は複数の便に分かれて発送する場合があり、<b>到着日が分かれる</b>ことがあります。</li>
       <li>数量・梱包状況により、実際の送料が多少前後する場合があります。最終金額は当店の請求書・見積書でご確認ください。</li>
     </ul>
   </div>
@@ -292,9 +292,12 @@ function calc(){
   if(price == null){ $('out').innerHTML = quoteCard(pref); return; }
 
   let extra = '';
-  const bin = Math.ceil(qty / MAXB);   // 便数（20束ごと）
-  if(bin >= 2){
-    extra = '<div class="split-note">📦 <b>'+qty+'束は'+bin+'便に分かれて発送</b>します（1便あたり最大'+MAXB+'束）。'
+  if(qty >= 10){   // 10束以上で到着分かれの注意を表示
+    const bin = Math.ceil(qty / MAXB);
+    const binTxt = bin >= 2
+      ? '<b>'+bin+'便に分かれて発送</b>します（1便あたり最大'+MAXB+'束）'
+      : '複数の便に分かれる場合があります';
+    extra = '<div class="split-note">📦 <b>'+qty+'束</b>は'+binTxt+'。'
           + '配送の都合で<b>到着日が前後・分かれる</b>場合があります。</div>';
   }
   const sub = pref+'　/　'+len+'m材　/　'+qty+'束';
