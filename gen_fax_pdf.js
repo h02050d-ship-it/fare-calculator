@@ -38,36 +38,36 @@ for (const [p,region] of ROWS){
 
 const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
 <style>
-  @page { size: A4 portrait; margin: 12mm 12mm; }
+  @page { size: A4 portrait; margin: 9mm 10mm; }
   * { box-sizing: border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  body { font-family:'Meiryo','Hiragino Sans',sans-serif; color:#111; font-size:11pt; line-height:1.5; }
-  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #111; padding-bottom:6px; }
-  .head .co { font-size:12pt; font-weight:bold; }
-  .head .co small { font-weight:normal; font-size:9pt; color:#444; }
-  .head .date { font-size:9.5pt; color:#444; text-align:right; }
-  h1 { font-size:18pt; text-align:center; margin:14px 0 4px; letter-spacing:.04em; }
-  .sub { text-align:center; font-size:10pt; color:#333; margin-bottom:12px; }
-  .urlbox { display:flex; gap:14px; align-items:center; border:2px solid #111; border-radius:8px; padding:12px 14px; margin-bottom:14px; }
-  .urlbox .qr { width:108px; height:108px; flex:0 0 108px; border:1px solid #ccc; }
+  body { font-family:'Meiryo','Hiragino Sans',sans-serif; color:#111; font-size:9.5pt; line-height:1.35; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2.5px solid #111; padding-bottom:4px; }
+  .head .co { font-size:11pt; font-weight:bold; }
+  .head .co small { font-weight:normal; font-size:8.5pt; color:#444; }
+  .head .date { font-size:8.5pt; color:#444; text-align:right; }
+  h1 { font-size:15pt; text-align:center; margin:7px 0 2px; letter-spacing:.03em; }
+  .sub { text-align:center; font-size:9pt; color:#333; margin-bottom:7px; }
+  .urlbox { display:flex; gap:11px; align-items:center; border:2px solid #111; border-radius:7px; padding:7px 10px; margin-bottom:8px; }
+  .urlbox .qr { width:84px; height:84px; flex:0 0 84px; border:1px solid #ccc; }
   .urlbox .qr img { width:100%; height:100%; display:block; }
   .urlbox .ut { flex:1; }
-  .urlbox .ut .lead { font-size:11pt; font-weight:bold; margin-bottom:4px; }
-  .urlbox .ut .url { font-size:12.5pt; font-weight:bold; color:#1a5e2a; word-break:break-all; letter-spacing:.01em; }
-  .urlbox .ut .steps { font-size:9.5pt; color:#333; margin-top:6px; }
-  h2 { font-size:12pt; margin:6px 0 6px; padding-left:8px; border-left:5px solid #1a5e2a; }
-  table { width:100%; border-collapse:collapse; font-size:10pt; }
-  th, td { border:1px solid #888; padding:4px 3px; text-align:center; font-size:9.5pt; font-weight:bold; }
-  thead th { background:#eee; font-size:9pt; }
+  .urlbox .ut .lead { font-size:9.5pt; font-weight:bold; margin-bottom:2px; }
+  .urlbox .ut .url { font-size:11pt; font-weight:bold; color:#1a5e2a; word-break:break-all; }
+  .urlbox .ut .steps { font-size:8.5pt; color:#333; margin-top:4px; }
+  h2 { font-size:10.5pt; margin:3px 0 4px; padding-left:7px; border-left:4px solid #1a5e2a; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #888; padding:2.5px 2px; text-align:center; font-size:9pt; font-weight:bold; }
+  thead th { background:#eee; font-size:8.5pt; }
   .grp { background:#f3f3f3; }
-  td .ex { display:block; font-size:7.5pt; color:#777; font-weight:normal; margin-top:1px; }
-  td.pf { text-align:left; font-weight:bold; white-space:nowrap; background:#fafafa; }
-  td.pf .rg { display:block; font-weight:normal; font-size:8pt; color:#777; }
+  td .ex { display:block; font-size:7pt; color:#777; font-weight:normal; }
+  td.pf { text-align:left; font-weight:bold; white-space:nowrap; background:#fafafa; font-size:8.5pt; }
+  td.pf .rg { display:block; font-weight:normal; font-size:7pt; color:#777; }
   td.q { color:#9a6b00; font-weight:bold; }
-  .note { font-size:9pt; color:#333; margin-top:10px; border:1px dashed #999; border-radius:6px; padding:9px 11px; }
+  .note { font-size:8.3pt; color:#333; margin-top:7px; border:1px dashed #999; border-radius:6px; padding:7px 9px; line-height:1.5; }
   .note b { color:#111; }
-  .note .ttl { font-weight:bold; margin-bottom:3px; }
-  .foot { margin-top:12px; border-top:2px solid #111; padding-top:6px; font-size:9.5pt; display:flex; justify-content:space-between; align-items:flex-end; }
-  .foot .tel { font-size:13pt; font-weight:bold; }
+  .note .ttl { font-weight:bold; margin-bottom:2px; }
+  .foot { margin-top:7px; border-top:2px solid #111; padding-top:4px; font-size:8.7pt; display:flex; justify-content:space-between; align-items:flex-end; }
+  .foot .tel { font-size:12pt; font-weight:bold; }
 </style></head><body>
   <div class="head">
     <div class="co">株式会社 林材木店　<small>無垢ヒノキ専門</small></div>
@@ -87,7 +87,7 @@ const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
     </div>
   </div>
 
-  <h2>送料早見表（主要地域）　<span style="font-size:9pt;font-weight:normal;color:#444;">上段＝税込／下段＝税抜　・　配送：西濃運輸　・　法人様宛て・お降ろしの価格</span></h2>
+  <h2>送料早見表（主要地域）　<span style="font-size:9pt;font-weight:normal;color:#444;">上段＝税込／下段＝税抜　・　配送：西濃運輸　・　法人様宛ての価格</span></h2>
   <table>
     <thead>
       <tr><th rowspan="2">お届け先</th><th colspan="2" class="grp">2m材</th><th colspan="2" class="grp">3m材</th><th colspan="2" class="grp">4m材</th></tr>
@@ -98,7 +98,7 @@ const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
 
   <div class="note">
     <div class="ttl">ご確認ください（基本のお取り扱い）</div>
-    ・表示は<b>法人様宛て・お降ろし</b>の基本価格です（配送：<b>西濃運輸</b>／金額は税抜・税込を併記）。商品代金は含みません。1束＝8枚です。<br>
+    ・表示は<b>法人様宛て</b>の基本価格です（配送：<b>西濃運輸</b>／金額は税抜・税込を併記）。商品代金は含みません。1束＝<b>2m・4mは8枚／3mは10枚</b>です。<br>
     ・<b>個人のお客様は西濃運輸の支店止め</b>（最寄り支店でのお受け取り）となります。<br>
     ・<b>現場でのお降ろし（現場渡し）は別途費用</b>がかかります。<br>
     ・上表は主要地域の代表例です。<b>全都道府県・全数量・混載は上記URL（QR）でその場で計算</b>できます。<br>

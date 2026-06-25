@@ -121,7 +121,7 @@
           <option value="3">3m</option>
           <option value="4">4m</option>
         </select>
-        <div class="hint">1束 ＝ <b>8枚</b>　／　長さは「○m材」のことです</div>
+        <div class="hint">1束 ＝ <b id="nyusu">8枚</b>　／　長さは「○m材」のことです</div>
       </div>
       <div class="field">
         <label><span class="num">3</span>数量（束）</label>
@@ -139,7 +139,7 @@
         <div class="mix-row"><span class="mix-len">4m</span><select id="mq4" class="mix-q"></select></div>
       </div>
       <div class="mix-sum">合計 <b id="mix-sum">0</b> 束</div>
-      <div class="hint">1束 ＝ 8枚　／　混載は合計 <b>20束まで</b>（超える場合は別便のためお問い合わせください）</div>
+      <div class="hint">1束＝2m・4mは<b>8枚</b>／3mは<b>10枚</b>　／　混載は合計 <b>20束まで</b>（超える場合は別便のためお問い合わせください）</div>
     </div>
   </div>
 
@@ -148,7 +148,7 @@
   <div class="card notes">
     <h3>📌 ご確認ください</h3>
     <ul>
-      <li>表示は<b>法人様宛て・お降ろし</b>の基本価格です。配送は<b>西濃運輸</b>、金額は<b>税抜・税込を併記</b>しています（商品代金は含みません）。</li>
+      <li>表示は<b>法人様宛て</b>の基本価格です。配送は<b>西濃運輸</b>、金額は<b>税抜・税込を併記</b>しています（商品代金は含みません）。</li>
       <li><b>個人のお客様</b>は西濃運輸の<b>支店止め</b>（最寄り支店でのお受け取り）となります。</li>
       <li><b>現場でのお降ろし（現場渡し）は別途費用</b>がかかります。</li>
       <li><b>北海道・沖縄・離島</b>は便ごとに運賃が変わるため、別途お見積りいたします。</li>
@@ -252,7 +252,7 @@ function resultCard(price, sub, per, extra){
     + '<div class="ryen">'+yen(price)+'</div>'
     + '<div class="rtax">税抜 <b>'+yen(ex)+'</b>　＋　消費税 '+yen(tax)+'</div>'
     + '<div class="rsub">'+sub+'</div>'
-    + '<div class="rbasis">配送：<b>西濃運輸</b>　／　<b>法人様宛て・お降ろし</b>の基本価格<br>個人様は<b>支店止め</b>・現場でのお降ろしは<b>別途費用</b></div>'
+    + '<div class="rbasis">配送：<b>西濃運輸</b>　／　<b>法人様宛て</b>の基本価格<br>個人様は<b>支店止め</b>・現場でのお降ろしは<b>別途費用</b></div>'
     + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b>（税込）</div>'
     + (extra||'') + '</div>';
 }
@@ -285,6 +285,7 @@ function calc(){
 
   // 単一モード
   const len = $('len').value;
+  const nyusuEl = $('nyusu'); if(nyusuEl) nyusuEl.textContent = (len==='3' ? '10枚' : '8枚'); // 2m・4m=8枚／3m=10枚
   const qty = parseInt($('qty').value, 10);
   const price = (DATA.single[pref] && DATA.single[pref][len]) ? DATA.single[pref][len][qty-1] : null;
   if(price == null){ $('out').innerHTML = quoteCard(pref); return; }
