@@ -60,6 +60,10 @@
   .result .rlabel{font-size:.95em;color:var(--green);font-weight:700;letter-spacing:.04em;}
   .result .ryen{font-size:2.9em;font-weight:800;color:var(--green);line-height:1.15;margin:4px 0 2px;letter-spacing:-.01em;}
   .result .rsub{font-size:.85em;color:var(--sub);}
+  .result .rtax{font-size:1.0em;color:var(--ink);font-weight:700;margin-top:3px;}
+  .result .rtax b{color:var(--wood-d);}
+  .result .rbasis{font-size:.78em;color:var(--sub);margin-top:9px;line-height:1.45;}
+  .result .rbasis b{color:var(--wood-d);}
   .result .rcond{font-size:.9em;color:var(--ink);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
   .result .rcond b{color:var(--wood-d);}
   .split-note{margin-top:12px;background:#fff7e6;border:1px solid var(--amber-l);border-radius:10px;
@@ -89,7 +93,7 @@
 <body>
   <div class="brand">株式会社 林材木店</div>
   <h1>📦 送料かんたん計算</h1>
-  <p class="lead">お届け先・長さ・数量をえらぶだけ。送料（税込）がすぐわかります。</p>
+  <p class="lead">お届け先・長さ・数量をえらぶだけ。送料（税抜・税込）がすぐわかります。</p>
 
   <div class="card">
     <div class="addr-box">
@@ -144,11 +148,12 @@
   <div class="card notes">
     <h3>📌 ご確認ください</h3>
     <ul>
-      <li>表示金額は<b>送料（税込）の目安</b>です。商品代金は含みません。</li>
+      <li>表示は<b>法人様宛て・お降ろし</b>の基本価格です。配送は<b>西濃運輸</b>、金額は<b>税抜・税込を併記</b>しています（商品代金は含みません）。</li>
+      <li><b>個人のお客様</b>は西濃運輸の<b>支店止め</b>（最寄り支店でのお受け取り）となります。</li>
+      <li><b>現場でのお降ろし（現場渡し）は別途費用</b>がかかります。</li>
       <li><b>北海道・沖縄・離島</b>は便ごとに運賃が変わるため、別途お見積りいたします。</li>
       <li><b>20束を超える数量</b>は複数の便に分かれて発送するため、<b>到着日が分かれる</b>場合があります。</li>
       <li>数量・梱包状況により、実際の送料が多少前後する場合があります。最終金額は当店の請求書・見積書でご確認ください。</li>
-      <li>2026年改定の送料です。改定により変更となる場合があります。</li>
     </ul>
   </div>
 
@@ -241,11 +246,14 @@ function quoteCard(pref){
     + '<div class="qtxt">'+pref+'（北海道・沖縄・離島）は便ごとに運賃が変わるため、<br>お手数ですが担当者までお問い合わせください。</div></div>';
 }
 function resultCard(price, sub, per, extra){
+  const ex = Math.round(price/1.1), tax = price - ex;   // 税抜は税込から逆算（税抜＋消費税＝税込）
   return '<div class="result">'
     + '<div class="rlabel">送料（税込）</div>'
     + '<div class="ryen">'+yen(price)+'</div>'
+    + '<div class="rtax">税抜 <b>'+yen(ex)+'</b>　＋　消費税 '+yen(tax)+'</div>'
     + '<div class="rsub">'+sub+'</div>'
-    + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b></div>'
+    + '<div class="rbasis">配送：<b>西濃運輸</b>　／　<b>法人様宛て・お降ろし</b>の基本価格<br>個人様は<b>支店止め</b>・現場でのお降ろしは<b>別途費用</b></div>'
+    + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b>（税込）</div>'
     + (extra||'') + '</div>';
 }
 
