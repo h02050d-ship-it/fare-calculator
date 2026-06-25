@@ -234,7 +234,7 @@
         </div>
         <div><label>数量（束）<span class="fb-auto-tag">明細から自動</span></label><select id="fb-qty"></select></div>
       </div>
-      <div class="fb-note">※長さ・数量は見積書の明細から自動反映（手動変更も可）。運賃ツール（実費×1.25×税込・切り上げ）と同じ計算を呼び出しています。</div>
+      <div class="fb-note">※長さ・数量は見積書の明細から自動反映（手動変更も可）。運賃ツール（実費×1.25→税抜を100円切上→×1.1税込）と同じ計算を呼び出しています。</div>
       <div class="fb-result" id="fb-result"></div>
       <div id="fb-msg"></div>
       <iframe id="fare-frame" src="index.html" title="運賃ツール" style="position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px;" aria-hidden="true"></iframe>
@@ -627,10 +627,12 @@ function render(){
   $("#itemstable").innerHTML=`<colgroup>${colgroup}</colgroup><tbody>${headRow}${body}</tbody>`;
 
   // 送料(運賃)は運賃ツール準拠で常に「税込」。商品は区分で税抜/税込。
-  // 全区分共通: 商品=税抜単価＋消費税10%、送料=税込（運賃ツール準拠）。直売もヤフー価格×0.95を税抜換算済み。
-  const ptax=Math.round(itemsTotal*0.1); const tax=ptax; const grand=itemsTotal+ptax+d.freight;
+  // 商品=税抜単価＋消費税10%。付売/市売=送料別(運賃を加算)。直売=ヤフー価格が送料込み＝送料無料(運賃を加算しない)。
+  const isChoku=(d.kubun==="直売");
+  const freightAmt=isChoku?0:d.freight;
+  const ptax=Math.round(itemsTotal*0.1); const tax=ptax; const grand=itemsTotal+ptax+freightAmt;
   $("#o-taxlabel").textContent="消費税（10％）";
-  $("#o-freight").textContent=d.freight?fmt(d.freight):"";
+  $("#o-freight").textContent=isChoku?"送料無料":(d.freight?fmt(d.freight):"");
   $("#o-tax").textContent=fmt(tax); $("#o-grand").textContent=fmt(grand); $("#o-grandtop").textContent="¥"+fmt(grand);
 }
 
@@ -675,8 +677,9 @@ function loadHist(){ try{ return JSON.parse(localStorage.getItem(LS_HIST))||[]; 
 function saveHist(a){ localStorage.setItem(LS_HIST, JSON.stringify(a.slice(0,200))); }
 function computeTotals(d){
   let it=0; (d.items||[]).forEach(x=> it+=Math.round((x.qty||0)*(x.price||0)));
-  // render() と統一: 商品に消費税10%、送料は税込でそのまま加算（全区分共通）。
-  const tax=Math.round(it*0.1); return { itemsTotal:it, tax, grand:it+tax+(d.freight||0) };
+  // render()と統一: 商品に消費税10%。付売/市売=送料加算、直売=送料無料(加算しない)。
+  const freight=(d.kubun==="直売")?0:(d.freight||0);
+  const tax=Math.round(it*0.1); return { itemsTotal:it, tax, grand:it+tax+freight };
 }
 async function loadDbHistory(){
   if(!DB_URL){ renderHist(); return; }
