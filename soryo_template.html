@@ -40,24 +40,40 @@
   .addr-fb.ok{color:var(--green);font-weight:700;}
   .addr-fb.ng{color:#c0392b;}
 
+  /* モード切替 */
+  .mode-row{display:flex;gap:8px;margin-bottom:18px;}
+  .mode-btn{flex:1;padding:11px 6px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--sub);
+            font-size:.92em;font-weight:700;cursor:pointer;transition:all .15s;}
+  .mode-btn.active{border-color:var(--green);background:var(--green-l);color:var(--green);}
+
+  /* 混載グリッド */
+  .mix-grid{display:flex;flex-direction:column;gap:10px;}
+  .mix-row{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;}
+  .mix-len{font-weight:700;color:var(--wood-d);font-size:1.05em;text-align:center;
+           background:#f6efe3;border-radius:8px;padding:10px 0;}
+  .mix-sum{margin-top:12px;text-align:right;font-weight:700;color:var(--ink);font-size:1.0em;}
+  .mix-sum b{color:var(--green);font-size:1.1em;}
+
   /* 結果 */
   .result{background:linear-gradient(180deg,#fbfdfb,#f1f8f2);border:2px solid var(--green);border-radius:16px;
           padding:22px 18px;text-align:center;box-shadow:var(--shadow);}
   .result .rlabel{font-size:.95em;color:var(--green);font-weight:700;letter-spacing:.04em;}
   .result .ryen{font-size:2.9em;font-weight:800;color:var(--green);line-height:1.15;margin:4px 0 2px;letter-spacing:-.01em;}
-  .result .ryen .unit{font-size:.4em;font-weight:700;margin-left:2px;}
-  .result .rsub{font-size:.82em;color:var(--sub);}
+  .result .rsub{font-size:.85em;color:var(--sub);}
   .result .rcond{font-size:.9em;color:var(--ink);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
   .result .rcond b{color:var(--wood-d);}
+  .split-note{margin-top:12px;background:#fff7e6;border:1px solid var(--amber-l);border-radius:10px;
+              padding:10px 12px;font-size:.84em;color:#8a6d00;text-align:left;line-height:1.5;}
+  .split-note b{color:#7a5e00;}
 
-  /* 別途見積 */
+  /* 別途見積・案内 */
   .quote{background:var(--amber);border:2px solid var(--amber-l);border-radius:16px;padding:22px 18px;text-align:center;}
   .quote .qicon{font-size:2em;}
   .quote .qttl{font-size:1.25em;font-weight:800;color:#9a7400;margin:4px 0 6px;}
   .quote .qtxt{font-size:.9em;color:var(--ink);}
+  .ask{background:#f4f7f4;border:1.5px dashed var(--green);border-radius:14px;padding:18px;text-align:center;color:var(--sub);font-size:.92em;}
 
   /* 注意書き */
-  .notes{margin-top:4px;}
   .notes h3{font-size:.92em;color:var(--wood-d);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
   .notes ul{list-style:none;}
   .notes li{font-size:.82em;color:var(--sub);padding:5px 0 5px 18px;position:relative;border-bottom:1px dotted var(--line);}
@@ -81,23 +97,45 @@
       <input type="text" id="addr" placeholder="例：静岡県磐田市福田5490-47" autocomplete="off">
       <div class="addr-fb" id="addr-fb"></div>
     </div>
+
     <div class="field">
       <label><span class="num">1</span>お届け先（都道府県）</label>
       <select id="pref"></select>
     </div>
-    <div class="field">
-      <label><span class="num">2</span>長さ</label>
-      <select id="len">
-        <option value="2">2m（〜2m）</option>
-        <option value="3">3m（〜3m）</option>
-        <option value="4">4m（〜4m）</option>
-      </select>
-      <div class="hint">1束の目安：<b id="nyusu">8〜10枚</b>　／　長さは「○m材」のことです</div>
+
+    <div class="mode-row">
+      <button type="button" class="mode-btn active" id="mode-single" onclick="setMode('single')">1種類の長さ</button>
+      <button type="button" class="mode-btn" id="mode-mix" onclick="setMode('mix')">混載（長さ違いをまとめる）</button>
     </div>
-    <div class="field">
-      <label><span class="num">3</span>数量（束）</label>
-      <select id="qty"></select>
-      <div class="hint">21束以上・長さ違いの同梱は <b>お問い合わせ</b> ください</div>
+
+    <!-- 単一モード -->
+    <div id="single-mode">
+      <div class="field">
+        <label><span class="num">2</span>長さ</label>
+        <select id="len">
+          <option value="2">2m</option>
+          <option value="3">3m</option>
+          <option value="4">4m</option>
+        </select>
+        <div class="hint">1束 ＝ <b>8枚</b>　／　長さは「○m材」のことです</div>
+      </div>
+      <div class="field">
+        <label><span class="num">3</span>数量（束）</label>
+        <select id="qty"></select>
+        <div class="hint">大量のご注文もOK。<b>21束以上は便が分かれます</b>（到着日が分かれる場合あり）</div>
+      </div>
+    </div>
+
+    <!-- 混載モード -->
+    <div id="mix-mode" style="display:none;">
+      <label><span class="num">2</span>長さごとの数量（束）</label>
+      <div class="mix-grid">
+        <div class="mix-row"><span class="mix-len">2m</span><select id="mq2" class="mix-q"></select></div>
+        <div class="mix-row"><span class="mix-len">3m</span><select id="mq3" class="mix-q"></select></div>
+        <div class="mix-row"><span class="mix-len">4m</span><select id="mq4" class="mix-q"></select></div>
+      </div>
+      <div class="mix-sum">合計 <b id="mix-sum">0</b> 束</div>
+      <div class="hint">1束 ＝ 8枚　／　混載は合計 <b>20束まで</b>（超える場合は別便のためお問い合わせください）</div>
     </div>
   </div>
 
@@ -107,9 +145,9 @@
     <h3>📌 ご確認ください</h3>
     <ul>
       <li>表示金額は<b>送料（税込）の目安</b>です。商品代金は含みません。</li>
-      <li><b>北海道（2m以上）・沖縄・離島</b>は便ごとに運賃が変わるため、別途お見積りいたします。</li>
+      <li><b>北海道・沖縄・離島</b>は便ごとに運賃が変わるため、別途お見積りいたします。</li>
+      <li><b>20束を超える数量</b>は複数の便に分かれて発送するため、<b>到着日が分かれる</b>場合があります。</li>
       <li>数量・梱包状況により、実際の送料が多少前後する場合があります。最終金額は当店の請求書・見積書でご確認ください。</li>
-      <li>21束以上、長さ違いをまとめて送る場合、特殊な配送は担当者までお問い合わせください。</li>
       <li>2026年改定の送料です。改定により変更となる場合があります。</li>
     </ul>
   </div>
@@ -127,11 +165,12 @@ const DATA = /*__DATA__*/{};
 
 // 表示順（北→南）。データに有る県だけ採用。
 const ORDER = ["北海道","青森","岩手","宮城","秋田","山形","福島","茨城","栃木","群馬","埼玉","千葉","東京","神奈川","新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重","滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島","沖縄"];
-const NYUSU = {2:"8〜10枚",3:"10枚",4:"8枚"};
-const LENS = ['2','3','4'];
+const WT = {2:20, 3:30, 4:40};   // 1束あたり重量(kg)。混載の合計重量に使用
+const MAXB = DATA.maxBundle || 20;
 
 const $ = id => document.getElementById(id);
 const yen = n => "¥" + n.toLocaleString();
+let mode = 'single';
 
 // 都道府県のフルネーム（住所判定用）
 function fullName(p){
@@ -140,82 +179,116 @@ function fullName(p){
   if(p === '大阪' || p === '京都') return p + '府';
   return p + '県';
 }
-// 貼り付け住所から都道府県を判定（東京都/京都府のような重なりはフル表記で区別）
 function detectPref(addr){
   if(!addr) return null;
-  for(const p of ORDER){
-    if(DATA.price[p] && addr.indexOf(fullName(p)) !== -1) return p;
-  }
+  for(const p of ORDER){ if(DATA.single[p] && addr.indexOf(fullName(p)) !== -1) return p; }
   return null;
 }
 
 function init(){
   const pref = $('pref'), qty = $('qty');
-  ORDER.filter(p => DATA.price[p]).forEach(p => pref.appendChild(new Option(p, p)));
-  pref.value = DATA.price['静岡'] ? '静岡' : pref.options[0].value;
+  ORDER.filter(p => DATA.single[p]).forEach(p => pref.appendChild(new Option(p, p)));
+  pref.value = DATA.single['静岡'] ? '静岡' : pref.options[0].value;
   for(let q=1; q<=DATA.qtyMax; q++) qty.appendChild(new Option(q+'束', q));
   qty.value = 1;
   $('len').value = '2';
+  // 混載は各長さ 0〜20束
+  ['mq2','mq3','mq4'].forEach(id=>{ const s=$(id); for(let q=0;q<=MAXB;q++) s.appendChild(new Option(q+'束', q)); s.value=0; });
 
   // 入力を記憶
   try{
     const s = JSON.parse(localStorage.getItem('hayazai_soryo')||'{}');
-    if(s.pref && DATA.price[s.pref]) pref.value = s.pref;
-    if(s.len && LENS.indexOf(s.len) !== -1) $('len').value = s.len;
+    if(s.pref && DATA.single[s.pref]) pref.value = s.pref;
+    if(s.len && DATA.single['静岡'][s.len]) $('len').value = s.len;
     if(s.qty) qty.value = s.qty;
+    if(s.mq){ $('mq2').value=s.mq[0]||0; $('mq3').value=s.mq[1]||0; $('mq4').value=s.mq[2]||0; }
+    if(s.mode==='mix') setMode('mix');
   }catch(e){}
 
-  ['pref','len','qty'].forEach(id => $(id).addEventListener('change', calc));
+  ['pref','len','qty','mq2','mq3','mq4'].forEach(id => $(id).addEventListener('change', calc));
   $('addr').addEventListener('input', onAddr);
   calc();
 }
 
-// 住所貼り付け → 都道府県を自動選択
+function setMode(m){
+  mode = m;
+  $('single-mode').style.display = m==='single' ? '' : 'none';
+  $('mix-mode').style.display    = m==='mix' ? '' : 'none';
+  $('mode-single').classList.toggle('active', m==='single');
+  $('mode-mix').classList.toggle('active', m==='mix');
+  calc();
+}
+
 function onAddr(){
   const a = $('addr').value.trim();
   const fb = $('addr-fb');
-  if(a === ''){ fb.textContent = ''; fb.className = 'addr-fb'; return; }
+  if(a === ''){ fb.textContent=''; fb.className='addr-fb'; return; }
   const p = detectPref(a);
-  if(p){
-    $('pref').value = p;
-    fb.textContent = '→ ' + p + ' を選びました';
-    fb.className = 'addr-fb ok';
-    calc();
-  }else{
-    fb.textContent = '都道府県が読み取れませんでした。下のリストから選んでください。';
-    fb.className = 'addr-fb ng';
-  }
+  if(p){ $('pref').value = p; fb.textContent='→ '+p+' を選びました'; fb.className='addr-fb ok'; calc(); }
+  else  { fb.textContent='都道府県が読み取れませんでした。下のリストから選んでください。'; fb.className='addr-fb ng'; }
+}
+
+function save(pref){
+  try{ localStorage.setItem('hayazai_soryo', JSON.stringify({
+    pref, mode, len:$('len').value, qty:$('qty').value,
+    mq:[$('mq2').value,$('mq3').value,$('mq4').value]
+  })); }catch(e){}
+}
+
+function quoteCard(pref){
+  return '<div class="quote"><div class="qicon">📞</div>'
+    + '<div class="qttl">別途お見積りいたします</div>'
+    + '<div class="qtxt">'+pref+'（北海道・沖縄・離島）は便ごとに運賃が変わるため、<br>お手数ですが担当者までお問い合わせください。</div></div>';
+}
+function resultCard(price, sub, per, extra){
+  return '<div class="result">'
+    + '<div class="rlabel">送料（税込）</div>'
+    + '<div class="ryen">'+yen(price)+'</div>'
+    + '<div class="rsub">'+sub+'</div>'
+    + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b></div>'
+    + (extra||'') + '</div>';
 }
 
 function calc(){
   const pref = $('pref').value;
-  const len  = $('len').value;
-  const qty  = parseInt($('qty').value, 10);
-  $('nyusu').textContent = NYUSU[len] || '';
+  save(pref);
 
-  try{ localStorage.setItem('hayazai_soryo', JSON.stringify({pref,len,qty})); }catch(e){}
-
-  const price = (DATA.price[pref] && DATA.price[pref][len]) ? DATA.price[pref][len][qty-1] : null;
-
-  if(price == null){
-    const scope = '北海道・沖縄・離島';
-    $('out').innerHTML =
-      '<div class="quote">'
-      + '<div class="qicon">📞</div>'
-      + '<div class="qttl">別途お見積りいたします</div>'
-      + '<div class="qtxt">'+pref+'（'+scope+'）は便ごとに運賃が変わるため、<br>お手数ですが担当者までお問い合わせください。</div>'
-      + '</div>';
+  if(mode === 'mix'){
+    const q2=+$('mq2').value, q3=+$('mq3').value, q4=+$('mq4').value;
+    const total = q2+q3+q4;
+    $('mix-sum').textContent = total;
+    if(total === 0){ $('out').innerHTML = '<div class="ask">長さごとの束数を入れてください。</div>'; return; }
+    if(total > MAXB){
+      $('out').innerHTML = '<div class="quote"><div class="qicon">📦</div>'
+        + '<div class="qttl">混載は合計20束まで</div>'
+        + '<div class="qtxt">合計'+total+'束は別便となります。お手数ですが担当者までお問い合わせください。<br>（1種類ずつなら20束を超えても計算できます）</div></div>';
+      return;
+    }
+    if(!DATA.single[pref] || DATA.single[pref][2][0]===null){ $('out').innerHTML = quoteCard(pref); return; }
+    const W = WT[2]*q2 + WT[3]*q3 + WT[4]*q4;
+    const price = DATA.mixByWeight[pref][W];
+    if(price == null){ $('out').innerHTML = quoteCard(pref); return; }
+    const parts = [];
+    if(q2) parts.push('2m×'+q2); if(q3) parts.push('3m×'+q3); if(q4) parts.push('4m×'+q4);
+    const sub = pref+'　/　'+parts.join('・')+'（計'+total+'束）';
+    $('out').innerHTML = resultCard(price, sub, Math.round(price/total));
     return;
   }
 
-  const per = Math.round(price / qty);
-  $('out').innerHTML =
-    '<div class="result">'
-    + '<div class="rlabel">送料（税込）</div>'
-    + '<div class="ryen">'+yen(price)+'</div>'
-    + '<div class="rsub">'+pref+'　/　'+len+'m材　/　'+qty+'束</div>'
-    + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b></div>'
-    + '</div>';
+  // 単一モード
+  const len = $('len').value;
+  const qty = parseInt($('qty').value, 10);
+  const price = (DATA.single[pref] && DATA.single[pref][len]) ? DATA.single[pref][len][qty-1] : null;
+  if(price == null){ $('out').innerHTML = quoteCard(pref); return; }
+
+  let extra = '';
+  const bin = Math.ceil(qty / MAXB);   // 便数（20束ごと）
+  if(bin >= 2){
+    extra = '<div class="split-note">📦 <b>'+qty+'束は'+bin+'便に分かれて発送</b>します（1便あたり最大'+MAXB+'束）。'
+          + '配送の都合で<b>到着日が前後・分かれる</b>場合があります。</div>';
+  }
+  const sub = pref+'　/　'+len+'m材　/　'+qty+'束';
+  $('out').innerHTML = resultCard(price, sub, Math.round(price/qty), extra);
 }
 
 init();

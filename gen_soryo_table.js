@@ -1,11 +1,14 @@
 // ============================================================
 // 市場用 送料表ジェネレーター（gen_soryo_table.js）
-//   本番エンジン index.html と同じ定数・同じ式で「最終送料（税込）」だけを
-//   事前計算し、soryo_table.json に書き出す。
-//   → 公開ページ(soryo.html)には“最終金額”のみが載り、原価率(×0.90)・
-//     利幅(×1.25)・実費といった計算式は一切ソースに残らない。
-//   運賃改定したら index.html を直し、この値を合わせて `node gen_soryo_table.js`
-//   を実行し直すだけ。出力は index.html の calcSeino() と必ず一致する。
+//   本番 index.html と同じ定数・式で「最終送料(税込)」だけを事前計算し、
+//   soryo_template.html に注入して自己完結HTML(soryo.html)を生成する。
+//   公開ページには“最終金額”のみが載り、原価率(×0.90)・利幅(×1.25)・実費は
+//   一切ソースに残らない。改定時は本体index.htmlと下記定数を直して
+//   `node gen_soryo_table.js` を1回流すだけ。
+//
+//   ★1m(佐川)は市場ツールから削除。2m/3m/4m(西濃)のみ。
+//   ★ダンボール代 = 8×重量 が全長さで成立(160/20=240/30=320/40=8)するため、
+//     混載の送料は「合計重量」だけで一意に決まる → mixByWeight表で表現可能。
 // ============================================================
 const fs = require('fs');
 
@@ -54,82 +57,74 @@ const SEINO_FARES = [
   [25300,27700,30200,32300,34300,36400,38500,40600,42700,44800,47700,49800,54100,56300,60800,63100,65500,67800,72500,77100,81700,86400],
   [26600,29100,31600,33900,36000,38300,40500,42700,45000,47100,50100,52300,56800,59300,64000,66500,68900,71300,76200,81100,86000,90900]
 ];
-const DANBALL = { 1:{weight:20,box:160}, 2:{weight:20,box:160}, 3:{weight:30,box:240}, 4:{weight:40,box:320} };
+const DANBALL = { 2:{weight:20,box:160}, 3:{weight:30,box:240}, 4:{weight:40,box:320} };
 const SEINO_DISCOUNT = 0.90;
 const FUEL_SC_RATE = 0.028;
 const EC_MULT = 1.25;
-const SAGAWA_1M_COST_160 = {
-  "北海道":2120,"青森":1850,"岩手":1850,"秋田":1850,"宮城":1760,"山形":1760,"福島":1760,
-  "茨城":1670,"栃木":1670,"群馬":1670,"埼玉":1670,"千葉":1670,"東京":1670,"神奈川":1670,"山梨":1670,
-  "新潟":1670,"長野":1670,"岐阜":1670,"静岡":1670,"愛知":1670,"三重":1670,
-  "富山":1670,"石川":1670,"福井":1670,"滋賀":1670,"京都":1670,"大阪":1670,"兵庫":1670,"奈良":1670,"和歌山":1670,
-  "鳥取":1760,"島根":1760,"岡山":1760,"広島":1760,"山口":1760,
-  "徳島":1850,"香川":1850,"愛媛":1850,"高知":1850,"福岡":1850,"佐賀":1850,"長崎":1850,"大分":1850,
-  "熊本":1850,"宮崎":1850,"鹿児島":1850
-};
-const QUOTE_ONLY_1M = ["沖縄"];
-const QUOTE_ONLY_2M = ["沖縄","北海道"];
-const MAX_BUNDLE = 20;
+const QUOTE_ONLY_2M = ["沖縄","北海道"]; // 西濃(2m+)：北海道・沖縄・離島は別途見積
+const MAX_BUNDLE = 20;                  // 1便あたり上限（超過は分割）
 
 // ===== index.html calcSeino() と同一の式 =====
 function seinoCost(tIdx, dIdx){ return Math.ceil(SEINO_FARES[tIdx][dIdx]*SEINO_DISCOUNT*(1+FUEL_SC_RATE)/10)*10; }
 function priceEC(baseAll){ return Math.ceil(baseAll*EC_MULT*1.1/100)*100; } // 税込・100円切上
+function tierOf(W){ let ti = SEINO_WEIGHTS.findIndex(v=>v>=W); return ti; } // -1=超過
 
-// 1m（佐川・20枚束・口建て・160サイズ・箱320・現場渡しなし）
-function price1m(pref, taba){
-  if (QUOTE_ONLY_1M.includes(pref)) return null;
-  const cost = SAGAWA_1M_COST_160[pref];
-  if (!cost) return null;
-  const mai = taba*20;
-  const kuchi = Math.ceil(mai/40);
-  const baseAll = cost*kuchi + 320*kuchi;
-  return priceEC(baseAll);
-}
-
-// 2m/3m/4m（西濃）。20束超は本番と同じ分割で算出。
-function priceSeino(pref, len, taba){
+// 単一長さ。20束超は本番と同じ束数分割で算出。
+function priceSingle(pref, len, taba){
   if (QUOTE_ONLY_2M.includes(pref)) return null;
   const d = DANBALL[len];
-  const distIdx = PREF_TO_DIST[SEINO_PREF_MAP[pref]];
-  let fareSum = 0, boxSum = 0, totalW = 0;
-  if (taba <= MAX_BUNDLE) {
-    const w = Math.ceil(taba*d.weight);
-    let ti = SEINO_WEIGHTS.findIndex(v=>v>=w);
-    if (ti === -1) return null; // 重量超過
-    fareSum = seinoCost(ti, distIdx);
-    boxSum = taba*d.box;
-    totalW = w;
+  const dist = PREF_TO_DIST[SEINO_PREF_MAP[pref]];
+  let fareSum=0, boxSum=0;
+  if (taba <= MAX_BUNDLE){
+    const ti = tierOf(Math.ceil(taba*d.weight));
+    if (ti === -1) return null;
+    fareSum = seinoCost(ti, dist);
+    boxSum  = taba*d.box;
   } else {
-    const shipCount = Math.ceil(taba/MAX_BUNDLE);
-    const baseQty = Math.floor(taba/shipCount);
-    const rem = taba % shipCount;
-    for (let i=0;i<shipCount;i++){
-      const sq = baseQty + (i<rem?1:0);
-      const sw = Math.ceil(sq*d.weight);
-      let ti = SEINO_WEIGHTS.findIndex(v=>v>=sw);
+    const ships = Math.ceil(taba/MAX_BUNDLE);
+    const baseQ = Math.floor(taba/ships);
+    const rem   = taba % ships;
+    for (let i=0;i<ships;i++){
+      const sq = baseQ + (i<rem?1:0);
+      const ti = tierOf(Math.ceil(sq*d.weight));
       if (ti === -1) return null;
-      fareSum += seinoCost(ti, distIdx);
-      boxSum += sq*d.box;
-      totalW += sw;
+      fareSum += seinoCost(ti, dist);
+      boxSum  += sq*d.box;
     }
   }
-  const baseAll = fareSum + boxSum; // 現場渡しは市場ツールでは含めない
-  return priceEC(baseAll);
+  return priceEC(fareSum + boxSum); // 現場渡しは市場ツールでは含めない
+}
+
+// 混載（合計重量Wだけで決まる。box=8W）。W=合計重量(kg)。≤20束想定。
+function priceByWeight(pref, W){
+  if (QUOTE_ONLY_2M.includes(pref)) return null;
+  const ti = tierOf(W);
+  if (ti === -1) return null;
+  const dist = PREF_TO_DIST[SEINO_PREF_MAP[pref]];
+  return priceEC(seinoCost(ti, dist) + 8*W);
 }
 
 // ===== テーブル生成 =====
-const QTY_MAX = 20;
+const QTY_MAX = 40;        // 単一長さの最大束数（21束以上=分割）
+const W_MAX   = 800;       // 混載の最大合計重量（20束×40kg）
 const prefs = Object.keys(SEINO_PREF_MAP).concat(['沖縄']);
-const PRICE = {};
+
+const single = {};         // single[pref][2|3|4] = [q=1..QTY_MAX]
+const mixByWeight = {};     // mixByWeight[pref] = {W: 送料}（W=20,30,...,800）
 for (const p of prefs){
-  PRICE[p] = {2:[],3:[],4:[]};   // 1mは市場ツールから削除（2m/3m/4mのみ）
+  single[p] = {2:[],3:[],4:[]};
   for (let q=1;q<=QTY_MAX;q++){
-    PRICE[p][2].push(priceSeino(p,2,q));
-    PRICE[p][3].push(priceSeino(p,3,q));
-    PRICE[p][4].push(priceSeino(p,4,q));
+    single[p][2].push(priceSingle(p,2,q));
+    single[p][3].push(priceSingle(p,3,q));
+    single[p][4].push(priceSingle(p,4,q));
+  }
+  mixByWeight[p] = {};
+  for (let W=20; W<=W_MAX; W+=10){
+    mixByWeight[p][W] = priceByWeight(p, W);
   }
 }
-const out = { generated: 'gen_soryo_table.js', qtyMax: QTY_MAX, prefs, price: PRICE };
+
+const out = { generated:'gen_soryo_table.js', qtyMax:QTY_MAX, maxBundle:MAX_BUNDLE, wMax:W_MAX, prefs, single, mixByWeight };
 fs.writeFileSync(__dirname + '/soryo_table.json', JSON.stringify(out));
 
 // テンプレートにデータを埋め込んで自己完結HTML(soryo.html)を生成
@@ -137,13 +132,15 @@ const tpl = fs.readFileSync(__dirname + '/soryo_template.html', 'utf8');
 const html = tpl.replace('/*__DATA__*/{}', JSON.stringify(out));
 fs.writeFileSync(__dirname + '/soryo.html', html);
 
-// 検算ログ
-const t = (p,l,q)=>PRICE[p][l][q-1];
-console.log('検算 静岡2m×5束 =', t('静岡',2,5), '(期待5400)');
-console.log('検算 東京2m×5束 =', t('東京',2,5), '(期待6000)');
-console.log('検算 大阪2m×5束 =', t('大阪',2,5), '(期待6300)');
-console.log('検算 福岡2m×5束 =', t('福岡',2,5), '(期待10700)');
-console.log('検算 静岡4m×1束 =', t('静岡',4,1), '(期待3300)');
-console.log('検算 北海道2m×5束 =', t('北海道',2,5), '(期待 別途見積=null)');
-console.log('検算 沖縄2m×1束 =', t('沖縄',2,1), '(期待 別途見積=null)');
-console.log('生成OK: soryo_table.json /', prefs.length, '都道府県 ×', QTY_MAX, '束 × 2〜4m（1m削除）');
+// ===== 検算（本番index.htmlと一致するはず）=====
+const s = (p,l,q)=>single[p][l][q-1];
+const m = (p,W)=>mixByWeight[p][W];
+console.log('単一 静岡2m×5束 =', s('静岡',2,5), '(期待5400)');
+console.log('単一 東京2m×5束 =', s('東京',2,5), '(期待6000)');
+console.log('単一 大阪4m×10束 =', s('大阪',4,10), '(期待20500)');
+console.log('単一 静岡2m×25束(分割) =', s('静岡',2,25));
+console.log('混載 静岡 2m2+3m1+4m1(W=110) =', m('静岡',110), '※単一でなく混載合計');
+console.log('混載 静岡 W=100(=2m5束相当) =', m('静岡',100), '(単一2m5束と一致するはず=5400)');
+console.log('別途 北海道2m×5束 =', s('北海道',2,5), '(期待null)');
+console.log('別途 沖縄 混載W=100 =', m('沖縄',100), '(期待null)');
+console.log('生成OK: 47県 × 単一2〜4m(1〜'+QTY_MAX+'束) ＋ 混載(合計重量20〜'+W_MAX+'kg)');
