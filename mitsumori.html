@@ -99,49 +99,61 @@
   .b-cancel{ background:#fdecec; color:#c33; }
   .hempty{ padding:14px; color:#999; font-size:12px; text-align:center; }
 
-  /* ===== A4シート（リッチ見積書フォーマット） ===== */
+  /* ===== A4シート（納品書 n29im17c レイアウトをベースに mm基準） ===== */
   .stage{ flex:1; display:flex; justify-content:center; }
-  .sheet{ width:210mm; height:297mm; background:#fff; color:#000; padding:14mm 14mm 12mm 14mm; position:relative; box-shadow:0 2px 14px rgba(0,0,0,.2); font-family:Arial,"MS PGothic","ＭＳ Ｐゴシック",sans-serif; font-size:9.5pt; line-height:1.2; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .sheet .title{ text-align:center; font-size:21pt; letter-spacing:.6em; font-weight:bold; margin:0 0 1mm; }
-  .sheet .qdate{ position:absolute; top:14mm; right:14mm; font-size:9.5pt; }
+  .sheet{
+    width:210mm; height:297mm; background:#fff; color:#000;
+    padding:17mm 18mm 14mm 17.6mm; position:relative;
+    box-shadow:0 2px 14px rgba(0,0,0,.2);
+    font-family:Arial,"MS PGothic","ＭＳ Ｐゴシック",sans-serif;
+    font-size:10.5pt; line-height:1.15;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet .title{ position:absolute; top:19mm; left:17.6mm; right:18mm; text-align:center; font-size:20.9pt; letter-spacing:.18em; font-weight:bold; margin:0; line-height:1; }
+  .sheet .qdate{ position:absolute; top:26.6mm; right:18mm; font-size:10.5pt; }
 
-  .mid{ display:flex; gap:6mm; margin-top:5mm; }
-  .mid .left{ width:104mm; }
-  .mid .right{ flex:1; font-size:9pt; line-height:1.25; }
-  .addressee{ font-size:14pt; padding:1mm 1mm 1.5mm; border-bottom:1.4px solid #000; display:flex; align-items:baseline; gap:.6em; }
+  /* 中段：宛先/取引条件/御見積金額 と 自社情報 */
+  .mid{ display:flex; margin-top:18mm; }
+  .mid .left{ width:101mm; padding:3.8mm 5mm 0 0; }
+  .mid .right{ flex:1; display:flex; justify-content:flex-end; font-size:10pt; line-height:1.2; }
+  .mid .right .rinfo{ text-align:left; }
+  .addressee{ font-size:14pt; padding:2mm 2mm 1.5mm; border-bottom:1px solid #000; display:flex; align-items:baseline; gap:.4em; }
   .addressee .nmc{ flex:1; }
-  .addressee .on{ font-size:11pt; }
-  .terms{ border:1px solid #000; border-collapse:collapse; width:100%; margin-top:3mm; }
-  .terms td{ border:1px solid #000; font-size:8.7pt; padding:1mm 1.5mm; }
-  .terms td.k{ background:#f0f0f0; text-align:center; width:24mm; white-space:nowrap; }
-  .leadtxt{ font-size:9pt; margin-top:3mm; }
-  .totalbox{ margin-top:2.5mm; display:flex; border:1.4px solid #000; height:12mm; }
-  .totalbox .lbl{ width:36mm; display:flex; align-items:center; justify-content:center; font-size:13pt; border-right:1.4px solid #000; background:#f7f7f7; }
-  .totalbox .val{ flex:1; display:flex; align-items:center; justify-content:center; font-size:17pt; font-weight:bold; }
-  .right .nm{ font-size:11pt; font-weight:bold; margin-bottom:.5mm; }
-  .right div{ line-height:1.35; }
+  .addressee .on{ font-size:12pt; }
+  .terms{ border-collapse:collapse; width:100%; margin-top:3.5mm; }
+  .terms td{ border:1px solid #000; font-size:9pt; padding:1mm 1.5mm; line-height:1.25; }
+  .terms td.k{ background:var(--grayhead); text-align:center; width:22mm; white-space:nowrap; font-weight:bold; }
+  .leadtxt{ font-size:9.5pt; margin-top:3.5mm; }
+  .totalbox{ margin-top:2.6mm; display:flex; border:1.4px solid #000; height:13mm; }
+  .totalbox .lbl{ width:38mm; display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5pt; line-height:1.1; border-right:1.4px solid #000; background:var(--grayhead); }
+  .totalbox .lbl small{ font-size:8.5pt; }
+  .totalbox .val{ flex:1; display:flex; align-items:center; justify-content:center; font-size:17.4pt; font-weight:bold; font-variant-numeric:tabular-nums; }
+  .right .nm{ font-size:11pt; font-weight:bold; }
+  .right .rinfo > div{ line-height:1.32; }
 
-  table.items{ width:100%; border-collapse:collapse; margin-top:5mm; table-layout:fixed; }
-  table.items td{ border:1px solid #000; font-size:9.3pt; height:6.0mm; line-height:1; padding:0 1mm; vertical-align:middle; }
+  /* 明細テーブル（納品書と同寸） */
+  table.items{ width:100%; border-collapse:collapse; margin-top:6mm; table-layout:fixed; }
+  table.items td{ border:1px solid #000; font-size:10.3pt; height:6.5mm; line-height:1; padding:0 1mm; vertical-align:middle; }
   table.items td.hdr{ background:var(--grayhead); text-align:center; font-weight:bold; }
   table.items tr.oddrow td{ background:#fff; }
   table.items tr.evenrow td{ background:#f2f2f2; }
   td.name{ text-align:center; } td.grade{ text-align:center; } td.num{ text-align:right; } td.center{ text-align:center; }
 
-  .foot{ display:flex; margin-top:3mm; gap:4mm; }
+  /* フッター（納品書と同じ：備考 ＋ 集計／QR） */
+  .foot{ display:flex; margin-top:3.5mm; gap:4mm; }
   .foot .fleft{ flex:1; }
-  .foot .legal{ font-size:9pt; line-height:1.5; }
-  .remarks{ border:1px solid #000; margin-top:2.5mm; height:38mm; }
-  .remarks .rhead{ background:var(--grayhead); text-align:center; font-weight:bold; font-size:9pt; border-bottom:1px solid #000; padding:.5mm 0; }
-  .remarks .rbody{ padding:1.5mm 2mm; font-size:8.7pt; white-space:pre-wrap; line-height:1.45; }
-  .foot .fright{ width:66mm; }
+  .foot .legal{ font-size:9.5pt; line-height:1.5; }
+  .remarks{ border:1px solid #000; margin-top:2.5mm; height:42mm; }
+  .remarks .rhead{ background:var(--grayhead); text-align:center; font-weight:bold; font-size:10pt; border-bottom:1px solid #000; padding:.5mm 0; }
+  .remarks .rbody{ padding:1.5mm 2mm; font-size:9pt; white-space:pre-wrap; line-height:1.45; }
+  .foot .fright{ width:64mm; }
   table.sum{ width:100%; border-collapse:collapse; }
-  table.sum td{ border:1px solid #000; height:6.6mm; font-size:9.5pt; padding:0 2mm; }
+  table.sum td{ border:1px solid #000; height:6.8mm; font-size:10.5pt; padding:0 2mm; }
   table.sum td.k{ background:var(--grayhead); text-align:center; font-weight:bold; width:30mm; }
   table.sum td.v{ text-align:right; font-weight:bold; font-variant-numeric:tabular-nums; }
   .qrwrap{ text-align:center; margin-top:5mm; }
   .qrwrap img{ width:24mm; height:24mm; image-rendering:pixelated; }
-  .qrwrap .url{ font-size:7.5pt; font-family:Calibri,Arial,sans-serif; margin-top:1mm; color:#1a6; }
+  .qrwrap .url{ font-size:7.7pt; font-family:Calibri,Arial,sans-serif; margin-top:1mm; color:#1a6; }
 
   @media (max-width: 1000px){
     .app{ flex-direction:column; padding:10px; gap:12px; }
@@ -260,8 +272,8 @@
 
   <div class="stage">
     <div class="sheet" id="sheet">
+      <p class="title">御　見　積　書</p>
       <div class="qdate">見積日：<span id="o-date">2026年6月1日</span></div>
-      <p class="title">見　積　書</p>
       <div class="mid">
         <div class="left">
           <div class="addressee"><span class="nmc" id="o-customer">　</span><span class="on" id="o-keisho">御中</span></div>
@@ -272,11 +284,11 @@
           </table>
           <div class="leadtxt">下記の通りお見積り申し上げます。</div>
           <div class="totalbox">
-            <div class="lbl">合計金額</div>
+            <div class="lbl">御見積金額<br><small>（税込）</small></div>
             <div class="val" id="o-grandtop">¥0</div>
           </div>
         </div>
-        <div class="right">
+        <div class="right"><div class="rinfo">
           <div class="nm">株式会社 林材木店</div>
           <div>〒437-1203</div>
           <div>静岡県磐田市福田 5490-47</div>
@@ -288,7 +300,7 @@
           <div>普通　1004660　カ）ハヤシザイモクテン</div>
           <div>登録番号　T3-0804-0100-4226</div>
           <div style="margin-top:1.2mm;">担当：<span id="o-tanto"></span></div>
-        </div>
+        </div></div>
       </div>
 
       <table class="items" id="itemstable"></table>
@@ -603,14 +615,14 @@ function autofillPrices(force){
 /* ---- 収集・描画 ---- */
 function collect(){
   const items=[...document.querySelectorAll(".item-row")].map(row=>{ const it=readRow(row); it.priceAuto=row.querySelector(".i-price").classList.contains("auto"); return it; });
-  return { date:$("#f-date").value, customer:$("#f-customer").value.trim(), address:$("#f-address").value.trim(), keisho:$("#f-keisho").value, kubun:kubun, carrier:$("#f-carrier").value,
+  return { date:$("#f-date").value, customer:$("#f-customer").value.trim(), keisho:$("#f-keisho").value, kubun:kubun, carrier:$("#f-carrier").value,
     tanto:$("#f-tanto").value.trim(), nouki:$("#f-nouki").value.trim(), shiharai:$("#f-shiharai").value.trim(), limit:$("#f-limit").value,
     freight:parseFloat(($("#f-freight").value||"").toString().replace(/,/g,""))||0, remarks:$("#f-remarks").value, items };
 }
 function render(){
   const d=collect();
   $("#o-date").textContent=fmtDateJP(d.date);
-  $("#o-customer").textContent=d.customer||"　"; $("#o-keisho").textContent=d.keisho||"御中"; $("#o-address").textContent=d.address||"";
+  $("#o-customer").textContent=d.customer||"　"; $("#o-keisho").textContent=d.keisho||"御中";
   $("#o-nouki").textContent=d.nouki; $("#o-shiharai").textContent=d.shiharai; $("#o-limit").textContent=fmtDateJP(d.limit);
   $("#o-tanto").textContent=d.tanto; $("#o-remarks").textContent=d.remarks;
 
