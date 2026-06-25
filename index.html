@@ -533,6 +533,8 @@ function calcSeino() {
     return isEC ? Math.round(Math.ceil(baseAll * EC_MULT / 100) * 100 * 1.1)
                 : Math.ceil(baseAll * ICHI_MULT / 100) * 100;
   }
+  // EC売価の税抜（実費×1.25を100円切上＝きれいな100円単位）。税込＝priceFrom（＝税抜×1.1）
+  function priceZeinuki(baseAll){ return Math.ceil(baseAll * EC_MULT / 100) * 100; }
   // 西濃テーブル→実費（×0.90＋燃料SC2.8%）・10円切り上げ
   function seinoCost(tIdx, dIdx){ return Math.ceil(SEINO_FARES[tIdx][dIdx] * SEINO_DISCOUNT * (1 + FUEL_SC_RATE) / 10) * 10; }
 
@@ -559,7 +561,7 @@ function calcSeino() {
     const sagawaFee = cost * kuchi;                  // 実費(税抜)
     const box1m = BOX_1M * kuchi;
     const baseAll = sagawaFee + box1m;               // ※1mに現場渡しは付けない
-    const total = priceFrom(baseAll);
+    const zeinuki = priceZeinuki(baseAll); const total = priceFrom(baseAll);
     const perTaba = Math.round(total / taba);
 
     document.getElementById('s-total-weight').value = Math.ceil(mai * 0.6); // 表示用(桧0.6kg/枚)
@@ -573,7 +575,8 @@ function calcSeino() {
           <tr class="sub"><th>佐川実費（${cost.toLocaleString()}円×${kuchi}口）</th><td>${sagawaFee.toLocaleString()}円</td></tr>
           <tr><th>ダンボール代（160×${2*kuchi}枚）</th><td>${box1m.toLocaleString()}円</td></tr>
           <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
-          <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
+          <tr><th>${multLabel}</th><td>${isEC?'×1.25→税抜100円切上→×1.1':'×1.25'}</td></tr>
+          <tr class="sub"><th>送料（税抜）</th><td>${zeinuki.toLocaleString()}円</td></tr>
           <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
           <tr class="sub"><th>1束あたり</th><td>${perTaba.toLocaleString()}円</td></tr>
         </table>
@@ -611,7 +614,7 @@ function calcSeino() {
 
       const genba = isGenba ? weight2plus * GENBA_RATE : 0; // 現場渡しは西濃(2m+)重量のみ
       const baseAll = sagawa1mFee + sagawa1mBox + seinoFare + box2plus + genba;
-      const total = priceFrom(baseAll);
+      const zeinuki = priceZeinuki(baseAll); const total = priceFrom(baseAll);
       const perBdl = Math.round(total / totalQty);
 
       let rows = '';
@@ -637,8 +640,9 @@ function calcSeino() {
             ${rows}
             ${isGenba && genba>0 ? `<tr><th>現場渡し（西濃${weight2plus}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
             <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
-            <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
-            <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
+            <tr><th>${multLabel}</th><td>${isEC?'×1.25→税抜100円切上→×1.1':'×1.25'}</td></tr>
+            <tr class="sub"><th>送料（税抜）</th><td>${zeinuki.toLocaleString()}円</td></tr>
+          <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
             <tr class="sub"><th>1束あたり</th><td>${perBdl.toLocaleString()}円</td></tr>
           </table>
         </div>
@@ -680,7 +684,7 @@ function calcSeino() {
 
     const genba = isGenba ? totalShipWeight * GENBA_RATE : 0;
     const baseAll = totalFareSum + totalBoxSum + genba;   // 実費(税抜)
-    const total = priceFrom(baseAll);
+    const zeinuki = priceZeinuki(baseAll); const total = priceFrom(baseAll);
     const perBundle = Math.round(total / qty);
 
     document.getElementById('s-total-weight').value = totalWeight;
@@ -696,7 +700,8 @@ function calcSeino() {
           <tr><th>ダンボール代合計</th><td>${totalBoxSum.toLocaleString()}円</td></tr>
           ${isGenba ? `<tr><th>現場渡し（${totalShipWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
           <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
-          <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
+          <tr><th>${multLabel}</th><td>${isEC?'×1.25→税抜100円切上→×1.1':'×1.25'}</td></tr>
+          <tr class="sub"><th>送料（税抜）</th><td>${zeinuki.toLocaleString()}円</td></tr>
           <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
           <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
         </table>
@@ -736,7 +741,7 @@ function calcSeino() {
 
   const genba = isGenba ? totalWeight * GENBA_RATE : 0;
   const baseAll = fare + boxCost + genba;   // 実費(税抜)
-  const total = priceFrom(baseAll);
+  const zeinuki = priceZeinuki(baseAll); const total = priceFrom(baseAll);
   const perBundle = totalQty > 0 ? Math.round(total / totalQty) : 0;
 
   const html = `
@@ -749,8 +754,9 @@ function calcSeino() {
         <tr><th>ダンボール代（${boxDetail.join(' + ')}）</th><td>${boxCost.toLocaleString()}円</td></tr>
         ${isGenba ? `<tr><th>現場渡し（${totalWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
         <tr class="sub"><th>実費小計（税抜）</th><td>${baseAll.toLocaleString()}円</td></tr>
-        <tr><th>${multLabel}</th><td>${isEC?'×1.25×1.1':'×1.25'}</td></tr>
-        <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
+        <tr><th>${multLabel}</th><td>${isEC?'×1.25→税抜100円切上→×1.1':'×1.25'}</td></tr>
+        <tr class="sub"><th>送料（税抜）</th><td>${zeinuki.toLocaleString()}円</td></tr>
+          <tr class="total"><th>合計${isEC?'（税込）':'（税抜）'}</th><td>${total.toLocaleString()}円</td></tr>
         <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
       </table>
     </div>
