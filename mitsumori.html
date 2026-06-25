@@ -238,7 +238,7 @@
     </div>
 
     <div class="freight-box">
-      <div class="fb-title"><span>🚚 送料を自動計算（運賃ツールと同一・税込）</span><button class="fb-apply-top" id="fb-apply">＋ 見積書の運賃に追加</button></div>
+      <div class="fb-title"><span>🚚 送料を自動計算（運賃ツール準拠／見積書には税抜で反映）</span><button class="fb-apply-top" id="fb-apply">＋ 見積書の運賃に追加</button></div>
       <div class="fb-grid">
         <div><label>送付先（都道府県）</label><select id="fb-pref"></select></div>
         <div><label>長さ <span class="fb-auto-tag">明細から自動</span></label>
@@ -246,7 +246,7 @@
         </div>
         <div><label>数量（束）<span class="fb-auto-tag">明細から自動</span></label><select id="fb-qty"></select></div>
       </div>
-      <div class="fb-note">※長さ・数量は見積書の明細から自動反映（手動変更も可）。運賃ツール（実費×1.25→税抜を100円切上→×1.1税込）と同じ計算を呼び出しています。</div>
+      <div class="fb-note">※長さ・数量は見積書の明細から自動反映（手動変更も可）。運賃ツールは税込で算出し、見積書には<b>税抜（÷1.1）</b>で反映します（消費税は別行で合算＝お客様の支払総額は税込と一致）。</div>
       <div class="fb-result" id="fb-result"></div>
       <div id="fb-msg"></div>
       <iframe id="fare-frame" src="index.html" title="運賃ツール" style="position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px;" aria-hidden="true"></iframe>
@@ -316,7 +316,7 @@
         </div>
         <div class="fright">
           <table class="sum">
-            <tr><td class="k">運賃（税込）</td><td class="v" id="o-freight"></td></tr>
+            <tr><td class="k">運賃（税抜）</td><td class="v" id="o-freight"></td></tr>
             <tr><td class="k" id="o-taxlabel">消費税（10％）</td><td class="v" id="o-tax">0</td></tr>
             <tr><td class="k">合計金額</td><td class="v" id="o-grand">0</td></tr>
           </table>
@@ -510,6 +510,7 @@ function calcViaFrame(){
 
 const $ = s => document.querySelector(s);
 const fmt = n => (Math.round(n)||0).toLocaleString("ja-JP");
+const freightExcl = incl => Math.round((incl||0)/1.1);   // 運賃ツールは税込→見積書には税抜で反映（消費税は別行で合算）
 function esc(s){ return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 function todayISO(){ const t=new Date(); const z=n=>String(n).padStart(2,"0"); return `${t.getFullYear()}-${z(t.getMonth()+1)}-${z(t.getDate())}`; }
 function fmtDateJP(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-").map(Number); return `${y}年${m}月${d}日`; }
@@ -638,11 +639,12 @@ function render(){
   }
   $("#itemstable").innerHTML=`<colgroup>${colgroup}</colgroup><tbody>${headRow}${body}</tbody>`;
 
-  // 送料(運賃)は運賃ツール準拠で常に「税込」。商品は区分で税抜/税込。
-  // 商品=税抜単価＋消費税10%。付売/市売=送料別(運賃を加算)。直売=ヤフー価格が送料込み＝送料無料(運賃を加算しない)。
+  // 運賃は税抜で表示し、消費税10%は「商品＋運賃」に掛ける（納品書と同じ標準方式）。
+  // 運賃ツールは税込を返すので、反映時に freightExcl で税抜換算済み＝f-freightは税抜。
+  // 直売はヤフー価格が送料込み＝送料無料(運賃を加算しない)。
   const isChoku=(d.kubun==="直売");
-  const freightAmt=isChoku?0:d.freight;
-  const ptax=Math.round(itemsTotal*0.1); const tax=ptax; const grand=itemsTotal+ptax+freightAmt;
+  const freightAmt=isChoku?0:d.freight;        // 運賃は税抜
+  const tax=Math.round((itemsTotal+freightAmt)*0.1); const grand=itemsTotal+freightAmt+tax;
   $("#o-taxlabel").textContent="消費税（10％）";
   $("#o-freight").textContent=isChoku?"送料無料":(d.freight?fmt(d.freight):"");
   $("#o-tax").textContent=fmt(tax); $("#o-grand").textContent=fmt(grand); $("#o-grandtop").textContent="¥"+fmt(grand);
@@ -670,7 +672,7 @@ function deriveFreightFromItems(){
   if(![...$("#fb-qty").options].some(o=>o.value===String(q))) $("#fb-qty").add(new Option(String(q),String(q)));
   $("#fb-qty").value=String(q);
   const r=renderFreightCalc();
-  if(freightLinked && r && r.total){ $("#f-freight").value=r.total; if(r.carrier) $("#f-carrier").value=r.carrier; render(); }
+  if(freightLinked && r && r.total){ $("#f-freight").value=freightExcl(r.total); if(r.carrier) $("#f-carrier").value=r.carrier; render(); }
   saveDraft();
 }
 // 運賃未入力チェック（配送業者「引取」のみ運賃不要）
@@ -689,9 +691,9 @@ function loadHist(){ try{ return JSON.parse(localStorage.getItem(LS_HIST))||[]; 
 function saveHist(a){ localStorage.setItem(LS_HIST, JSON.stringify(a.slice(0,200))); }
 function computeTotals(d){
   let it=0; (d.items||[]).forEach(x=> it+=Math.round((x.qty||0)*(x.price||0)));
-  // render()と統一: 商品に消費税10%。付売/市売=送料加算、直売=送料無料(加算しない)。
+  // render()と統一: 運賃は税抜、消費税10%は(商品＋運賃)。直売=送料無料(加算しない)。
   const freight=(d.kubun==="直売")?0:(d.freight||0);
-  const tax=Math.round(it*0.1); return { itemsTotal:it, tax, grand:it+tax+freight };
+  const tax=Math.round((it+freight)*0.1); return { itemsTotal:it, tax, grand:it+tax+freight };
 }
 async function loadDbHistory(){
   if(!DB_URL){ renderHist(); return; }
@@ -851,11 +853,11 @@ function init(){
   $("#f-keisho").addEventListener("change",()=>{ saveDraft(); render(); });
   $("#f-freight").addEventListener("input",()=>{ freightLinked=false; saveDraft(); render(); });
 
-  ["#fb-pref","#fb-length","#fb-qty"].forEach(s=> $(s).addEventListener("input",()=>{ const r=renderFreightCalc(); if(freightLinked && r && r.total){ $("#f-freight").value=r.total; if(r.carrier) $("#f-carrier").value=r.carrier; render(); } saveDraft(); }));
+  ["#fb-pref","#fb-length","#fb-qty"].forEach(s=> $(s).addEventListener("input",()=>{ const r=renderFreightCalc(); if(freightLinked && r && r.total){ $("#f-freight").value=freightExcl(r.total); if(r.carrier) $("#f-carrier").value=r.carrier; render(); } saveDraft(); }));
   $("#fb-apply").addEventListener("click",()=>{
     const r=renderFreightCalc(); if(!r||!r.total){ flash("送料を算出できません（個別見積りの地域など）"); return; }
-    freightLinked=true; $("#f-freight").value=r.total; if(r.carrier) $("#f-carrier").value=r.carrier; saveDraft(); render();
-    $("#fb-msg").innerHTML=`<div class="fb-applied">✅ 運賃に ${fmt(r.total)}円（税込・${r.carrier||"配送"}）を入れました</div>`;
+    freightLinked=true; $("#f-freight").value=freightExcl(r.total); if(r.carrier) $("#f-carrier").value=r.carrier; saveDraft(); render();
+    $("#fb-msg").innerHTML=`<div class="fb-applied">✅ 運賃 ${fmt(freightExcl(r.total))}円（税抜・${r.carrier||"配送"}）を入れました（税込${fmt(r.total)}円→消費税は別行で合算）</div>`;
   });
   // 運賃ツール(iframe)の準備完了で送料表示を更新
   const ff=document.getElementById("fare-frame");
