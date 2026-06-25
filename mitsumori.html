@@ -251,7 +251,7 @@
     </div>
 
     <div class="hint">
-      ・<b>取引方法</b>で単価を価格表から自動投入（<span style="color:#0a6">緑＝自動</span>／手入力は黒で上書きしません）。直売＝ヤフー方式（付売×1.1×0.95・税込）、付売・市売＝税抜。<br>
+      ・<b>取引方法</b>で単価を価格表から自動投入（<span style="color:#0a6">緑＝自動</span>／手入力は黒で上書きしません）。直売＝ヤフー販売価格×0.95（税抜換算＋消費税10%）、付売・市売＝税抜。<br>
       ・<b>取引先</b>は候補から選択＋自由入力可。新規は「✎追加」で候補登録。<br>
       ・<b>送料</b>は「運賃に入れる」で反映。<b>履歴に保存</b>で一番下の一覧に記録→呼出/取消できます（スプシ連携は次段階）。<br>
       ・印刷はA4・余白「なし」推奨。入力内容はこの端末に自動保存されます。
@@ -413,10 +413,39 @@ function priceFor(kubun, it){
   if(!it.name || !it.grade || !it.t || !it.w || !it.l) return null;
   const key=`${it.name}|${it.t}|${it.w}|${it.l}`;
   if(kubun==="市売" || kubun==="付売"){ const g=PRICEBOOK[kubun][key]; if(g && g[it.grade]!=null) return {price:g[it.grade], incl:false}; return null; }
-  if(kubun==="直売"){ const g=PRICEBOOK["付売"][key]; if(g && g[it.grade]!=null) return {price:Math.round(g[it.grade]*1.1*0.95), incl:true}; return null; }
+  if(kubun==="直売"){ const yp=yahooPriceFor(it); if(yp!=null) return {price:Math.round(yp*0.95/1.1), incl:false}; return null; }
   return null;
 }
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
+/* ===== ヤフー販売価格（直売単価の元データ）。在庫GAS(webboard)からトークン認証で取得。
+   返るのはヤフー公開価格のみ。直売単価＝この税込価格×0.95 を税抜換算して表示し、消費税は別行で合算。 ===== */
+const YPRICE_URL = "https://script.google.com/macros/s/AKfycbxvPjDv81vrJMW2GaqpCJooyxxt7__gvMF4mJkmcGNbNS2xGMoXgTnn6_OEPZ3Rr0spdg/exec";
+const YPRICE_TOKEN = "hzy-yprice-mitsumori-2026";
+const YAHOO_PRICES = {}; // "type|len|grade" -> ヤフー税込価格
+function yahooTypeOf(it){
+  if(it.name==="桧フローリング" && Number(it.t)===15) return "フローリング15mm";
+  if(it.name==="桧フローリング" && Number(it.t)===12) return "フローリング12mm";
+  if(it.name==="桧羽目板"     && Number(it.t)===12) return "羽目板12mm";
+  return null;
+}
+// 直売用ヤフー税込価格を引く（幅120=標準・A級のみ対象。長さ1820⇄2000はGAS側で正規化済み）
+function yahooPriceFor(it){
+  const ty=yahooTypeOf(it);
+  if(!ty || !it.l || !it.grade || Number(it.w)!==120) return null;
+  const v=YAHOO_PRICES[`${ty}|${Number(it.l)}|${it.grade}`];
+  return (typeof v==="number" && v>0) ? v : null;
+}
+async function refreshYahooPrices(){
+  try{
+    const r=await fetch(YPRICE_URL+"?api=yahooprices&token="+encodeURIComponent(YPRICE_TOKEN));
+    const j=await r.json();
+    if(j && j.ok && Array.isArray(j.prices)){
+      for(const k in YAHOO_PRICES) delete YAHOO_PRICES[k];
+      j.prices.forEach(p=>{ if(p.q!=="A" || p.group!=="標準") return; YAHOO_PRICES[`${p.type}|${p.len}|${p.grade}`]=p.price; });
+      if(kubun==="直売"){ autofillPrices(true); render(); }
+    }
+  }catch(e){ /* オフライン/未デプロイ時は直売価格は手入力 */ }
+}
 // 見積りデータベース（新規スプシ＋GAS）。初回認可後に同期が有効化される
 const DB_URL = "https://script.google.com/macros/s/AKfycbzskqossGk7mBeZEY2XrfqE2-MNS5b0PfgX65tpBfowD7mMwqXvueRe7E6Cclob2iFQ/exec";
 // 見積りデータベースのスプレッドシート（ボタンで開く）
@@ -574,14 +603,14 @@ function autofillPrices(force){
 /* ---- 収集・描画 ---- */
 function collect(){
   const items=[...document.querySelectorAll(".item-row")].map(row=>{ const it=readRow(row); it.priceAuto=row.querySelector(".i-price").classList.contains("auto"); return it; });
-  return { date:$("#f-date").value, customer:$("#f-customer").value.trim(), keisho:$("#f-keisho").value, kubun:kubun, carrier:$("#f-carrier").value,
+  return { date:$("#f-date").value, customer:$("#f-customer").value.trim(), address:$("#f-address").value.trim(), keisho:$("#f-keisho").value, kubun:kubun, carrier:$("#f-carrier").value,
     tanto:$("#f-tanto").value.trim(), nouki:$("#f-nouki").value.trim(), shiharai:$("#f-shiharai").value.trim(), limit:$("#f-limit").value,
     freight:parseFloat(($("#f-freight").value||"").toString().replace(/,/g,""))||0, remarks:$("#f-remarks").value, items };
 }
 function render(){
-  const d=collect(); const taxIncl=(d.kubun==="直売");
+  const d=collect();
   $("#o-date").textContent=fmtDateJP(d.date);
-  $("#o-customer").textContent=d.customer||"　"; $("#o-keisho").textContent=d.keisho||"御中";
+  $("#o-customer").textContent=d.customer||"　"; $("#o-keisho").textContent=d.keisho||"御中"; $("#o-address").textContent=d.address||"";
   $("#o-nouki").textContent=d.nouki; $("#o-shiharai").textContent=d.shiharai; $("#o-limit").textContent=fmtDateJP(d.limit);
   $("#o-tanto").textContent=d.tanto; $("#o-remarks").textContent=d.remarks;
 
@@ -598,12 +627,9 @@ function render(){
   $("#itemstable").innerHTML=`<colgroup>${colgroup}</colgroup><tbody>${headRow}${body}</tbody>`;
 
   // 送料(運賃)は運賃ツール準拠で常に「税込」。商品は区分で税抜/税込。
-  let tax, grand;
-  if(d.kubun==="直売"){ // 商品も送料も税込
-    grand=itemsTotal+d.freight; tax=Math.round((itemsTotal+d.freight)*10/110); $("#o-taxlabel").textContent="消費税（10％・内税）";
-  }else{ // 市売/付売：商品=税抜＋消費税、送料=税込
-    const ptax=Math.round(itemsTotal*0.1); tax=ptax; grand=itemsTotal+ptax+d.freight; $("#o-taxlabel").textContent="消費税（10％）";
-  }
+  // 全区分共通: 商品=税抜単価＋消費税10%、送料=税込（運賃ツール準拠）。直売もヤフー価格×0.95を税抜換算済み。
+  const ptax=Math.round(itemsTotal*0.1); const tax=ptax; const grand=itemsTotal+ptax+d.freight;
+  $("#o-taxlabel").textContent="消費税（10％）";
   $("#o-freight").textContent=d.freight?fmt(d.freight):"";
   $("#o-tax").textContent=fmt(tax); $("#o-grand").textContent=fmt(grand); $("#o-grandtop").textContent="¥"+fmt(grand);
 }
@@ -649,8 +675,8 @@ function loadHist(){ try{ return JSON.parse(localStorage.getItem(LS_HIST))||[]; 
 function saveHist(a){ localStorage.setItem(LS_HIST, JSON.stringify(a.slice(0,200))); }
 function computeTotals(d){
   let it=0; (d.items||[]).forEach(x=> it+=Math.round((x.qty||0)*(x.price||0)));
-  if(d.kubun==="直売"){ const grand=it+(d.freight||0); return { itemsTotal:it, tax:Math.round((it+(d.freight||0))*10/110), grand }; }
-  const tax=Math.round((it+(d.freight||0))*0.1); return { itemsTotal:it, tax, grand:it+(d.freight||0)+tax };
+  // render() と統一: 商品に消費税10%、送料は税込でそのまま加算（全区分共通）。
+  const tax=Math.round(it*0.1); return { itemsTotal:it, tax, grand:it+tax+(d.freight||0) };
 }
 async function loadDbHistory(){
   if(!DB_URL){ renderHist(); return; }
@@ -825,7 +851,7 @@ function init(){
   renderHist();
 
   $("#price-status").textContent="価格表：内蔵データ";
-  refreshPricebook(); loadCustomerCandidates(); loadDbHistory(); fetchFolderUrl();
+  refreshPricebook(); refreshYahooPrices(); loadCustomerCandidates(); loadDbHistory(); fetchFolderUrl();
 
   fitPreview(); window.addEventListener("resize", fitPreview);
   window.addEventListener("beforeprint",()=>{ $("#sheet").style.transform="none"; document.querySelector(".stage").style.height="auto"; });
