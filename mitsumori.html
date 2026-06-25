@@ -196,7 +196,7 @@
       <div class="field"><label>取引先<button type="button" class="editlist" id="cust-add" title="この取引先を候補に追加">✎追加</button></label>
         <input id="f-customer" list="dl-customer" placeholder="取引先名（自由入力可）" autocomplete="off"><datalist id="dl-customer"></datalist></div>
       <div class="field"><label>取引方法</label>
-        <select id="f-kubun"><option value="市売">市売</option><option value="付売">付売</option><option value="直売">直売</option></select></div>
+        <select id="f-kubun"><option value="付売">付売</option><option value="市売">市売</option><option value="直売">直売</option></select></div>
       <div class="field"><label>配送業者</label>
         <select id="f-carrier"><option value="">選択</option><option value="自社">自社</option><option value="西濃運輸" selected>西濃運輸</option><option value="佐川急便">佐川急便</option><option value="内藤運輸">内藤運輸</option><option value="引取">引取</option></select></div>
       <div class="field"><label>運賃</label><input type="number" id="f-freight" placeholder="0" step="1"></div>
@@ -520,7 +520,7 @@ const COLS = [
   {k:"amt",  h:"金 額", w:33.5, cls:"num"},
 ];
 
-let kubun = "市売";
+let kubun = "付売";
 
 /* ---- 取引先候補 ---- */
 const LS_CUST = "hayazai_mitsumori_customers";
@@ -793,7 +793,7 @@ function applyData(d){
   if(d._fb){ if(d._fb.pref)$("#fb-pref").value=d._fb.pref; if(d._fb.length)$("#fb-length").value=d._fb.length;
     if(d._fb.qty!=null){ const fq2=$("#fb-qty"); if(![...fq2.options].some(o=>o.value===String(d._fb.qty))) fq2.add(new Option(String(d._fb.qty),String(d._fb.qty))); fq2.value=String(d._fb.qty); }
     freightLinked=!!d._fb.linked; }
-  setKubun(d.kubun||"市売"); renderFreightCalc(); render();
+  setKubun(d.kubun||"付売"); renderFreightCalc(); render();
 }
 
 /* ---- 印刷プレビュー縮小 ---- */
@@ -847,7 +847,7 @@ function init(){
   if(ff){ const onReady=()=>{ renderFreightCalc(); deriveFreightFromItems(); }; ff.addEventListener("load",()=>{ setTimeout(onReady,150); }); let tries=0; const t=setInterval(()=>{ if(fareFrameReady()){ clearInterval(t); onReady(); } else if(++tries>40) clearInterval(t); },250); }
 
   let saved=null; try{ saved=JSON.parse(localStorage.getItem(LS_DRAFT)); }catch(e){}
-  applyData(saved || { date:todayISO(), kubun:"市売", remarks:DEFAULT_REMARKS });
+  applyData(saved || { date:todayISO(), kubun:"付売", remarks:DEFAULT_REMARKS });
   renderHist();
 
   $("#price-status").textContent="価格表：内蔵データ";
