@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<title>送料かんたん計算｜株式会社 林材木店</title>
+<style>
+  :root{
+    --cream:#faf6ee; --paper:#ffffff; --ink:#3a3026; --sub:#8a7c68;
+    --wood:#9c6b3f; --wood-d:#7c5230; --green:#3f7a4f; --green-l:#eaf3ec;
+    --line:#e6ddcd; --amber:#fff7e6; --amber-l:#e0b000; --shadow:0 2px 10px rgba(60,45,25,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,'Hiragino Sans','Meiryo',sans-serif;background:var(--cream);color:var(--ink);
+       line-height:1.6;padding:16px;max-width:520px;margin:0 auto;-webkit-text-size-adjust:100%;}
+  .brand{text-align:center;margin-bottom:4px;font-size:.82em;letter-spacing:.08em;color:var(--wood-d);font-weight:700;}
+  h1{text-align:center;font-size:1.4em;margin-bottom:2px;color:var(--ink);}
+  .lead{text-align:center;font-size:.82em;color:var(--sub);margin-bottom:18px;}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px 18px;box-shadow:var(--shadow);margin-bottom:16px;}
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  label{display:block;font-weight:700;font-size:.95em;margin-bottom:7px;color:var(--ink);}
+  label .num{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;border-radius:50%;
+             background:var(--green);color:#fff;font-size:.8em;margin-right:7px;}
+  select{width:100%;padding:14px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:1.1em;
+          background:#fff;color:var(--ink);appearance:none;
+          background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239c6b3f' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+          background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+  select:focus{outline:none;border-color:var(--wood);box-shadow:0 0 0 3px rgba(156,107,63,.15);}
+  .hint{font-size:.8em;color:var(--sub);margin-top:6px;}
+  .hint b{color:var(--wood-d);}
+
+  /* 結果 */
+  .result{background:linear-gradient(180deg,#fbfdfb,#f1f8f2);border:2px solid var(--green);border-radius:16px;
+          padding:22px 18px;text-align:center;box-shadow:var(--shadow);}
+  .result .rlabel{font-size:.95em;color:var(--green);font-weight:700;letter-spacing:.04em;}
+  .result .ryen{font-size:2.9em;font-weight:800;color:var(--green);line-height:1.15;margin:4px 0 2px;letter-spacing:-.01em;}
+  .result .ryen .unit{font-size:.4em;font-weight:700;margin-left:2px;}
+  .result .rsub{font-size:.82em;color:var(--sub);}
+  .result .rcond{font-size:.9em;color:var(--ink);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
+  .result .rcond b{color:var(--wood-d);}
+
+  /* 別途見積 */
+  .quote{background:var(--amber);border:2px solid var(--amber-l);border-radius:16px;padding:22px 18px;text-align:center;}
+  .quote .qicon{font-size:2em;}
+  .quote .qttl{font-size:1.25em;font-weight:800;color:#9a7400;margin:4px 0 6px;}
+  .quote .qtxt{font-size:.9em;color:var(--ink);}
+
+  /* 注意書き */
+  .notes{margin-top:4px;}
+  .notes h3{font-size:.92em;color:var(--wood-d);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .notes ul{list-style:none;}
+  .notes li{font-size:.82em;color:var(--sub);padding:5px 0 5px 18px;position:relative;border-bottom:1px dotted var(--line);}
+  .notes li:last-child{border-bottom:none;}
+  .notes li::before{content:"※";position:absolute;left:0;color:var(--wood);}
+
+  footer{text-align:center;font-size:.78em;color:var(--sub);margin:22px 0 8px;line-height:1.8;}
+  footer .fname{font-weight:700;color:var(--wood-d);font-size:1.05em;}
+  footer a{color:var(--green);text-decoration:none;}
+  footer .tel{font-size:1.5em;font-weight:800;color:var(--wood-d);letter-spacing:.02em;display:inline-block;margin:2px 0;}
+</style>
+</head>
+<body>
+  <div class="brand">株式会社 林材木店</div>
+  <h1>📦 送料かんたん計算</h1>
+  <p class="lead">お届け先・長さ・数量をえらぶだけ。送料（税込）がすぐわかります。</p>
+
+  <div class="card">
+    <div class="field">
+      <label><span class="num">1</span>お届け先（都道府県）</label>
+      <select id="pref"></select>
+    </div>
+    <div class="field">
+      <label><span class="num">2</span>長さ</label>
+      <select id="len">
+        <option value="1">1m（〜1m）</option>
+        <option value="2">2m（〜2m）</option>
+        <option value="3">3m（〜3m）</option>
+        <option value="4">4m（〜4m）</option>
+      </select>
+      <div class="hint">1束の目安：<b id="nyusu">20枚</b>　／　長さは「○m材」のことです</div>
+    </div>
+    <div class="field">
+      <label><span class="num">3</span>数量（束）</label>
+      <select id="qty"></select>
+      <div class="hint">21束以上・長さ違いの同梱は <b>お問い合わせ</b> ください</div>
+    </div>
+  </div>
+
+  <div id="out"></div>
+
+  <div class="card notes">
+    <h3>📌 ご確認ください</h3>
+    <ul>
+      <li>表示金額は<b>送料（税込）の目安</b>です。商品代金は含みません。</li>
+      <li><b>北海道（2m以上）・沖縄・離島</b>は便ごとに運賃が変わるため、別途お見積りいたします。</li>
+      <li>数量・梱包状況により、実際の送料が多少前後する場合があります。最終金額は当店の請求書・見積書でご確認ください。</li>
+      <li>21束以上、長さ違いをまとめて送る場合、特殊な配送は担当者までお問い合わせください。</li>
+      <li>2026年改定の送料です。改定により変更となる場合があります。</li>
+    </ul>
+  </div>
+
+  <footer>
+    <div class="fname">株式会社 林材木店</div>
+    <div>〒437-1203　静岡県磐田市福田 5490-47</div>
+    <div class="tel">0538-58-2395</div>
+    <div>email：info@hayazai.com　／　<a href="https://hayazai.com/" target="_blank" rel="noopener">hayazai.com</a></div>
+  </footer>
+
+<script>
+// ===== 送料データ（最終金額のみ・税込）=====
+const DATA = /*__DATA__*/{};
+
+// 表示順（北→南）。データに有る県だけ採用。
+const ORDER = ["北海道","青森","岩手","宮城","秋田","山形","福島","茨城","栃木","群馬","埼玉","千葉","東京","神奈川","新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重","滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島","沖縄"];
+const NYUSU = {1:"20枚",2:"8〜10枚",3:"10枚",4:"8枚"};
+
+const $ = id => document.getElementById(id);
+const yen = n => "¥" + n.toLocaleString();
+
+function init(){
+  const pref = $('pref'), qty = $('qty');
+  ORDER.filter(p => DATA.price[p]).forEach(p => pref.appendChild(new Option(p, p)));
+  pref.value = DATA.price['静岡'] ? '静岡' : pref.options[0].value;
+  for(let q=1; q<=DATA.qtyMax; q++) qty.appendChild(new Option(q+'束', q));
+  qty.value = 1;
+  $('len').value = '1';
+
+  // 入力を記憶
+  try{
+    const s = JSON.parse(localStorage.getItem('hayazai_soryo')||'{}');
+    if(s.pref && DATA.price[s.pref]) pref.value = s.pref;
+    if(s.len) $('len').value = s.len;
+    if(s.qty) qty.value = s.qty;
+  }catch(e){}
+
+  ['pref','len','qty'].forEach(id => $(id).addEventListener('change', calc));
+  calc();
+}
+
+function calc(){
+  const pref = $('pref').value;
+  const len  = $('len').value;
+  const qty  = parseInt($('qty').value, 10);
+  $('nyusu').textContent = NYUSU[len] || '';
+
+  try{ localStorage.setItem('hayazai_soryo', JSON.stringify({pref,len,qty})); }catch(e){}
+
+  const price = (DATA.price[pref] && DATA.price[pref][len]) ? DATA.price[pref][len][qty-1] : null;
+
+  if(price == null){
+    const scope = (len === '1') ? '沖縄・離島' : '北海道・沖縄・離島';
+    $('out').innerHTML =
+      '<div class="quote">'
+      + '<div class="qicon">📞</div>'
+      + '<div class="qttl">別途お見積りいたします</div>'
+      + '<div class="qtxt">'+pref+'（'+scope+'）は便ごとに運賃が変わるため、<br>お手数ですが担当者までお問い合わせください。</div>'
+      + '</div>';
+    return;
+  }
+
+  const per = Math.round(price / qty);
+  $('out').innerHTML =
+    '<div class="result">'
+    + '<div class="rlabel">送料（税込）</div>'
+    + '<div class="ryen">'+yen(price)+'</div>'
+    + '<div class="rsub">'+pref+'　/　'+len+'m材　/　'+qty+'束</div>'
+    + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b></div>'
+    + '</div>';
+}
+
+init();
+</script>
+</body>
+</html>
