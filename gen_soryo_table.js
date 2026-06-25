@@ -64,9 +64,10 @@ const EC_MULT = 1.25;
 const QUOTE_ONLY_2M = ["沖縄","北海道"]; // 西濃(2m+)：北海道・沖縄・離島は別途見積
 const MAX_BUNDLE = 20;                  // 1便あたり上限（超過は分割）
 
-// ===== index.html calcSeino() と同一の式 =====
+// ===== index.html calcSeino() と同一の式（2026-06改定2：税抜を100円切上→×1.1で税込）=====
 function seinoCost(tIdx, dIdx){ return Math.ceil(SEINO_FARES[tIdx][dIdx]*SEINO_DISCOUNT*(1+FUEL_SC_RATE)/10)*10; }
-function priceEC(baseAll){ return Math.ceil(baseAll*EC_MULT*1.1/100)*100; } // 税込・100円切上
+// 保存値は【税抜】（実費×1.25を100円切上）。税込＝税抜×1.1（10円単位で出てよい）は表示時に算出。
+function priceZeinuki(baseAll){ return Math.ceil(baseAll*EC_MULT/100)*100; }
 function tierOf(W){ let ti = SEINO_WEIGHTS.findIndex(v=>v>=W); return ti; } // -1=超過
 
 // 単一長さ。20束超は本番と同じ束数分割で算出。
@@ -92,7 +93,7 @@ function priceSingle(pref, len, taba){
       boxSum  += sq*d.box;
     }
   }
-  return priceEC(fareSum + boxSum); // 現場渡しは市場ツールでは含めない
+  return priceZeinuki(fareSum + boxSum); // 税抜。現場渡しは市場ツールでは含めない
 }
 
 // 混載（合計重量Wだけで決まる。box=8W）。W=合計重量(kg)。≤20束想定。
@@ -101,7 +102,7 @@ function priceByWeight(pref, W){
   const ti = tierOf(W);
   if (ti === -1) return null;
   const dist = PREF_TO_DIST[SEINO_PREF_MAP[pref]];
-  return priceEC(seinoCost(ti, dist) + 8*W);
+  return priceZeinuki(seinoCost(ti, dist) + 8*W); // 税抜
 }
 
 // ===== テーブル生成 =====
@@ -124,7 +125,8 @@ for (const p of prefs){
   }
 }
 
-const out = { generated:'gen_soryo_table.js', qtyMax:QTY_MAX, maxBundle:MAX_BUNDLE, wMax:W_MAX, prefs, single, mixByWeight };
+// 保存値=税抜。priceMode で消費者側に「税抜×1.1=税込（10円単位可）」を明示。
+const out = { generated:'gen_soryo_table.js', priceMode:'zeinuki', taxRate:0.1, qtyMax:QTY_MAX, maxBundle:MAX_BUNDLE, wMax:W_MAX, prefs, single, mixByWeight };
 fs.writeFileSync(__dirname + '/soryo_table.json', JSON.stringify(out));
 
 // テンプレートにデータを埋め込んで自己完結HTML(soryo.html)を生成
@@ -134,13 +136,11 @@ fs.writeFileSync(__dirname + '/soryo.html', html);
 
 // ===== 検算（本番index.htmlと一致するはず）=====
 const s = (p,l,q)=>single[p][l][q-1];
-const m = (p,W)=>mixByWeight[p][W];
-console.log('単一 静岡2m×5束 =', s('静岡',2,5), '(期待5400)');
-console.log('単一 東京2m×5束 =', s('東京',2,5), '(期待6000)');
-console.log('単一 大阪4m×10束 =', s('大阪',4,10), '(期待20500)');
-console.log('単一 静岡2m×25束(分割) =', s('静岡',2,25));
-console.log('混載 静岡 2m2+3m1+4m1(W=110) =', m('静岡',110), '※単一でなく混載合計');
-console.log('混載 静岡 W=100(=2m5束相当) =', m('静岡',100), '(単一2m5束と一致するはず=5400)');
-console.log('別途 北海道2m×5束 =', s('北海道',2,5), '(期待null)');
-console.log('別途 沖縄 混載W=100 =', m('沖縄',100), '(期待null)');
-console.log('生成OK: 47県 × 単一2〜4m(1〜'+QTY_MAX+'束) ＋ 混載(合計重量20〜'+W_MAX+'kg)');
+const z = v => v==null ? 'null' : ('税抜'+v+'/税込'+Math.round(v*1.1));
+console.log('単一 静岡2m×5束 =', z(s('静岡',2,5)));
+console.log('単一 東京2m×5束 =', z(s('東京',2,5)));
+console.log('単一 大阪4m×10束 =', z(s('大阪',4,10)));
+console.log('単一 静岡2m×1束 =', z(s('静岡',2,1)));
+console.log('単一 静岡2m×25束(分割) =', z(s('静岡',2,25)));
+console.log('別途 北海道2m×5束 =', z(s('北海道',2,5)), '(期待null)');
+console.log('生成OK(税抜基準・税込=×1.1): 47県 × 単一2〜4m(1〜'+QTY_MAX+'束) ＋ 混載(合計重量20〜'+W_MAX+'kg)');

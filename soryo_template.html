@@ -60,7 +60,7 @@
   .result .rlabel{font-size:.95em;color:var(--green);font-weight:700;letter-spacing:.04em;}
   .result .ryen{font-size:2.9em;font-weight:800;color:var(--green);line-height:1.15;margin:4px 0 2px;letter-spacing:-.01em;}
   .result .rsub{font-size:.85em;color:var(--sub);}
-  .result .rtax{font-size:1.0em;color:var(--ink);font-weight:700;margin-top:3px;}
+  .result .rtax{font-size:.95em;color:var(--sub);font-weight:600;margin-top:3px;}
   .result .rtax b{color:var(--wood-d);}
   .result .rbasis{font-size:.78em;color:var(--sub);margin-top:9px;line-height:1.45;}
   .result .rbasis b{color:var(--wood-d);}
@@ -246,14 +246,15 @@ function quoteCard(pref){
     + '<div class="qtxt">'+pref+'（北海道・沖縄・離島）は便ごとに運賃が変わるため、<br>お手数ですが担当者までお問い合わせください。</div></div>';
 }
 function resultCard(price, sub, per, extra){
-  const ex = Math.round(price/1.1), tax = price - ex;   // 税抜は税込から逆算（税抜＋消費税＝税込）
+  // price=税抜（保存値）。税込＝税抜×1.1（10円単位で出てよい）。
+  const zeikomi = Math.round(price*1.1), tax = zeikomi - price;
   return '<div class="result">'
-    + '<div class="rlabel">送料（税込）</div>'
+    + '<div class="rlabel">送料（税抜）</div>'
     + '<div class="ryen">'+yen(price)+'</div>'
-    + '<div class="rtax">税抜 <b>'+yen(ex)+'</b>　＋　消費税 '+yen(tax)+'</div>'
+    + '<div class="rtax">税込 <b>'+yen(zeikomi)+'</b>（消費税 '+yen(tax)+'）</div>'
     + '<div class="rsub">'+sub+'</div>'
     + '<div class="rbasis">配送：<b>西濃運輸</b>　／　<b>法人様宛て</b>の基本価格<br>個人様は<b>支店止め</b>・現場でのお降ろしは<b>別途費用</b></div>'
-    + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b>（税込）</div>'
+    + '<div class="rcond">1束あたり 約 <b>'+yen(per)+'</b>（税抜）</div>'
     + (extra||'') + '</div>';
 }
 

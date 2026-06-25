@@ -13,13 +13,13 @@ const ROWS = [
   ['静岡','東海'], ['大阪','近畿'], ['広島','中国'], ['香川','四国'], ['福岡','九州'], ['沖縄','沖縄']
 ];
 const yen = n => '¥' + n.toLocaleString();
-// 上段=税込／下段=税抜（税抜は税込÷1.1の逆算）
+// 保存値=税抜。上段=税抜（大）／下段=税込（税抜×1.1・10円単位可）
 const cell = (p,len,q) => {
   const a = D.single[p] && D.single[p][len];
-  const incl = a ? a[q-1] : null;
-  if (incl==null) return `<td class="q">別途</td>`;
-  const ex = Math.round(incl/1.1);
-  return `<td>${yen(incl)}<span class="ex">税抜 ${yen(ex)}</span></td>`;
+  const ex = a ? a[q-1] : null;
+  if (ex==null) return `<td class="q">別途</td>`;
+  const incl = Math.round(ex*1.1);
+  return `<td>${yen(ex)}<span class="ex">税込 ${yen(incl)}</span></td>`;
 };
 
 let body = '';
@@ -31,9 +31,9 @@ for (const [p,region] of ROWS){
     continue;
   }
   body += `<tr><td class="pf">${p}<span class="rg">${region}</span></td>`
-        + `${cell(p,'2',5)}${cell(p,'2',10)}`
-        + `${cell(p,'3',5)}${cell(p,'3',10)}`
-        + `${cell(p,'4',5)}${cell(p,'4',10)}</tr>`;
+        + `${cell(p,'2',1)}${cell(p,'2',5)}`
+        + `${cell(p,'3',1)}${cell(p,'3',5)}`
+        + `${cell(p,'4',1)}${cell(p,'4',5)}</tr>`;
 }
 
 const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
@@ -87,11 +87,11 @@ const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
     </div>
   </div>
 
-  <h2>送料早見表（主要地域）　<span style="font-size:9pt;font-weight:normal;color:#444;">上段＝税込／下段＝税抜　・　配送：西濃運輸　・　法人様宛ての価格</span></h2>
+  <h2>送料早見表（主要地域）　<span style="font-size:9pt;font-weight:normal;color:#444;">上段＝税抜／下段＝税込　・　配送：西濃運輸　・　法人様宛ての価格</span></h2>
   <table>
     <thead>
       <tr><th rowspan="2">お届け先</th><th colspan="2" class="grp">2m材</th><th colspan="2" class="grp">3m材</th><th colspan="2" class="grp">4m材</th></tr>
-      <tr><th>5束</th><th>10束</th><th>5束</th><th>10束</th><th>5束</th><th>10束</th></tr>
+      <tr><th>1束</th><th>5束</th><th>1束</th><th>5束</th><th>1束</th><th>5束</th></tr>
     </thead>
     <tbody>${body}</tbody>
   </table>
