@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚚</text></svg>">
+<title>運賃自動計算ツール</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Hiragino Sans', 'Meiryo', sans-serif; background: #f5f5f5; color: #333; padding: 16px; max-width: 900px; margin: 0 auto; }
+h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
+.panel { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 20px; }
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 0.85em; font-weight: bold; color: #555; }
+.form-group select, .form-group input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; min-width: 120px; }
+.form-group select:focus, .form-group input:focus { outline: none; border-color: #3498db; box-shadow: 0 0 3px rgba(52,152,219,0.3); }
+.channel-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.channel-btn { padding: 8px 16px; border: 2px solid #ccc; border-radius: 6px; cursor: pointer; background: #fff; font-size: 0.9em; font-weight: bold; transition: all 0.15s; }
+.channel-btn.active { border-color: #2980b9; background: #ebf5fb; color: #2980b9; }
+.channel-btn.active[onclick*="rakuten"] { border-color: #bf0000; background: #fef0f0; color: #bf0000; }
+.channel-btn.active[onclick*="yahoo"] { border-color: #ff0033; background: #fff0f3; color: #ff0033; }
+.channel-btn:hover { border-color: #2980b9; }
+.result-box { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 8px; padding: 16px; margin-top: 16px; }
+.result-box h3 { margin-bottom: 12px; font-size: 1.1em; }
+.result-table { width: 100%; border-collapse: collapse; }
+.result-table th, .result-table td { padding: 8px 12px; text-align: right; border-bottom: 1px solid #eee; }
+.result-table th { text-align: left; font-weight: normal; color: #666; width: 45%; }
+.result-table tr.total td { font-size: 1.3em; font-weight: bold; color: #c0392b; border-top: 2px solid #333; }
+.result-table tr.total th { border-top: 2px solid #333; font-weight: bold; font-size: 1.1em; }
+.result-table tr.sub td { color: #888; font-size: 0.9em; }
+.note { font-size: 0.8em; color: #888; margin-top: 8px; }
+.error-box { background: #fdedec; border-color: #e74c3c; }
+.error-box h3 { color: #c0392b; }
+.error-box p { margin: 6px 0; }
+.info-badge { display: inline-block; background: #eaf2f8; color: #2471a3; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-left: 4px; }
+.mix-btn { padding: 8px 16px; border: 2px solid #8e44ad; border-radius: 6px; cursor: pointer; background: #f5eef8; color: #8e44ad; font-size: 0.9em; font-weight: bold; }
+.mix-btn:hover { background: #8e44ad; color: #fff; }
+.mix-btn-cancel { border-color: #888; background: #f0f0f0; color: #666; }
+.mix-btn-cancel:hover { background: #888; color: #fff; }
+.mix-grid { border: 1px solid #ddd; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+.mix-row { display: grid; grid-template-columns: 50px 90px 70px 80px 100px; gap: 8px; padding: 6px 12px; align-items: center; }
+.mix-row input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95em; width: 80px; text-align: right; }
+.mix-row input:focus { outline: none; border-color: #3498db; }
+.mix-header { background: #f0f0f0; font-weight: bold; font-size: 0.8em; color: #555; }
+.mix-total { background: #f8f9fa; font-weight: bold; border-top: 2px solid #ccc; }
+.mix-auto { font-size: 0.85em; color: #888; }
+.office-list { margin-top: 12px; }
+.office-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
+.office-item:hover { border-color: #2980b9; background: #f8fbff; }
+.office-item.selected { border-color: #2980b9; background: #ebf5fb; }
+.office-rank { font-weight: bold; color: #2980b9; margin-right: 10px; min-width: 24px; }
+.office-info { flex: 1; }
+.office-name { font-weight: bold; font-size: 1em; }
+.office-addr { font-size: 0.85em; color: #666; margin-top: 2px; }
+.office-dist { font-weight: bold; color: #c0392b; font-size: 0.95em; white-space: nowrap; }
+.searching { color: #888; font-style: italic; padding: 8px 0; }
+.order-panel { background: #fff; border: 2px solid #e67e22; border-radius: 8px; padding: 20px; margin-top: 16px; }
+.order-panel h2 { font-size: 1.2em; color: #e67e22; margin-bottom: 14px; }
+.type-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.type-btn { padding: 10px 20px; border: 2px solid #ccc; border-radius: 6px; cursor: pointer; background: #fff; font-size: 1em; font-weight: bold; transition: all 0.15s; }
+.type-btn.active-kojin { border-color: #2980b9; background: #ebf5fb; color: #2980b9; }
+.type-btn.active-hojin { border-color: #27ae60; background: #eafaf1; color: #27ae60; }
+.type-btn:hover { opacity: 0.8; }
+.mail-preview { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 14px; margin-top: 12px; white-space: pre-wrap; font-family: monospace; font-size: 0.9em; line-height: 1.6; max-height: 400px; overflow-y: auto; }
+.copy-btn { display: inline-block; padding: 10px 24px; background: #e67e22; color: #fff; border: none; border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; margin-top: 10px; transition: all 0.15s; }
+.copy-btn:hover { background: #d35400; }
+.copy-btn.copied { background: #27ae60; }
+.order-note { font-size: 0.85em; color: #888; margin-top: 8px; }
+@media (max-width: 600px) {
+  .form-row { flex-direction: column; }
+  .form-group select, .form-group input { min-width: 100%; }
+}
+</style>
+</head>
+<body>
+<h1>運賃自動計算ツール（西濃）</h1>
+
+<div class="panel" style="border-radius:8px; margin-bottom:16px;">
+  <div class="form-row">
+    <div class="form-group" style="flex:1;">
+      <label>届け先住所</label>
+      <input type="text" id="addr-input" placeholder="住所を入力（例：静岡県磐田市福田5490-47）" style="min-width:300px;" oninput="onAddrInput()">
+    </div>
+    <div class="form-group" style="align-self:flex-end;">
+      <button class="mix-btn" onclick="searchOffice()" id="search-btn">営業所検索</button>
+    </div>
+  </div>
+  <div id="office-result"></div>
+</div>
+
+<div id="seino-panel" class="panel active" style="border-radius:8px;">
+  <div class="channel-row">
+    <div class="channel-btn active" onclick="setChannel(this,'net')">ネット販売（税込）</div>
+    <div class="channel-btn" onclick="setChannel(this,'yahoo')">ヤフー（税込）</div>
+    <div class="channel-btn" onclick="setChannel(this,'rakuten')">楽天（税込）</div>
+    <div class="channel-btn" onclick="setChannel(this,'ichi')">市売・付売（税抜）</div>
+    <label style="display:flex;align-items:center;gap:6px;margin-left:12px;font-size:0.9em;cursor:pointer;">
+      <input type="checkbox" id="s-genba" onchange="calcSeino()"> 現場渡し（+25円/kg）
+    </label>
+  </div>
+  <!-- 通常モード -->
+  <div id="s-normal-mode">
+    <div class="form-row">
+      <div class="form-group">
+        <label>送付先</label>
+        <select id="s-pref" onchange="calcSeino()"></select>
+      </div>
+      <div class="form-group">
+        <label>長さ (m)</label>
+        <select id="s-length" onchange="updateQtyLabel();calcSeino()">
+          <option value="1">1m</option>
+          <option value="2">2m</option>
+          <option value="3">3m</option>
+          <option value="4" selected>4m</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label id="qty-label">数量 (束)</label>
+        <input type="number" id="s-qty" value="15" min="0" step="1" onchange="calcSeino()" oninput="calcSeino()">
+      </div>
+      <div class="form-group" style="align-self:flex-end;">
+        <button class="mix-btn" onclick="toggleMixMode(true)">混載</button>
+      </div>
+    </div>
+  </div>
+  <!-- 混載モード -->
+  <div id="s-mix-mode" style="display:none;">
+    <div class="form-row">
+      <div class="form-group">
+        <label>送付先</label>
+        <select id="s-pref-mix" onchange="calcSeino()"></select>
+      </div>
+      <div class="form-group" style="align-self:flex-end;">
+        <button class="mix-btn mix-btn-cancel" onclick="toggleMixMode(false)">通常に戻す</button>
+      </div>
+    </div>
+    <div class="mix-grid">
+      <div class="mix-row mix-header"><span>長さ</span><span>数量(束)</span><span>重量/束</span><span>小計重量</span><span>ダンボール代</span></div>
+      <div class="mix-row"><span>1m<span style="font-size:0.75em;color:#888">（20枚）</span></span><input type="number" id="mix-q1" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">20kg</span><span id="mix-sw1">0</span><span id="mix-db1">0</span></div>
+      <div class="mix-row"><span>2m</span><input type="number" id="mix-q2" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">20kg</span><span id="mix-sw2">0</span><span id="mix-db2">0</span></div>
+      <div class="mix-row"><span>3m</span><input type="number" id="mix-q3" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">30kg</span><span id="mix-sw3">0</span><span id="mix-db3">0</span></div>
+      <div class="mix-row"><span>4m</span><input type="number" id="mix-q4" value="0" min="0" step="1" oninput="calcSeino()"><span class="mix-auto">40kg</span><span id="mix-sw4">0</span><span id="mix-db4">0</span></div>
+      <div class="mix-row mix-total"><span>合計</span><span id="mix-qtotal">0</span><span></span><span id="mix-swtotal">0kg</span><span id="mix-dbtotal">0円</span></div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>合計重量 (kg)</label>
+      <input type="number" id="s-total-weight" readonly style="background:#eee;">
+    </div>
+    <div class="form-group">
+      <label>適用重量帯 (kg)</label>
+      <input type="text" id="s-tier-weight" readonly style="background:#eee;">
+    </div>
+  </div>
+  <div id="seino-result"></div>
+  <div id="bundle-ref" style="margin-top:12px;padding:10px 14px;background:#f8f8f8;border-radius:6px;font-size:13px;color:#666;">
+    <div style="font-weight:bold;margin-bottom:4px;color:#555;">1束あたり運賃の目安（ネット税込）</div>
+    <div id="bundle-ref-table"></div>
+  </div>
+</div>
+
+<!-- 注文処理パネル -->
+<div class="order-panel" id="order-panel">
+  <h2>📋 注文処理（メール文面生成）</h2>
+  <div class="type-row">
+    <div class="type-btn active-kojin" id="btn-kojin" onclick="setOrderType('kojin')">個人（支店止め）</div>
+    <div class="type-btn" id="btn-hojin" onclick="setOrderType('hojin')">法人</div>
+  </div>
+  <div id="order-status" style="font-size:0.9em;color:#888;margin-bottom:8px;"></div>
+  <div id="mail-area" style="display:none;">
+    <div class="mail-preview" id="mail-preview"></div>
+    <button class="copy-btn" id="copy-btn" onclick="copyMail()">📋 メール文面をコピー</button>
+    <p class="order-note">※ コピー後、RMSのメール送信画面の本文に貼り付けてください</p>
+  </div>
+</div>
+
+<script>
+// ===== 西濃データ =====
+const SEINO_DISTANCES = [150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1100,1200,1300,1400];
+
+const SEINO_PREF_MAP = {
+  "静岡":0,"愛知":1,"岐阜":2,"神奈川":3,"滋賀":4,"三重":5,
+  "東京":6,"奈良":7,"京都":8,"山梨":9,"埼玉":10,"千葉":11,
+  "大阪":12,"長野":13,"栃木":14,"和歌山":15,"石川":16,"徳島":17,
+  "茨城":18,"群馬":19,"兵庫":20,"福島":21,"鳥取":22,"岡山":23,
+  "高知":24,"新潟":25,"香川":26,"福井":27,"富山":28,"宮城":29,
+  "広島":30,"愛媛":31,"山形":32,"島根":33,"秋田":34,"岩手":35,
+  "山口":36,"福岡":37,"佐賀":38,"青森":39,"長崎":40,"熊本":41,
+  "大分":42,"宮崎":43,"鹿児島":44,"北海道":45
+};
+
+// prefIndex → distance column index
+const PREF_TO_DIST = [
+  0,0, 1, 2,2,2, 3,3,3,3, 4,4,4,4, 5,5,5,5, 6,6,6, 7,7,7, 8,8,8, 9,9, 10, 11,11, 12, 13, 14,14, 15, 16, 17, 18,18,18,18, 19,19, 21
+];
+
+const SEINO_WEIGHTS = [10,20,30,40,60,80,100,120,140,160,180,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000];
+
+const SEINO_FARES = [
+  [1500,1500,1600,1600,1600,1600,1600,1600,1600,1600,1900,1900,2000,2000,2200,2200,2200,2200,2200,2200,2200,2200],
+  [1700,1800,1800,1800,1800,1900,1900,1900,2000,2000,2400,2400,2600,2600,2700,2700,2800,2800,2900,2900,3000,3100],
+  [2000,2000,2000,2000,2100,2100,2100,2100,2200,2200,2700,2800,2900,2900,3100,3200,3200,3300,3400,3500,3600,3700],
+  [2200,2300,2400,2400,2400,2500,2500,2600,2700,2700,3300,3300,3600,3600,3900,4000,4100,4200,4300,4500,4600,4800],
+  [2400,2500,2600,2700,2800,3000,3100,3100,3100,3200,3900,4000,4200,4300,4700,4800,4900,4900,5200,5400,5600,5800],
+  [2900,3000,3100,3300,3400,3600,3700,3800,3900,4000,4900,5000,5400,5600,5900,6100,6300,6500,6800,7100,7400,7800],
+  [3300,3500,3600,3800,4000,4200,4400,4500,4600,4800,5800,6000,6400,6600,7200,7300,7500,7800,8200,8600,9000,9400],
+  [3700,4000,4300,4400,4600,4900,5100,5200,5400,5600,7100,7200,7800,8000,8500,8800,9000,9300,9800,10300,10800,11300],
+  [4200,4500,4700,5100,5200,5500,5800,6000,6200,6400,8000,8300,8900,9300,9800,10100,10500,10700,11300,11900,12600,13200],
+  [4600,4900,5300,5600,5800,6100,6400,6700,6900,7200,9000,9300,10100,10400,11100,11400,11700,12100,12800,13500,14200,15000],
+  [5000,5400,5700,6100,6400,6700,7000,7400,7600,8000,10000,10300,11100,11500,12200,12600,13000,13500,14300,15100,15900,16700],
+  [5400,5700,6200,6400,6700,7200,7400,7700,8100,8400,10500,10800,11700,12200,12900,13300,13700,14200,15000,15900,16800,17600],
+  [6300,6900,7300,7800,8200,8700,9000,9500,9900,10300,12800,13400,14400,15000,15700,16200,16800,17400,18500,19600,20700,21700],
+  [7500,8100,8700,9200,9700,10200,10800,11300,11700,12300,15300,15900,17200,17900,18800,19500,20100,20700,22100,23400,24700,26000],
+  [8500,9100,9900,10600,11100,11700,12400,12900,13600,14200,17700,18400,19900,20700,21800,22500,23400,24200,25700,27300,28900,30500],
+  [9700,10500,11300,12000,12600,13400,14100,14800,15400,16200,20100,21000,22700,23600,24900,25800,26700,27600,29400,31200,33000,34800],
+  [10700,11700,12600,13400,14200,14900,15700,16500,17300,18100,22500,23500,25500,26500,27900,29000,30000,31000,33100,35100,37100,39200],
+  [11700,12700,13800,14700,15500,16500,17400,18200,19100,20000,25000,26100,28300,29400,31000,32200,33300,34400,36700,39000,41300,43600],
+  [15200,16500,18000,19100,20300,21500,22600,23900,25100,26200,27900,29000,31500,32800,35400,36800,38000,39400,42000,44700,47300,49900],
+  [16400,17800,19500,20700,22000,23400,24700,26000,27200,28600,30300,31600,34300,35800,38600,40000,41400,42900,45800,48700,51500,54400],
+  [17600,19300,21000,22400,23800,25200,26600,28000,29500,30800,32800,34200,37100,38700,41800,43300,44900,46500,49600,52800,55900,59000],
+  [18900,20700,22500,24000,25500,27000,28600,30100,31700,33200,35200,36900,40000,41600,45000,46700,48300,50000,53400,56700,60100,63500],
+  [20200,22100,24000,25700,27300,28900,30600,32300,33900,35500,37800,39400,42800,44600,48100,49900,51800,53500,57100,60800,64400,68000],
+  [21500,23500,25600,27300,29000,30800,32600,34300,36000,37800,40200,42000,45600,47500,51200,53200,55200,57100,61000,64900,68800,72700],
+  [22700,24900,27000,28900,30800,32600,34500,36400,38300,40200,42600,44600,48500,50400,54500,56600,58500,60700,64900,69000,73100,77300],
+  [24000,26300,28600,30600,32500,34500,36500,38600,40500,42400,45100,47100,51300,53300,57600,59800,62100,64200,68600,73000,77400,81800],
+  [25300,27700,30200,32300,34300,36400,38500,40600,42700,44800,47700,49800,54100,56300,60800,63100,65500,67800,72500,77100,81700,86400],
+  [26600,29100,31600,33900,36000,38300,40500,42700,45000,47100,50100,52300,56800,59300,64000,66500,68900,71300,76200,81100,86000,90900]
+];
+
+// ダンボール代・重量/束
+const DANBALL = {
+  1: { weight: 20, box: 160 },
+  2: { weight: 20, box: 160 },
+  3: { weight: 30, box: 240 },
+  4: { weight: 40, box: 320 }
+};
+
+// ===== Yahoo送料データ（西濃運輸・都道府県×比例重量別） =====
+// base: 初期送料(重量0), add: 10増加ごとの追加送料
+const YAHOO_SEINO = {
+  "北海道":{base:1160,add:1160},"青森":{base:1810,add:990},"岩手":{base:1960,add:840},
+  "宮城":{base:1730,add:670},"秋田":{base:1960,add:840},"山形":{base:1750,add:750},
+  "福島":{base:1420,add:580},"東京":{base:1520,add:480},"神奈川":{base:1550,add:450},
+  "埼玉":{base:1500,add:500},"千葉":{base:1500,add:500},"茨城":{base:1440,add:560},
+  "栃木":{base:1470,add:530},"群馬":{base:1440,add:560},"山梨":{base:1520,add:480},
+  "新潟":{base:1390,add:610},"長野":{base:1500,add:500},"富山":{base:1360,add:640},
+  "石川":{base:1470,add:530},"福井":{base:1360,add:640},"愛知":{base:1510,add:390},
+  "岐阜":{base:1480,add:420},"静岡":{base:1510,add:390},"三重":{base:1550,add:450},
+  "大阪":{base:1500,add:500},"兵庫":{base:1440,add:560},"京都":{base:1520,add:480},
+  "滋賀":{base:1550,add:450},"奈良":{base:1520,add:480},"和歌山":{base:1470,add:530},
+  "鳥取":{base:1420,add:580},"島根":{base:1720,add:780},"岡山":{base:1420,add:580},
+  "広島":{base:1700,add:700},"山口":{base:1930,add:870},"徳島":{base:1470,add:530},
+  "香川":{base:1390,add:610},"愛媛":{base:1700,add:700},"高知":{base:1390,add:610},
+  "福岡":{base:1900,add:900},"佐賀":{base:1870,add:930},"長崎":{base:1810,add:990},
+  "熊本":{base:1810,add:990},"大分":{base:1810,add:990},"宮崎":{base:1700,add:1100},
+  "鹿児島":{base:1700,add:1100},"沖縄":{base:2640,add:1860}
+};
+// Yahoo商品のshipWeight（Yahooストア設定値）と束数/セット
+const YAHOO_SHIP_WEIGHT = { 2: 40, 3: 30, 4: 40 };
+const YAHOO_BUNDLE_PER_SET = { 1: 1, 2: 2, 3: 1, 4: 1 }; // 1m=1束20枚=1セット, 2m=1セット2束
+
+// ===== Yahoo 1m送料データ（佐川急便・都道府県別固定×商品単位） =====
+const YAHOO_SAGAWA_1M = {
+  "北海道":3000,"青森":2700,"岩手":2700,"宮城":2500,
+  "秋田":2700,"山形":2500,"福島":2500,
+  "東京":2400,"神奈川":2400,"埼玉":2400,"千葉":2400,"茨城":2400,
+  "栃木":2400,"群馬":2400,"山梨":2400,"新潟":2400,
+  "長野":2400,"富山":2400,"石川":2400,"福井":2400,
+  "愛知":2400,"岐阜":2400,"静岡":2400,"三重":2400,
+  "大阪":2400,"兵庫":2400,"京都":2400,"滋賀":2400,
+  "奈良":2400,"和歌山":2400,
+  "鳥取":2500,"島根":2500,"岡山":2500,"広島":2500,"山口":2500,
+  "徳島":2700,"香川":2700,"愛媛":2700,"高知":2700,
+  "福岡":2700,"佐賀":2700,"長崎":2700,"熊本":2700,"大分":2700,"宮崎":2700,"鹿児島":2700,
+  "沖縄":4800
+};
+
+// ===== 状態 =====
+let seinoChannel = 'net';
+
+// ===== 数量ラベル更新 =====
+const SHEETS_PER_BUNDLE = { 1: 20, 2: 20, 3: 10, 4: 10 };
+function updateQtyLabel() {
+  const len = parseInt(document.getElementById('s-length').value);
+  const sheets = SHEETS_PER_BUNDLE[len] || '';
+  const label = document.getElementById('qty-label');
+  label.textContent = len === 1 ? `数量 (束=20枚)` : '数量 (束)';
+}
+
+// ===== 初期化 =====
+function init() {
+  const prefNames = Object.keys(SEINO_PREF_MAP);
+  const sPref = document.getElementById('s-pref');
+  const sPrefMix = document.getElementById('s-pref-mix');
+
+  prefNames.forEach(p => {
+    sPref.appendChild(new Option(p, p));
+    sPrefMix.appendChild(new Option(p, p));
+  });
+
+  updateQtyLabel();
+  calcSeino();
+  buildBundleRef();
+}
+
+function buildBundleRef() {
+  let html = '';
+  const maxDistIdx = PREF_TO_DIST[SEINO_PREF_MAP['埼玉']]; // 最大は埼玉基準
+  for (const len of [2, 3, 4]) {
+    const d = DANBALL[len];
+    let minPB = Infinity, maxPB = 0;
+    for (let qty = 1; qty <= 20; qty++) {
+      const w = Math.ceil(qty * d.weight);
+      let ti = SEINO_WEIGHTS.findIndex(v => v >= w);
+      if (ti === -1) ti = SEINO_WEIGHTS.length - 1;
+      for (let di = 0; di < SEINO_DISTANCES.length; di++) {
+        if (di > maxDistIdx) continue;
+        const fare = SEINO_FARES[ti][di];
+        const sub = fare + qty * d.box;
+        const total = Math.round((sub + Math.round(sub * 0.1)) / 100) * 100;
+        const pb = Math.round(total / qty);
+        if (pb < minPB) minPB = pb;
+        if (pb > maxPB) maxPB = pb;
+      }
+    }
+    html += `<span style="margin-right:16px;">${len}m：${minPB.toLocaleString()}円〜${maxPB.toLocaleString()}円</span>`;
+  }
+  document.getElementById('bundle-ref-table').innerHTML = html;
+}
+
+function setChannel(btn, ch) {
+  btn.parentElement.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  seinoChannel = ch;
+  calcSeino();
+}
+
+// ===== 混載モード =====
+let mixMode = false;
+
+function toggleMixMode(on) {
+  mixMode = on;
+  document.getElementById('s-normal-mode').style.display = on ? 'none' : '';
+  document.getElementById('s-mix-mode').style.display = on ? '' : 'none';
+  // 混載送付先を通常と同期
+  if (on) {
+    document.getElementById('s-pref-mix').value = document.getElementById('s-pref').value;
+  }
+  calcSeino();
+}
+
+// ===== 西濃計算 =====
+function calcSeino() {
+  let pref, totalWeight, boxCost, totalQty, boxDetail, primaryLength;
+
+  if (mixMode) {
+    pref = document.getElementById('s-pref-mix').value;
+    totalWeight = 0;
+    boxCost = 0;
+    totalQty = 0;
+    boxDetail = [];
+    primaryLength = null;
+    let maxQty = 0;
+
+    for (let len = 1; len <= 4; len++) {
+      const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
+      const d = DANBALL[len];
+      const sw = Math.ceil(q * d.weight);
+      const db = q * d.box;
+      totalWeight += sw;
+      boxCost += db;
+      totalQty += q;
+      if (q > maxQty) { maxQty = q; primaryLength = len; }
+
+      document.getElementById(`mix-sw${len}`).textContent = sw > 0 ? `${sw}kg` : '0';
+      document.getElementById(`mix-db${len}`).textContent = db > 0 ? `${db.toLocaleString()}円` : '0';
+      if (q > 0) boxDetail.push(`${d.box}×${q}`);
+    }
+    totalWeight = Math.ceil(totalWeight);
+    document.getElementById('mix-qtotal').textContent = totalQty;
+    document.getElementById('mix-swtotal').textContent = `${totalWeight}kg`;
+    document.getElementById('mix-dbtotal').textContent = `${boxCost.toLocaleString()}円`;
+  } else {
+    pref = document.getElementById('s-pref').value;
+    const length = parseInt(document.getElementById('s-length').value);
+    const qty = parseInt(document.getElementById('s-qty').value) || 0;
+    const danball = DANBALL[length];
+    totalWeight = Math.ceil(qty * danball.weight);
+    boxCost = qty * danball.box;
+    totalQty = qty;
+    boxDetail = [`${danball.box}×${qty}`];
+    primaryLength = length;
+  }
+
+  document.getElementById('s-total-weight').value = totalWeight;
+
+  // 重量帯を求める（切り上げ）
+  const maxWeight = SEINO_WEIGHTS[SEINO_WEIGHTS.length - 1];
+  let tierIdx = SEINO_WEIGHTS.findIndex(w => w >= totalWeight);
+  const overWeight = tierIdx === -1;
+  if (overWeight) tierIdx = SEINO_WEIGHTS.length - 1;
+  const tierWeight = SEINO_WEIGHTS[tierIdx];
+  document.getElementById('s-tier-weight').value = overWeight ? '超過' : tierWeight;
+
+  // 距離帯
+  const prefIdx = SEINO_PREF_MAP[pref];
+  const distIdx = PREF_TO_DIST[prefIdx];
+  const distance = SEINO_DISTANCES[distIdx];
+
+  if (totalWeight <= 0 || totalQty <= 0) {
+    document.getElementById('seino-result').innerHTML = '';
+    return;
+  }
+
+  const isYahoo = seinoChannel === 'yahoo';
+  const isTaxIncl = seinoChannel === 'net' || seinoChannel === 'rakuten' || isYahoo;
+  const isRakuten = seinoChannel === 'rakuten';
+  const isGenba = document.getElementById('s-genba').checked;
+  const GENBA_RATE = 25; // 円/kg
+  const RAKUTEN_RATE = 1.15;
+  const MAX_BUNDLE = 20;
+
+  const channelLabel = isYahoo ? 'ヤフー（税込）' : isRakuten ? '楽天（税込）' : isTaxIncl ? '（税込）' : '（税抜）';
+
+  // ===== Yahoo計算（別ロジック） =====
+  if (isYahoo && !mixMode) {
+    const length = parseInt(document.getElementById('s-length').value);
+    const qty = parseInt(document.getElementById('s-qty').value) || 0;
+    if (qty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
+
+    // 1m = 佐川急便（都道府県別固定×セット数）
+    if (length === 1) {
+      const rate = YAHOO_SAGAWA_1M[pref];
+      if (!rate) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー1m送料データなし</h3></div>'; return; }
+      const yahooFee = rate * qty;
+      const html = `
+        <div class="result-box">
+          <h3>ヤフー送料（税込） <span class="info-badge">佐川急便・都道府県別</span></h3>
+          <table class="result-table">
+            <tr class="sub"><th>セット数</th><td>${qty}束 = ${qty}セット（1束20枚）</td></tr>
+            <tr><th>1セットあたり送料</th><td>${rate.toLocaleString()}円</td></tr>
+            <tr class="total"><th>合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
+          </table>
+        </div>
+      `;
+      document.getElementById('seino-result').innerHTML = html;
+      return;
+    }
+
+    // 2m以上 = 西濃運輸（比例重量別）
+    const ys = YAHOO_SEINO[pref];
+    if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
+
+    const sw = YAHOO_SHIP_WEIGHT[length] || 40;
+    const bps = YAHOO_BUNDLE_PER_SET[length] || 1;
+    const sets = Math.ceil(qty / bps);
+    const totalYW = sw * sets;
+    const yahooFee = ys.base + Math.floor(totalYW / 10) * ys.add;
+    const perBundle = Math.round(yahooFee / qty);
+    const setLabel = bps > 1 ? `${qty}束 → ${sets}セット（1セット${bps}束）` : `${qty}セット`;
+
+    const html = `
+      <div class="result-box">
+        <h3>ヤフー送料（税込） <span class="info-badge">西濃運輸・比例重量別</span></h3>
+        <table class="result-table">
+          <tr class="sub"><th>Yahooセット数</th><td>${setLabel}</td></tr>
+          <tr class="sub"><th>Yahoo shipWeight</th><td>${sw} × ${sets} = ${totalYW}</td></tr>
+          <tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>
+          <tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add.toLocaleString()}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>
+          <tr class="total"><th>合計</th><td>${yahooFee.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
+        </table>
+      </div>
+    `;
+    document.getElementById('seino-result').innerHTML = html;
+    return;
+  }
+
+  if (isYahoo && mixMode) {
+    // 混載Yahoo計算
+    const ys = YAHOO_SEINO[pref];
+    if (!ys) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>ヤフー送料データなし</h3></div>'; return; }
+
+    // 1m佐川（別計算）
+    const q1m = parseInt(document.getElementById('mix-q1').value) || 0;
+    const sagawa1mRate = YAHOO_SAGAWA_1M[pref] || 0;
+    const sagawa1mFee = sagawa1mRate * q1m;
+
+    // 2m以上 西濃
+    let totalYW = 0;
+    let yahooDetail = [];
+    let qtySeino = 0;
+    for (let len = 2; len <= 4; len++) {
+      const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
+      if (q > 0) {
+        const sw = YAHOO_SHIP_WEIGHT[len] || 40;
+        const bps = YAHOO_BUNDLE_PER_SET[len] || 1;
+        const sets = Math.ceil(q / bps);
+        totalYW += sw * sets;
+        qtySeino += q;
+        yahooDetail.push(`${len}m:${sw}×${sets}`);
+      }
+    }
+    if (totalQty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
+    const seinoFee = qtySeino > 0 ? ys.base + Math.floor(totalYW / 10) * ys.add : 0;
+    const yahooFeeTotal = sagawa1mFee + seinoFee;
+    const perBundle = Math.round(yahooFeeTotal / totalQty);
+
+    let rows = '';
+    if (q1m > 0) {
+      rows += `<tr class="sub"><th>1m 佐川（${q1m}束×${sagawa1mRate.toLocaleString()}円）</th><td>${sagawa1mFee.toLocaleString()}円</td></tr>`;
+    }
+    if (qtySeino > 0) {
+      rows += `<tr class="sub"><th>2m以上 西濃 shipWeight</th><td>${yahooDetail.join(' + ')} = ${totalYW}</td></tr>`;
+      rows += `<tr><th>初期送料</th><td>${ys.base.toLocaleString()}円</td></tr>`;
+      rows += `<tr><th>追加送料（${Math.floor(totalYW/10)}回 × ${ys.add}円）</th><td>${(Math.floor(totalYW/10)*ys.add).toLocaleString()}円</td></tr>`;
+      rows += `<tr class="sub"><th>西濃小計</th><td>${seinoFee.toLocaleString()}円</td></tr>`;
+    }
+
+    const html = `
+      <div class="result-box">
+        <h3>ヤフー送料（税込） <span class="info-badge">混載</span></h3>
+        <table class="result-table">
+          ${rows}
+          <tr class="total"><th>Yahoo送料合計</th><td>${yahooFeeTotal.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
+        </table>
+      </div>
+    `;
+    document.getElementById('seino-result').innerHTML = html;
+    return;
+  }
+
+  // ===== 1m = 佐川急便（非Yahoo、通常モード） =====
+  if (!isYahoo && !mixMode && parseInt(document.getElementById('s-length').value) === 1) {
+    const qty = totalQty;
+    if (qty <= 0) { document.getElementById('seino-result').innerHTML = ''; return; }
+    const rate = YAHOO_SAGAWA_1M[pref];
+    if (!rate) { document.getElementById('seino-result').innerHTML = '<div class="result-box error-box"><h3>佐川1m送料データなし</h3></div>'; return; }
+    const sagawaFee = rate * qty;
+    const subtotal = sagawaFee + boxCost;
+    const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
+    const genba = isGenba ? totalWeight * GENBA_RATE : 0;
+    let totalRaw = subtotal + tax + genba;
+    if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
+    const total = Math.round(totalRaw / 100) * 100;
+    const perBdl = Math.round(total / qty);
+
+    document.getElementById('s-tier-weight').value = '佐川';
+
+    const html = `
+      <div class="result-box">
+        <h3>佐川急便 ${channelLabel} <span class="info-badge">1m・都道府県別</span></h3>
+        <table class="result-table">
+          <tr class="sub"><th>1束（20枚）あたり送料</th><td>${rate.toLocaleString()}円 × ${qty}束</td></tr>
+          <tr><th>送料</th><td>${sagawaFee.toLocaleString()}円</td></tr>
+          <tr><th>ダンボール代（${DANBALL[1].box}×${qty}）</th><td>${boxCost.toLocaleString()}円</td></tr>
+          ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
+          ${isGenba ? `<tr><th>現場渡し（${totalWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
+          ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
+          <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>1束あたり</th><td>${perBdl.toLocaleString()}円</td></tr>
+        </table>
+      </div>
+    `;
+    document.getElementById('seino-result').innerHTML = html;
+    return;
+  }
+
+  // ===== 混載で1mあり（非Yahoo）→ 佐川+西濃 分離計算 =====
+  if (!isYahoo && mixMode) {
+    const q1m = parseInt(document.getElementById('mix-q1').value) || 0;
+    if (q1m > 0 && totalQty > 0) {
+      const sagawaRate = YAHOO_SAGAWA_1M[pref] || 0;
+      const sagawa1mFee = sagawaRate * q1m;
+      const sagawa1mBox = q1m * DANBALL[1].box;
+
+      // 2m以上の重量で西濃計算
+      const weight2plus = totalWeight - Math.ceil(q1m * DANBALL[1].weight);
+      const qty2plus = totalQty - q1m;
+      const box2plus = boxCost - sagawa1mBox;
+      let seinoFare = 0;
+      let seinoTier = '';
+      if (qty2plus > 0 && weight2plus > 0) {
+        let tIdx = SEINO_WEIGHTS.findIndex(w => w >= weight2plus);
+        if (tIdx === -1) tIdx = SEINO_WEIGHTS.length - 1;
+        seinoFare = SEINO_FARES[tIdx][distIdx];
+        seinoTier = `${SEINO_WEIGHTS[tIdx]}kg`;
+      }
+
+      const subtotal = sagawa1mFee + sagawa1mBox + seinoFare + box2plus;
+      const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
+      const genba = isGenba ? totalWeight * GENBA_RATE : 0;
+      let totalRaw = subtotal + tax + genba;
+      if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
+      const total = Math.round(totalRaw / 100) * 100;
+      const perBdl = Math.round(total / totalQty);
+
+      let rows = '';
+      rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【1m 佐川急便】</th><td></td></tr>`;
+      rows += `<tr><th>送料（${sagawaRate.toLocaleString()}円×${q1m}束）</th><td>${sagawa1mFee.toLocaleString()}円</td></tr>`;
+      rows += `<tr><th>ダンボール代（${DANBALL[1].box}×${q1m}）</th><td>${sagawa1mBox.toLocaleString()}円</td></tr>`;
+      if (qty2plus > 0) {
+        rows += `<tr class="sub" style="border-top:2px solid #ddd;"><th>【2m以上 西濃運輸】</th><td></td></tr>`;
+        rows += `<tr class="sub"><th>重量帯</th><td>${seinoTier}（実重量 ${weight2plus}kg）</td></tr>`;
+        rows += `<tr><th>運賃</th><td>${seinoFare.toLocaleString()}円</td></tr>`;
+        const boxDet2 = [];
+        for (let len = 2; len <= 4; len++) {
+          const q = parseInt(document.getElementById(`mix-q${len}`).value) || 0;
+          if (q > 0) boxDet2.push(`${DANBALL[len].box}×${q}`);
+        }
+        rows += `<tr><th>ダンボール代（${boxDet2.join(' + ')}）</th><td>${box2plus.toLocaleString()}円</td></tr>`;
+      }
+
+      const html = `
+        <div class="result-box">
+          <h3>混載 ${channelLabel} <span class="info-badge">佐川+西濃</span></h3>
+          <table class="result-table">
+            ${rows}
+            ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
+            ${isGenba ? `<tr><th>現場渡し（${totalWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
+            ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
+            <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
+            <tr class="sub"><th>1束あたり</th><td>${perBdl.toLocaleString()}円</td></tr>
+          </table>
+        </div>
+      `;
+      document.getElementById('seino-result').innerHTML = html;
+      return;
+    }
+  }
+
+  // 20束超の場合は分割計算
+  if (totalQty > MAX_BUNDLE && !mixMode) {
+    const length = parseInt(document.getElementById('s-length').value);
+    const qty = parseInt(document.getElementById('s-qty').value) || 0;
+    const danball = DANBALL[length];
+
+    const shipCount = Math.ceil(qty / MAX_BUNDLE);
+    const baseQty = Math.floor(qty / shipCount);
+    const remainder = qty % shipCount;
+
+    let shipments = [];
+    let totalFareSum = 0;
+    let totalBoxSum = 0;
+    let totalShipWeight = 0;
+    let shipRows = '';
+
+    for (let i = 0; i < shipCount; i++) {
+      const sq = baseQty + (i < remainder ? 1 : 0);
+      const sw = Math.ceil(sq * danball.weight);
+      const sbox = sq * danball.box;
+      let sTierIdx = SEINO_WEIGHTS.findIndex(w => w >= sw);
+      if (sTierIdx === -1) sTierIdx = SEINO_WEIGHTS.length - 1;
+      const sFare = SEINO_FARES[sTierIdx][distIdx];
+      totalFareSum += sFare;
+      totalBoxSum += sbox;
+      totalShipWeight += sw;
+      shipments.push({ qty: sq, weight: sw, tier: SEINO_WEIGHTS[sTierIdx], fare: sFare, box: sbox });
+      shipRows += `<tr><th>便${i+1}: ${sq}束（${sw}kg → ${SEINO_WEIGHTS[sTierIdx]}kg帯）</th><td>運賃 ${sFare.toLocaleString()}円 + ダンボール ${sbox.toLocaleString()}円</td></tr>`;
+    }
+
+    const subtotal = totalFareSum + totalBoxSum;
+    const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
+    const genba = isGenba ? totalShipWeight * GENBA_RATE : 0;
+    let totalRaw = subtotal + tax + genba;
+    if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
+    const total = Math.round(totalRaw / 100) * 100;
+    const perBundle = Math.round(total / qty);
+
+    document.getElementById('s-total-weight').value = totalWeight;
+    document.getElementById('s-tier-weight').value = `${shipCount}便分割`;
+
+    const html = `
+      <div class="result-box">
+        <h3>西濃運輸 ${channelLabel} <span class="info-badge">⚠ ${shipCount}便分割（1便${MAX_BUNDLE}束上限）</span></h3>
+        <table class="result-table">
+          <tr class="sub"><th>距離帯</th><td>${distance}km（${pref}）</td></tr>
+          ${shipRows}
+          <tr><th>運賃合計</th><td>${totalFareSum.toLocaleString()}円</td></tr>
+          <tr><th>ダンボール代合計</th><td>${totalBoxSum.toLocaleString()}円</td></tr>
+          ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
+          ${isGenba ? `<tr><th>現場渡し（${totalShipWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
+          ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
+          <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
+          <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
+        </table>
+        <p class="note">※ ${qty}束 → ${shipments.map(s => s.qty + '束').join(' + ')} に分割。</p>
+      </div>
+    `;
+    document.getElementById('seino-result').innerHTML = html;
+    return;
+  }
+
+  // 混載で20束超の場合のエラー
+  if (totalQty > MAX_BUNDLE && mixMode) {
+    document.getElementById('seino-result').innerHTML = `
+      <div class="result-box error-box">
+        <h3>計算できません</h3>
+        <p>合計数量 <strong>${totalQty}束</strong> は1便あたりの上限 <strong>${MAX_BUNDLE}束</strong> を超えています。</p>
+        <p>混載モードでは分割計算に対応していません。通常モードで個別に計算してください。</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 重量超過エラー
+  if (overWeight) {
+    document.getElementById('seino-result').innerHTML = `
+      <div class="result-box error-box">
+        <h3>計算できません</h3>
+        <p>合計重量 <strong>${totalWeight.toLocaleString()}kg</strong> は最大重量帯 <strong>${maxWeight.toLocaleString()}kg</strong> を超えています。</p>
+        <p>分割配送をご検討ください。</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 運賃
+  const fare = SEINO_FARES[tierIdx][distIdx];
+
+  // 合計
+  const subtotal = fare + boxCost;
+  const tax = isTaxIncl ? Math.round(subtotal * 0.1) : 0;
+  const genba = isGenba ? totalWeight * GENBA_RATE : 0;
+  let totalRaw = subtotal + tax + genba;
+  if (isRakuten) totalRaw = Math.round(totalRaw * RAKUTEN_RATE);
+  const total = Math.round(totalRaw / 100) * 100;
+  const perBundle = totalQty > 0 ? Math.round(total / totalQty) : 0;
+
+  const html = `
+    <div class="result-box">
+      <h3>西濃運輸 ${channelLabel}</h3>
+      <table class="result-table">
+        <tr class="sub"><th>距離帯</th><td>${distance}km（${pref}）</td></tr>
+        <tr class="sub"><th>適用重量帯</th><td>${tierWeight}kg（実重量 ${totalWeight}kg）</td></tr>
+        <tr><th>運賃</th><td>${fare.toLocaleString()}円</td></tr>
+        <tr><th>ダンボール代（${boxDetail.join(' + ')}）</th><td>${boxCost.toLocaleString()}円</td></tr>
+        ${isTaxIncl ? `<tr><th>消費税（10%）</th><td>${tax.toLocaleString()}円</td></tr>` : ''}
+        ${isGenba ? `<tr><th>現場渡し（${totalWeight}kg×25円）</th><td>${genba.toLocaleString()}円</td></tr>` : ''}
+        ${isRakuten ? `<tr><th>楽天手数料（15%）</th><td>×1.15</td></tr>` : ''}
+        <tr class="total"><th>合計</th><td>${total.toLocaleString()}円</td></tr>
+        <tr class="sub"><th>1束あたり</th><td>${perBundle.toLocaleString()}円</td></tr>
+      </table>
+    </div>
+  `;
+  document.getElementById('seino-result').innerHTML = html;
+}
+
+// ===== 営業所検索 =====
+const SEINO_OFFICES = [
+{n:"札幌",p:"北海道",a:"北海道札幌市白石区川下２１６５－１",lat:43.0769,lng:141.4451},
+{n:"旭川",p:"北海道",a:"北海道旭川市永山北３条８丁目１番地２",lat:43.8131,lng:142.4193},
+{n:"釧路",p:"北海道",a:"北海道釧路市星が浦南２－７－１１",lat:43.0125,lng:144.3215},
+{n:"帯広",p:"北海道",a:"北海道河西郡芽室町東芽室基線２１－１",lat:42.9248,lng:143.0849},
+{n:"札幌西",p:"北海道",a:"北海道札幌市西区発寒１５条１４－４－１",lat:43.1091,lng:141.284},
+{n:"小樽",p:"北海道",a:"北海道小樽市築港８－６",lat:43.1887,lng:141.0131},
+{n:"室蘭",p:"北海道",a:"北海道登別市大和町１－２－１５",lat:42.3964,lng:141.0922},
+{n:"苫小牧",p:"北海道",a:"北海道苫小牧市新明町１－１－１１",lat:42.6701,lng:141.6456},
+{n:"函館",p:"北海道",a:"北海道北斗市追分５丁目５番２４号",lat:41.8316,lng:140.6938},
+{n:"空知",p:"北海道",a:"北海道美唄市東６条北５－３－１",lat:43.3362,lng:141.88},
+{n:"北見",p:"北海道",a:"北海道北見市東相内町９３７番地１",lat:43.8024,lng:143.791},
+{n:"青森",p:"青森県",a:"青森県青森市野内菊川２７－１",lat:40.8444,lng:140.8175},
+{n:"弘前",p:"青森県",a:"青森県弘前市石川中川原１８９",lat:40.5578,lng:140.5336},
+{n:"十和田",p:"青森県",a:"青森県十和田市伝法寺字大窪１－２",lat:40.5788,lng:141.2494},
+{n:"八戸",p:"青森県",a:"青森県八戸市大字長苗代字中坪３５－１",lat:40.5179,lng:141.4512},
+{n:"盛岡",p:"岩手県",a:"岩手県盛岡市永井１６地割地田３",lat:39.6565,lng:141.1411},
+{n:"水沢",p:"岩手県",a:"岩手県奥州市水沢区卸町２－１４",lat:39.1445,lng:141.1391},
+{n:"宮古",p:"岩手県",a:"岩手県宮古市津軽石第１０地割字向川原３５－３７",lat:39.5666,lng:141.9306},
+{n:"仙台",p:"宮城県",a:"宮城県仙台市宮城野区港２－１－７",lat:38.2648,lng:140.9992},
+{n:"仙台南",p:"宮城県",a:"宮城県名取市高舘熊野堂余方上３０",lat:38.2157,lng:140.8146},
+{n:"古川",p:"宮城県",a:"宮城県大崎市三本木坂本字青山８番地",lat:38.5167,lng:140.9126},
+{n:"秋田",p:"秋田県",a:"秋田県秋田市寺内神屋敷２９５－７１",lat:39.734,lng:140.0767},
+{n:"横手荷扱所",p:"秋田県",a:"秋田県横手市杉沢字中杉沢５９２－３",lat:39.3445,lng:140.5618},
+{n:"本荘",p:"秋田県",a:"秋田県由利本荘市石脇字山の神２２－１",lat:39.412,lng:140.0338},
+{n:"能代",p:"秋田県",a:"秋田県能代市扇田扇渕４－１４",lat:40.1993,lng:140.0797},
+{n:"大館",p:"秋田県",a:"秋田県大館市釈迦内字桜下１５",lat:40.3009,lng:140.5567},
+{n:"山形",p:"山形県",a:"山形県山形市樋越５５",lat:38.2878,lng:140.3256},
+{n:"庄内",p:"山形県",a:"山形県東田川郡三川町成田新田前田元３８５",lat:38.8223,lng:139.8355},
+{n:"福島",p:"福島県",a:"福島県福島市吉倉竹の内１１－１",lat:37.7437,lng:140.4337},
+{n:"郡山",p:"福島県",a:"福島県須賀川市滑川池田２００－４",lat:37.3332,lng:140.3623},
+{n:"いわき",p:"福島県",a:"福島県いわき市四倉町細谷荒町１３－１",lat:37.0791,lng:140.9612},
+{n:"白河",p:"福島県",a:"福島県西白河郡西郷村大字小田倉字大平５２７－１",lat:37.1156,lng:140.1747},
+{n:"水戸",p:"茨城県",a:"茨城県那珂市後台３１２７－２６",lat:36.4229,lng:140.5054},
+{n:"古河",p:"茨城県",a:"茨城県古河市谷貝字下原５６７番地１",lat:36.1467,lng:139.8123},
+{n:"北茨城",p:"茨城県",a:"茨城県北茨城市磯原町豊田稲千場１２９２－１",lat:36.7964,lng:140.728},
+{n:"日立",p:"茨城県",a:"茨城県日立市神田町久下沼後１３７１－１",lat:36.501,lng:140.5701},
+{n:"土浦",p:"茨城県",a:"茨城県土浦市大畑１６９３－１",lat:36.1232,lng:140.178},
+{n:"龍ケ崎",p:"茨城県",a:"茨城県稲敷郡阿見町よしわら２－２７－１",lat:35.9933,lng:140.2339},
+{n:"宇都宮",p:"栃木県",a:"栃木県宇都宮市上欠町字高尾神８９０－７",lat:36.5436,lng:139.827},
+{n:"佐野",p:"栃木県",a:"栃木県佐野市船津川町岡田２３００",lat:36.2768,lng:139.5611},
+{n:"小山",p:"栃木県",a:"栃木県小山市横倉遠上１１９６",lat:36.2828,lng:139.8336},
+{n:"大田原",p:"栃木県",a:"栃木県大田原市上石上１７４３－１",lat:36.8652,lng:139.9383},
+{n:"前橋",p:"群馬県",a:"群馬県前橋市飯土井町４００－３",lat:36.3654,lng:139.1839},
+{n:"高崎",p:"群馬県",a:"群馬県安中市板鼻１６－１",lat:36.3342,lng:138.9495},
+{n:"渋川",p:"群馬県",a:"群馬県渋川市半田西田１２００－１",lat:36.4638,lng:139.0296},
+{n:"太田",p:"群馬県",a:"群馬県太田市安良岡町２１８－１",lat:36.3087,lng:139.3971},
+{n:"秩父",p:"埼玉県",a:"埼玉県秩父市黒谷前原１０９９－１",lat:36.0438,lng:139.1096},
+{n:"熊谷",p:"埼玉県",a:"埼玉県熊谷市玉井平井通上３０－３",lat:36.1788,lng:139.3353},
+{n:"本庄",p:"埼玉県",a:"埼玉県本庄市鵜森富士１６６－１",lat:36.2329,lng:139.2158},
+{n:"川越",p:"埼玉県",a:"埼玉県日高市大谷沢６１７",lat:35.8819,lng:139.3814},
+{n:"久喜",p:"埼玉県",a:"埼玉県久喜市菖蒲町台２４４８－１",lat:36.0624,lng:139.632},
+{n:"東松山",p:"埼玉県",a:"埼玉県比企郡川島町北園部江ノ島３４０－１",lat:35.9999,lng:139.4556},
+{n:"大宮",p:"埼玉県",a:"埼玉県さいたま市西区三橋６－８１３",lat:35.9166,lng:139.5951},
+{n:"岩槻",p:"埼玉県",a:"埼玉県さいたま市岩槻区長宮下谷中１２１０－１",lat:35.9501,lng:139.7283},
+{n:"入間",p:"埼玉県",a:"埼玉県入間市二本木１２８９ー１",lat:35.7924,lng:139.3654},
+{n:"越谷",p:"埼玉県",a:"埼玉県越谷市流通団地１－４－２",lat:35.8802,lng:139.8054},
+{n:"和光",p:"埼玉県",a:"埼玉県朝霞市大字浜崎字下谷１０２－１",lat:35.8155,lng:139.5886},
+{n:"川越西",p:"埼玉県",a:"埼玉県川越市大字池辺２５－１",lat:35.9007,lng:139.4393},
+{n:"木更津",p:"千葉県",a:"千葉県袖ケ浦市三箇９７２－１",lat:35.3875,lng:140.0467},
+{n:"成田",p:"千葉県",a:"千葉県成田市南三里塚２１－２",lat:35.7389,lng:140.3826},
+{n:"千葉",p:"千葉県",a:"千葉県市原市五井金杉３－１",lat:35.5268,lng:140.0925},
+{n:"柏",p:"千葉県",a:"千葉県柏市若白毛字宮原１１２８",lat:35.8362,lng:140.0249},
+{n:"松戸",p:"千葉県",a:"千葉県流山市森ロジスティクスパーク３ー２０４ー１",lat:35.8563,lng:139.9027},
+{n:"船橋",p:"千葉県",a:"千葉県船橋市豊富町６８８",lat:35.7619,lng:140.0717},
+{n:"市川",p:"千葉県",a:"千葉県浦安市港７７－３",lat:35.6309,lng:139.9103},
+{n:"佐倉",p:"千葉県",a:"千葉県佐倉市直弥字前ケ作６７３",lat:35.6815,lng:140.2555},
+{n:"東京",p:"東京都",a:"東京都江東区新木場３－１－１",lat:35.6335,lng:139.8236},
+{n:"深川",p:"東京都",a:"東京都江東区新砂１－３－７",lat:35.6662,lng:139.8221},
+{n:"錦糸町",p:"東京都",a:"東京都江東区毛利１－４－１",lat:35.6912,lng:139.8115},
+{n:"足立東",p:"東京都",a:"東京都足立区入谷６－１－１",lat:35.7983,lng:139.7659},
+{n:"足立",p:"東京都",a:"東京都足立区入谷７－１９－２７",lat:35.8,lng:139.7607},
+{n:"世田谷",p:"東京都",a:"東京都世田谷区八幡山２－６－１",lat:35.6595,lng:139.6183},
+{n:"京浜",p:"東京都",a:"東京都大田区平和島２－１－１",lat:35.5852,lng:139.7433},
+{n:"大森",p:"東京都",a:"東京都大田区平和島５－５－３１",lat:35.5766,lng:139.746},
+{n:"八王子",p:"東京都",a:"東京都八王子市石川町２９６８－９",lat:35.6754,lng:139.3657},
+{n:"八王子北",p:"東京都",a:"東京都八王子市滝山町１－２０８－３",lat:35.6849,lng:139.3415},
+{n:"府中",p:"東京都",a:"東京都府中市是政４－２３",lat:35.6568,lng:139.4927},
+{n:"横浜",p:"神奈川県",a:"神奈川県横浜市都筑区川向町９８２",lat:35.5191,lng:139.5903},
+{n:"横浜南",p:"神奈川県",a:"神奈川県横浜市金沢区幸浦２－１０－１",lat:35.358,lng:139.6499},
+{n:"鶴見",p:"神奈川県",a:"神奈川県横浜市鶴見区生麦２－３－２",lat:35.4904,lng:139.6717},
+{n:"相模原",p:"神奈川県",a:"神奈川県相模原市中央区田名３７００－１ＧＬＰ相模原１",lat:35.5586,lng:139.3445},
+{n:"座間",p:"神奈川県",a:"神奈川県座間市東原２－１５－６",lat:35.4789,lng:139.4261},
+{n:"厚木",p:"神奈川県",a:"神奈川県愛甲郡愛川町中津４０３０",lat:35.5108,lng:139.3471},
+{n:"茅ケ崎",p:"神奈川県",a:"神奈川県茅ケ崎市萩園２７３０",lat:35.3404,lng:139.3757},
+{n:"小田原",p:"神奈川県",a:"神奈川県小田原市西大友１２２－２",lat:35.3027,lng:139.1671},
+{n:"甲府",p:"山梨県",a:"山梨県中央市中楯８６７－１",lat:35.6127,lng:138.55},
+{n:"三条",p:"新潟県",a:"新潟県三条市大字帯織字丁号８３８３－１",lat:37.5704,lng:138.9248},
+{n:"新潟",p:"新潟県",a:"新潟県新潟市西区山田２３０７－１２１",lat:37.8727,lng:139.0195},
+{n:"糸魚川",p:"新潟県",a:"新潟県糸魚川市大字須沢セト田２９３５",lat:37.0258,lng:137.8372},
+{n:"上越",p:"新潟県",a:"新潟県上越市上源入１５３－１１",lat:37.158,lng:138.2605},
+{n:"長岡",p:"新潟県",a:"新潟県長岡市新産東町３６",lat:37.4397,lng:138.8008},
+{n:"高岡",p:"富山県",a:"富山県高岡市戸出栄町５１－８",lat:36.6924,lng:136.9913},
+{n:"富山",p:"富山県",a:"富山県富山市蜷川４２３－１",lat:36.6447,lng:137.2076},
+{n:"黒部",p:"富山県",a:"富山県黒部市若栗６０３",lat:36.8776,lng:137.4964},
+{n:"加賀",p:"石川県",a:"石川県加賀市分校町カ１８０－１",lat:36.3193,lng:136.3967},
+{n:"金沢",p:"石川県",a:"石川県白山市横江町９８０",lat:36.5451,lng:136.5917},
+{n:"能登",p:"石川県",a:"石川県かほく市高松丁３３－８",lat:36.7578,lng:136.711},
+{n:"敦賀",p:"福井県",a:"福井県敦賀市荻野町１５５",lat:35.6456,lng:136.0554},
+{n:"武生",p:"福井県",a:"福井県越前市大手町８字北原１番１７",lat:35.8901,lng:136.209},
+{n:"福井",p:"福井県",a:"福井県福井市林藤島町１６－８",lat:36.0866,lng:136.264},
+{n:"長野",p:"長野県",a:"長野県須坂市大字福島３５８－１",lat:36.6462,lng:138.2651},
+{n:"上田",p:"長野県",a:"長野県東御市大字加沢字東原１４２８－１",lat:36.349,lng:138.3491},
+{n:"松本",p:"長野県",a:"長野県東筑摩郡山形村８２６５",lat:36.1681,lng:137.8789},
+{n:"諏訪",p:"長野県",a:"長野県諏訪市沖田町４－４１",lat:36.007,lng:138.1315},
+{n:"伊那",p:"長野県",a:"長野県上伊那郡南箕輪村９５９５－１",lat:35.8729,lng:137.9751},
+{n:"飯田",p:"長野県",a:"長野県飯田市松尾明７５６０",lat:35.4907,lng:137.8534},
+{n:"上松",p:"長野県",a:"長野県木曽郡上松町小野２３７１",lat:35.7643,lng:137.6427},
+{n:"岐阜東濃",p:"岐阜県",a:"岐阜県土岐市下石町西山３０４－９１２",lat:35.322,lng:137.1863},
+{n:"美濃加茂",p:"岐阜県",a:"岐阜県美濃加茂市深田町３－１０－２",lat:35.4368,lng:137.0032},
+{n:"白鳥",p:"岐阜県",a:"岐阜県郡上市白鳥町中津屋字九十九４２１番１",lat:35.8538,lng:136.8809},
+{n:"岐阜",p:"岐阜県",a:"岐阜県岐阜市柳津町流通センター３－１－１",lat:35.3621,lng:136.7116},
+{n:"関",p:"岐阜県",a:"岐阜県関市池田町２",lat:35.4969,lng:136.9001},
+{n:"大垣",p:"岐阜県",a:"岐阜県大垣市東前５－７",lat:35.3445,lng:136.6345},
+{n:"高山",p:"岐阜県",a:"岐阜県高山市山田町１３１８－１",lat:36.1388,lng:137.224},
+{n:"萩原",p:"岐阜県",a:"岐阜県下呂市萩原町上呂ヨロノ２１１３－１",lat:35.9066,lng:137.2125},
+{n:"各務原",p:"岐阜県",a:"岐阜県各務原市鵜沼朝日町１－２１１－１",lat:35.3907,lng:136.8966},
+{n:"沼津",p:"静岡県",a:"静岡県沼津市東椎路東荒３８５",lat:35.1286,lng:138.8371},
+{n:"富士",p:"静岡県",a:"静岡県富士市富士岡７５０－１",lat:35.1536,lng:138.7186},
+{n:"静岡",p:"静岡県",a:"静岡県静岡市葵区薬師８－２０",lat:35.0265,lng:138.4099},
+{n:"藤枝",p:"静岡県",a:"静岡県藤枝市下当間６６５",lat:34.8882,lng:138.2926},
+{n:"袋井",p:"静岡県",a:"静岡県袋井市堀越３６１",lat:34.7496,lng:137.9066},
+{n:"浜松",p:"静岡県",a:"静岡県浜松市中央区松小池町２０３",lat:34.7394,lng:137.793},
+{n:"浜松西",p:"静岡県",a:"静岡県浜松市中央区半田山６－１９－１",lat:34.779,lng:137.7452},
+{n:"沼津東",p:"静岡県",a:"静岡県駿東郡長泉町南一色５５６－１",lat:35.1609,lng:138.892},
+{n:"金谷",p:"静岡県",a:"静岡県島田市金谷東１－６９６－４",lat:34.8354,lng:138.1352},
+{n:"知多",p:"愛知県",a:"愛知県知多郡阿久比町大字板山字東菱池１３１",lat:34.9381,lng:136.937},
+{n:"豊橋",p:"愛知県",a:"愛知県豊橋市神野新田町ヌノ割２０",lat:34.735,lng:137.3378},
+{n:"豊川",p:"愛知県",a:"愛知県豊川市本野ヶ原３－８５",lat:34.8381,lng:137.4073},
+{n:"岡崎",p:"愛知県",a:"愛知県岡崎市大門１－４－８",lat:34.9818,lng:137.1534},
+{n:"大府",p:"愛知県",a:"愛知県大府市北崎町遠山２００－１",lat:35.0376,lng:136.9931},
+{n:"名古屋西",p:"愛知県",a:"愛知県あま市七宝町伊福十七２０番地",lat:35.1487,lng:136.805},
+{n:"名古屋",p:"愛知県",a:"愛知県名古屋市中川区柳川町１４－１５",lat:35.1372,lng:136.898},
+{n:"名古屋東",p:"愛知県",a:"愛知県日進市浅田町美濃輪１－１２",lat:35.1131,lng:137.0299},
+{n:"笠寺",p:"愛知県",a:"愛知県名古屋市南区南野３－２５７",lat:35.0788,lng:136.9343},
+{n:"大曽根",p:"愛知県",a:"愛知県名古屋市東区砂田橋５－１０－１０",lat:35.1868,lng:136.9629},
+{n:"名古屋北",p:"愛知県",a:"愛知県清須市春日舟付１８",lat:35.2238,lng:136.8513},
+{n:"津島",p:"愛知県",a:"愛知県津島市寺野町好土２",lat:35.1905,lng:136.7733},
+{n:"小牧",p:"愛知県",a:"愛知県小牧市新小木１－９２",lat:35.2834,lng:136.8881},
+{n:"一宮",p:"愛知県",a:"愛知県一宮市今伊勢町馬寄鯲池１",lat:35.3313,lng:136.7807},
+{n:"四日市",p:"三重県",a:"三重県四日市市日永１－７－１４",lat:34.9534,lng:136.6079},
+{n:"鈴鹿",p:"三重県",a:"三重県鈴鹿市安塚町１００－６",lat:34.8681,lng:136.5777},
+{n:"久居",p:"三重県",a:"三重県津市久居中町７７４－２",lat:34.6806,lng:136.4601},
+{n:"伊勢",p:"三重県",a:"三重県伊勢市通町４０１",lat:34.4992,lng:136.7479},
+{n:"上野",p:"三重県",a:"三重県伊賀市千歳下水８１－１",lat:34.7916,lng:136.1688},
+{n:"津（三重）",p:"三重県",a:"三重県津市雲出本郷町１６０３－１",lat:34.663,lng:136.5186},
+{n:"長浜",p:"滋賀県",a:"滋賀県長浜市東上坂町１９８－７",lat:35.4107,lng:136.3277},
+{n:"彦根",p:"滋賀県",a:"滋賀県彦根市東沼波町１５７",lat:35.2541,lng:136.2662},
+{n:"近江",p:"滋賀県",a:"滋賀県近江八幡市安土町石寺天水２８",lat:35.1377,lng:136.1636},
+{n:"滋賀",p:"滋賀県",a:"滋賀県湖南市針２６６－１",lat:34.9864,lng:136.0797},
+{n:"大津",p:"滋賀県",a:"滋賀県草津市南山田町天野１００－１",lat:35.0193,lng:135.9273},
+{n:"亀岡",p:"京都府",a:"京都府亀岡市曽我部町穴太奥田１７",lat:35.0114,lng:135.5555},
+{n:"舞鶴",p:"京都府",a:"京都府舞鶴市字上安１５０６",lat:35.4536,lng:135.355},
+{n:"京都",p:"京都府",a:"京都府京都市伏見区横大路菅本２－３",lat:34.9208,lng:135.7366},
+{n:"京都南",p:"京都府",a:"京都府長岡京市神足典薬１－７",lat:34.9236,lng:135.713},
+{n:"茨木",p:"大阪府",a:"大阪府茨木市藤の里１－４－８",lat:34.8365,lng:135.5416},
+{n:"摂津",p:"大阪府",a:"大阪府摂津市鳥飼上５－３－６",lat:34.7942,lng:135.5941},
+{n:"豊中",p:"大阪府",a:"大阪府豊中市名神口１－３－１",lat:34.7574,lng:135.4629},
+{n:"大阪",p:"大阪府",a:"大阪府大阪市西成区玉出西２－２０－４８",lat:34.6243,lng:135.487},
+{n:"平野",p:"大阪府",a:"大阪府大阪市平野区平野馬場２－３－３５",lat:34.6321,lng:135.5457},
+{n:"関目",p:"大阪府",a:"大阪府大阪市城東区関目５－８－１６",lat:34.714,lng:135.5477},
+{n:"大阪西",p:"大阪府",a:"大阪府大阪市港区福崎２丁目１－１",lat:34.6577,lng:135.4556},
+{n:"大東",p:"大阪府",a:"大阪府大東市新田境町１－２６",lat:34.7172,lng:135.6078},
+{n:"河内",p:"大阪府",a:"大阪府東大阪市加納１－１－８",lat:34.6935,lng:135.6183},
+{n:"布施",p:"大阪府",a:"大阪府東大阪市寿町３－２１－３",lat:34.6522,lng:135.5629},
+{n:"松原",p:"大阪府",a:"大阪府松原市一津屋３－３－１１",lat:34.5823,lng:135.5707},
+{n:"堺",p:"大阪府",a:"大阪府堺市西区築港新町３－１４－２",lat:34.5658,lng:135.4252},
+{n:"尼崎",p:"兵庫県",a:"兵庫県尼崎市道意町７－１８",lat:34.7099,lng:135.398},
+{n:"神戸",p:"兵庫県",a:"兵庫県神戸市東灘区向洋町東３－１１",lat:34.694,lng:135.2789},
+{n:"西神戸",p:"兵庫県",a:"兵庫県神戸市長田区苅藻島町１－１",lat:34.6495,lng:135.1592},
+{n:"神明",p:"兵庫県",a:"兵庫県神戸市西区神出町広谷中通５５５－１７",lat:34.7603,lng:134.9741},
+{n:"福知山",p:"兵庫県",a:"兵庫県丹波市市島町下竹田字樽井４１６２－１",lat:35.2455,lng:135.1531},
+{n:"姫路",p:"兵庫県",a:"兵庫県姫路市飾西７４８－７",lat:34.8618,lng:134.6344},
+{n:"加西",p:"兵庫県",a:"兵庫県加西市繁昌町３４１",lat:34.9105,lng:134.9041},
+{n:"淡路",p:"兵庫県",a:"兵庫県南あわじ市広田広田３５ー１",lat:34.325,lng:134.8245},
+{n:"奈良",p:"奈良県",a:"奈良県大和郡山市白土町６５－１",lat:34.6316,lng:135.8067},
+{n:"和歌山",p:"和歌山県",a:"和歌山県和歌山市祢宜１１００",lat:34.236,lng:135.2436},
+{n:"鳥取",p:"鳥取県",a:"鳥取県鳥取市湖山町東３－４０",lat:35.5195,lng:134.1896},
+{n:"倉吉",p:"鳥取県",a:"鳥取県東伯郡湯梨浜町田後３８９",lat:35.4775,lng:133.8528},
+{n:"米子",p:"鳥取県",a:"鳥取県米子市流通町４３０－２",lat:35.4266,lng:133.3965},
+{n:"松江",p:"島根県",a:"島根県松江市東出雲町出雲郷１６３７－１",lat:35.4339,lng:133.1239},
+{n:"出雲",p:"島根県",a:"島根県出雲市江田町２０２",lat:35.3843,lng:132.7305},
+{n:"大田",p:"島根県",a:"島根県大田市鳥井町鳥越４１３－４８",lat:35.1922,lng:132.4997},
+{n:"浜田",p:"島根県",a:"島根県浜田市下府町３２７－３３",lat:34.9139,lng:132.111},
+{n:"益田",p:"島根県",a:"島根県益田市遠田町２２５１",lat:34.7047,lng:131.8611},
+{n:"津山",p:"岡山県",a:"岡山県津山市戸島９２６－３",lat:35.0756,lng:133.9441},
+{n:"備前",p:"岡山県",a:"岡山県備前市香登西字大門１１－１",lat:34.7365,lng:134.1154},
+{n:"岡山",p:"岡山県",a:"岡山県岡山市南区大福１３０－１",lat:34.6242,lng:133.8822},
+{n:"倉敷",p:"岡山県",a:"岡山県倉敷市中島松之内８２５－１",lat:34.5816,lng:133.7404},
+{n:"福山",p:"広島県",a:"広島県福山市御幸町森脇１２６３",lat:34.5277,lng:133.3473},
+{n:"尾道",p:"広島県",a:"広島県尾道市高須町字有江台２９５６－１１",lat:34.4369,lng:133.2265},
+{n:"三次",p:"広島県",a:"広島県三次市三次町大内通１６４２－１",lat:34.8193,lng:132.8504},
+{n:"東広島",p:"広島県",a:"広島県東広島市西条町大字御薗宇字南龍王７６２－６",lat:34.377,lng:132.7316},
+{n:"呉",p:"広島県",a:"広島県呉市広大新開１－２－４４",lat:34.231,lng:132.6248},
+{n:"広島",p:"広島県",a:"広島県広島市中区光南５－１－４３",lat:34.3613,lng:132.4449},
+{n:"西広島",p:"広島県",a:"広島県廿日市市木材港南８－１８",lat:34.3419,lng:132.341},
+{n:"岩国",p:"山口県",a:"山口県岩国市飯田町１－２－１",lat:34.1689,lng:132.2379},
+{n:"下松",p:"山口県",a:"山口県下松市葉山１－８１９－８",lat:34.0255,lng:131.9096},
+{n:"山口",p:"山口県",a:"山口県山口市大字下小鯖字瀬戸山２４５８－１",lat:34.1281,lng:131.546},
+{n:"宇部",p:"山口県",a:"山口県宇部市妻崎開作字崎３０・３１－ろ１０１８",lat:33.9728,lng:131.2099},
+{n:"下関",p:"山口県",a:"山口県下関市長府扇町１－１０",lat:34.0232,lng:131.0153},
+{n:"徳島",p:"徳島県",a:"徳島県板野郡松茂町豊久字朝日野６－１",lat:34.1344,lng:134.6142},
+{n:"三豊",p:"香川県",a:"香川県観音寺市大野原町大野原３９８０",lat:34.0836,lng:133.6597},
+{n:"坂出",p:"香川県",a:"香川県坂出市江尻町江尻新開４８３－５１",lat:34.3203,lng:133.8755},
+{n:"高松",p:"香川県",a:"香川県高松市鶴市町８０",lat:34.3333,lng:134.0138},
+{n:"松山",p:"愛媛県",a:"愛媛県東温市上村甲９８０番地",lat:33.7713,lng:132.8504},
+{n:"今治",p:"愛媛県",a:"愛媛県今治市高橋向甲１３９０－１",lat:34.0367,lng:132.9672},
+{n:"新居浜",p:"愛媛県",a:"愛媛県西条市飯岡杉之木１３７０",lat:33.9149,lng:133.2247},
+{n:"大洲",p:"愛媛県",a:"愛媛県大洲市阿蔵スナダ甲９９０",lat:33.5121,lng:132.532},
+{n:"宇和島",p:"愛媛県",a:"愛媛県宇和島市高串字上切３番耕地７８９－１",lat:33.2602,lng:132.5653},
+{n:"高知",p:"高知県",a:"高知県南国市左右山字神楽田２４８",lat:33.6088,lng:133.6395},
+{n:"土佐",p:"高知県",a:"高知県土佐市蓮池青木ヶ鼻２９１０－１",lat:33.4913,lng:133.4077},
+{n:"中村",p:"高知県",a:"高知県四万十市磯ノ川字龍ノ下５０７",lat:32.9754,lng:132.8435},
+{n:"福岡",p:"福岡県",a:"福岡県福岡市博多区井相田１－１－５６",lat:33.5587,lng:130.4603},
+{n:"大牟田",p:"福岡県",a:"福岡県大牟田市四山町８０－８０",lat:33.0045,lng:130.4048},
+{n:"北九州",p:"福岡県",a:"福岡県北九州市小倉北区西港町８５－１",lat:33.905,lng:130.8726},
+{n:"筑豊",p:"福岡県",a:"福岡県鞍手郡小竹町南良津字六反田９２－８",lat:33.7168,lng:130.7058},
+{n:"福岡西",p:"福岡県",a:"福岡県福岡市博多区東那珂３－７－５８",lat:33.59,lng:130.4017},
+{n:"福岡北",p:"福岡県",a:"福岡県糟屋郡久山町山田登り尾２３９６－２４８",lat:33.6634,lng:130.4881},
+{n:"豊前",p:"福岡県",a:"福岡県豊前市大字八屋３２２－４",lat:33.6197,lng:131.1102},
+{n:"鳥栖",p:"佐賀県",a:"佐賀県鳥栖市真木町赤江１０８５",lat:33.3598,lng:130.5073},
+{n:"佐賀",p:"佐賀県",a:"佐賀県佐賀市兵庫町渕１５４０－１",lat:33.2776,lng:130.3214},
+{n:"武雄",p:"佐賀県",a:"佐賀県武雄市若木町大字川古９６７９－９",lat:33.2543,lng:130.0148},
+{n:"佐世保",p:"長崎県",a:"長崎県佐世保市田の浦町５－２５",lat:33.1446,lng:129.7842},
+{n:"長崎",p:"長崎県",a:"長崎県諫早市小川町７２４－１４",lat:32.8239,lng:130.066},
+{n:"長崎西",p:"長崎県",a:"長崎県西彼杵郡時津町左底郷字坂口１８２２",lat:32.8258,lng:129.829},
+{n:"熊本",p:"熊本県",a:"熊本県熊本市東区上南部２－１－１０５",lat:32.8271,lng:130.7664},
+{n:"八代",p:"熊本県",a:"熊本県八代市上片町高取１６２４－１",lat:32.5075,lng:130.6544},
+{n:"大分",p:"大分県",a:"大分県大分市三佐１－２－１２",lat:33.2541,lng:131.6771},
+{n:"北大分",p:"大分県",a:"大分県杵築市大字相原１８１－２",lat:33.3942,lng:131.5826},
+{n:"延岡",p:"宮崎県",a:"宮崎県延岡市舞野町１４４４番１",lat:32.58,lng:131.5918},
+{n:"都城",p:"宮崎県",a:"宮崎県都城市丸谷町２３５１－２７堂山工業団地内",lat:31.8183,lng:131.0765},
+{n:"宮崎",p:"宮崎県",a:"宮崎県宮崎市清武町大字船引字下ノ原１０１３－１",lat:31.8802,lng:131.4083},
+{n:"出水",p:"鹿児島県",a:"鹿児島県出水市明神町２６６７－３",lat:32.1168,lng:130.3352},
+{n:"川内",p:"鹿児島県",a:"鹿児島県薩摩川内市永利町字宮脇４１３０－２",lat:31.804,lng:130.3518},
+{n:"鹿児島",p:"鹿児島県",a:"鹿児島県鹿児島市南栄３－７－１",lat:31.5152,lng:130.5251},
+{n:"加治木",p:"鹿児島県",a:"鹿児島県姶良市加治木町小山田９５５－３",lat:31.777,lng:130.6776},
+{n:"枕崎",p:"鹿児島県",a:"鹿児島県枕崎市白沢北町６８０",lat:31.2641,lng:130.3475},
+{n:"鹿屋",p:"鹿児島県",a:"鹿児島県鹿屋市永野田町７５０－２２",lat:31.3524,lng:130.8783},
+{n:"志布志",p:"鹿児島県",a:"鹿児島県志布志市有明町野井倉字塩入７７２８",lat:31.4825,lng:131.0476},
+{n:"宜野湾",p:"沖縄県",a:"沖縄県宜野湾市大山７－８－８",lat:26.2864,lng:127.7458},
+{n:"沖縄",p:"沖縄県",a:"沖縄県豊見城市与根５０－７１",lat:26.1717,lng:127.6503},
+{n:"名護",p:"沖縄県",a:"沖縄県名護市大西４－１８－２",lat:26.6023,lng:127.9809},
+{n:"うるま",p:"沖縄県",a:"沖縄県うるま市字州崎１２番地１２",lat:26.3359,lng:127.8495}
+];
+
+// 住所入力から都道府県を自動抽出してセレクトに反映
+function onAddrInput() {
+  const addr = document.getElementById('addr-input').value;
+  const m = addr.match(/(北海道|東京都|大阪府|京都府|.{2,3}県)/);
+  if (m) {
+    const prefFull = m[1];
+    const prefShort = prefFull.replace(/[都道府県]$/, '');
+    if (SEINO_PREF_MAP[prefShort] !== undefined) {
+      document.getElementById('s-pref').value = prefShort;
+      document.getElementById('s-pref-mix').value = prefShort;
+      calcSeino();
+    }
+  }
+}
+
+// ハーバーサイン距離計算 (km)
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function searchOffice() {
+  const addr = document.getElementById('addr-input').value.trim();
+  if (!addr) return;
+
+  const resultDiv = document.getElementById('office-result');
+  resultDiv.innerHTML = '<p class="searching">検索中...</p>';
+
+  try {
+    // 国土地理院APIで住所をジオコーディング
+    const url = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q=' + encodeURIComponent(addr);
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (!data.length || !data[0].geometry) {
+      resultDiv.innerHTML = '<p class="searching">住所が見つかりませんでした。もう少し詳しく入力してください。</p>';
+      return;
+    }
+
+    const userLon = data[0].geometry.coordinates[0];
+    const userLat = data[0].geometry.coordinates[1];
+
+    // 全営業所との距離を計算
+    const ranked = SEINO_OFFICES
+      .filter(o => o.lat !== 0)
+      .map(o => ({
+        ...o,
+        dist: haversine(userLat, userLon, o.lat, o.lng)
+      }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 3);
+
+    if (!ranked.length) {
+      resultDiv.innerHTML = '<p class="searching">営業所データが読み込まれていません。</p>';
+      return;
+    }
+
+    let html = '<div class="office-list">';
+    ranked.forEach((o, i) => {
+      const distStr = o.dist < 1 ? `${Math.round(o.dist * 1000)}m` : `${o.dist.toFixed(1)}km`;
+      html += `
+        <div class="office-item" onclick="selectOffice('${o.p}', this)">
+          <span class="office-rank">${i+1}</span>
+          <div class="office-info">
+            <div class="office-name">${o.n}営業所</div>
+            <div class="office-addr">${o.a}</div>
+          </div>
+          <span class="office-dist">${distStr}</span>
+        </div>`;
+    });
+    html += '</div>';
+    resultDiv.innerHTML = html;
+
+    // 自動的に1位の営業所の都道府県を選択
+    if (ranked[0]) {
+      selectOffice(ranked[0].p, resultDiv.querySelector('.office-item'));
+    }
+  } catch (e) {
+    resultDiv.innerHTML = `<p class="searching">エラー: ${e.message}</p>`;
+  }
+}
+
+function selectOffice(pref, el) {
+  // ハイライト
+  document.querySelectorAll('.office-item').forEach(e => e.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+
+  // 都道府県をセット
+  const prefShort = pref.replace(/[都道府県]$/, '');
+  if (SEINO_PREF_MAP[prefShort] !== undefined) {
+    document.getElementById('s-pref').value = prefShort;
+    document.getElementById('s-pref-mix').value = prefShort;
+    calcSeino();
+  }
+}
+
+// Enterキーで検索
+document.getElementById('addr-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchOffice();
+});
+
+// ===== 注文処理 =====
+let orderType = 'kojin';
+
+function setOrderType(type) {
+  orderType = type;
+  document.getElementById('btn-kojin').className = 'type-btn' + (type === 'kojin' ? ' active-kojin' : '');
+  document.getElementById('btn-hojin').className = 'type-btn' + (type === 'hojin' ? ' active-hojin' : '');
+  generateMail();
+}
+
+function getSelectedOffice() {
+  const selected = document.querySelector('.office-item.selected');
+  if (!selected) return null;
+  const name = selected.querySelector('.office-name')?.textContent?.replace('営業所', '') || '';
+  const addr = selected.querySelector('.office-addr')?.textContent || '';
+  return { name, addr };
+}
+
+function getCurrentFare() {
+  // 楽天チャネルの合計金額を取得
+  const resultBox = document.getElementById('seino-result');
+  if (!resultBox) return null;
+  const totalRow = resultBox.querySelector('tr.total td');
+  if (!totalRow) return null;
+  return totalRow.textContent.trim();
+}
+
+function generateMail() {
+  const fare = getCurrentFare();
+  const mailArea = document.getElementById('mail-area');
+  const statusDiv = document.getElementById('order-status');
+
+  // チャネルが楽天でない場合の警告
+  if (seinoChannel !== 'rakuten') {
+    statusDiv.innerHTML = '⚠️ チャネルを「楽天（税込）」に切り替えてください';
+    statusDiv.style.color = '#e74c3c';
+    mailArea.style.display = 'none';
+    return;
+  }
+
+  if (!fare) {
+    statusDiv.innerHTML = '⚠️ 送料を計算してください（数量を入力）';
+    statusDiv.style.color = '#e74c3c';
+    mailArea.style.display = 'none';
+    return;
+  }
+
+  if (orderType === 'kojin') {
+    const office = getSelectedOffice();
+    if (!office) {
+      statusDiv.innerHTML = '⚠️ 営業所を検索・選択してください';
+      statusDiv.style.color = '#e74c3c';
+      mailArea.style.display = 'none';
+      return;
+    }
+
+    const mail = `（株）林材木店と申します。
+この度はご注文ありがとうございます。
+
+配送についてご確認したい点がございます。
+
+配送方法で西濃運輸個人様利用（宅配不可支店止め）をお選びいただいております。
+配送先の支店は西濃運輸　${office.name}支店を予定しております。
+住所：${office.addr}
+送料：${fare}（税込み）
+
+上記の支店と送料で問題ないかご返信をお願い致します。
+送料と支店に問題がなければ、下記注文内容で生産発送をさせていただきます。
+
+お手数ですが、ご返信宜しくお願い致します。`;
+
+    statusDiv.innerHTML = `✅ 個人用メール生成完了（${office.name}支店 / ${fare}）`;
+    statusDiv.style.color = '#27ae60';
+    document.getElementById('mail-preview').textContent = mail;
+    mailArea.style.display = '';
+
+  } else {
+    const mail = `（株）林材木店と申します。
+この度はご注文ありがとうございます。
+
+配送についてご確認したい点がございます。
+下記の内容をご確認の上、1～5の回答をご返信ください。
+
+
+１.送料：${fare}(税込)
+
+２.配送先の屋号、会社名
+
+３.配送先（屋号、会社名の記載がある住所）
+
+４.(2階以上の場合)1階引渡しになります
+
+５.(配送先が現場の場合)送料+別途料金が発生します。
+現場卸しの場合はご連絡お願い致します。
+
+
+確認ができ次第、下記注文内容で生産発送をさせていただきます。
+お手数ですが、ご返信宜しくお願い致します。`;
+
+    statusDiv.innerHTML = `✅ 法人用メール生成完了（${fare}）`;
+    statusDiv.style.color = '#27ae60';
+    document.getElementById('mail-preview').textContent = mail;
+    mailArea.style.display = '';
+  }
+}
+
+async function copyMail() {
+  const text = document.getElementById('mail-preview').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 メール文面をコピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  } catch (e) {
+    // フォールバック
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 メール文面をコピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+}
+
+// 計算が変わるたびにメール文面も更新
+const origCalcSeino = calcSeino;
+calcSeino = function() {
+  origCalcSeino();
+  generateMail();
+};
+
+// 営業所選択が変わったらメール文面も更新
+const origSelectOffice = selectOffice;
+selectOffice = function(pref, el) {
+  origSelectOffice(pref, el);
+  generateMail();
+};
+
+init();
+</script>
+</body>
+</html>
