@@ -215,6 +215,25 @@
     .sheet{ box-shadow:none; margin:0; }
   }
 </style>
+<style>
+  /* ===== PC全画面 最適化（PC専用運用・入力左／A4プレビュー常時右） ===== */
+  .app{ max-width:min(1760px, 98vw); gap:26px; padding:16px 22px; align-items:flex-start; }
+  .panel{ flex:1 1 560px; min-width:0; position:static; max-height:none; overflow:visible; padding:20px 26px; }
+  .stage{ flex:1 1 800px; position:sticky; top:16px; align-self:flex-start; max-height:calc(100vh - 32px); overflow:auto; display:flex; justify-content:center; }
+  h1{ text-align:left; font-size:20px; }
+  .sub{ font-size:13px; }
+  .wiz-nav{ justify-content:flex-start; gap:16px; margin:6px 0 18px; }
+  .wiz-step{ font-size:14px; }
+  .wiz-step .num{ width:28px; height:28px; font-size:14px; }
+  .cust-list{ max-height:340px; }
+  .cust-chip{ font-size:13.5px; padding:7px 13px; }
+  .wrow{ grid-template-columns:1fr 1fr 1fr; gap:14px; }
+  .items-head,.item-row{ gap:8px; }
+  .item-row input,.item-row select{ padding:8px; font-size:13.5px; }
+  .btn-next,.btn-back{ padding:13px 30px; font-size:15px; }
+  .wiz-btns{ margin-top:22px; }
+  .freight-box{ padding:14px 16px; }
+</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -974,13 +993,13 @@ function goStep(n){
   paneEls[1].classList.toggle("show", n===1||n===3);
   paneEls[2].classList.toggle("show", n===2||n===3);
   paneEls[3].classList.toggle("show", n===3);
-  if(wizStageEl) wizStageEl.style.display=(n===3)?"":"none";
+  if(wizStageEl) wizStageEl.style.display="";   // PC全画面：プレビューは常時右に表示
   document.querySelectorAll(".wiz-nav .wiz-step").forEach(s=>{ const i=+s.dataset.go; s.classList.toggle("active",i===n); s.classList.toggle("done",i<n); });
   const back=$("#wiz-back"), next=$("#wiz-next");
   if(back) back.style.visibility=(n===1)?"hidden":"visible";
   if(back) back.textContent=(n===3)?"← 商品・配送へ":"← 取引先・基本へ";
   if(next){ if(n>=3){ next.style.display="none"; } else { next.style.display=""; next.textContent=(n===1)?"商品・配送へ →":"確認へ →"; } }
-  if(n===3) setTimeout(fitPreview,40);
+  setTimeout(fitPreview,40);
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function validateStep(n){
@@ -1038,9 +1057,9 @@ function init(){
   $("#price-status").textContent="価格表：内蔵データ";
   refreshPricebook(); refreshYahooPrices(); loadCustomerCandidates(); loadDbHistory(); fetchFolderUrl();
 
-  window.addEventListener("resize",()=>{ if(currentStep===3) fitPreview(); });
+  window.addEventListener("resize", fitPreview);
   window.addEventListener("beforeprint",()=>{ const st=document.querySelector(".stage"); st.style.display=""; $("#sheet").style.transform="none"; st.style.height="auto"; });
-  window.addEventListener("afterprint",()=>{ if(currentStep===3) fitPreview(); });
+  window.addEventListener("afterprint", fitPreview);
   goStep(1);
 }
 init();
