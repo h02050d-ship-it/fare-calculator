@@ -225,8 +225,8 @@
   .wiz-nav{ justify-content:flex-start; gap:16px; margin:6px 0 18px; }
   .wiz-step{ font-size:14px; }
   .wiz-step .num{ width:28px; height:28px; font-size:14px; }
-  .cust-list{ max-height:340px; }
-  .cust-chip{ font-size:13.5px; padding:7px 13px; }
+  .cust-list{ max-height:460px; }
+  .cust-chip{ font-size:14px; padding:8px 14px; }
   .wrow{ grid-template-columns:1fr 1fr 1fr; gap:14px; }
   .items-head,.item-row{ gap:8px; }
   .item-row input,.item-row select{ padding:8px; font-size:13.5px; }
@@ -525,15 +525,24 @@ async function refreshPricebook(){
 }
 /* ---- 取引先マスタ（名前＋取引方法）：クリック一覧＆自動仕分けに使用 ---- */
 let custMaster = []; // [{name, method}]  method: "市売"|"付売"|null(=新規→直売)
+// マスタのテスト/不正行を除外
+function isJunkCust(name){ const s=(name||"").trim(); return !s || s==="あいうえお" || s==="テスト" || s==="test"; }
+// 並び替えキー：法人格・記号を除いた社名本体で並べる（（株）等でバラけるのを防ぐ＝支店がまとまる）
+function custSortKey(name){
+  let s=(name||"").trim();
+  s=s.replace(/株式会社|有限会社|合同会社|協同組合|（株）|\(株\)|（有）|\(有\)|（名）|㈱|㈲/g,"");
+  s=s.replace(/[\s　・,，.．\-ー—（）\(\)]/g,"");
+  return s;
+}
 function mergeLocalIntoMaster(){
   const names=new Set(custMaster.map(c=>c.name));
-  loadCands().forEach(n=>{ if(n && !names.has(n)){ custMaster.push({name:n, method:null}); names.add(n); } });
+  loadCands().forEach(n=>{ if(n && !isJunkCust(n) && !names.has(n)){ custMaster.push({name:n, method:null}); names.add(n); } });
 }
 function renderCustChips(filter){
   const box=$("#cust-list-box"); if(!box) return;
   const f=(filter||"").trim();
   const cur=($("#f-customer")?$("#f-customer").value.trim():"");
-  const list=custMaster.slice().sort((a,b)=>a.name.localeCompare(b.name,"ja"));
+  const list=custMaster.filter(c=>!isJunkCust(c.name)).sort((a,b)=>custSortKey(a.name).localeCompare(custSortKey(b.name),"ja"));
   const shown=list.filter(c=> !f || c.name.indexOf(f)>=0);
   if(!shown.length){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
   box.innerHTML=shown.map(c=>{
@@ -566,8 +575,8 @@ function updateCustCurrent(){
 async function loadCustomerCandidates(){
   try{
     const r=await fetch(GAS_URL+"?action=getCustomers"); const j=await r.json();
-    custMaster=(j.customers||[]).filter(c=>c.name).map(c=>({name:c.name, method:(c.method==="市売"||c.method==="付売")?c.method:null}));
-    (j.customers||[]).forEach(c=>{ if(c.name) addCandidate(c.name, false); });
+    custMaster=(j.customers||[]).filter(c=>c.name && !isJunkCust(c.name)).map(c=>({name:c.name, method:(c.method==="市売"||c.method==="付売")?c.method:null}));
+    (j.customers||[]).forEach(c=>{ if(c.name && !isJunkCust(c.name)) addCandidate(c.name, false); });
     mergeLocalIntoMaster();
     renderCustomerDatalist();
     renderCustChips($("#cust-search")?$("#cust-search").value:""); updateCustCurrent();
@@ -993,13 +1002,13 @@ function goStep(n){
   paneEls[1].classList.toggle("show", n===1||n===3);
   paneEls[2].classList.toggle("show", n===2||n===3);
   paneEls[3].classList.toggle("show", n===3);
-  if(wizStageEl) wizStageEl.style.display="";   // PC全画面：プレビューは常時右に表示
+  if(wizStageEl) wizStageEl.style.display=(n===3)?"":"none";   // プレビューは確認（ステップ3）のみ表示
   document.querySelectorAll(".wiz-nav .wiz-step").forEach(s=>{ const i=+s.dataset.go; s.classList.toggle("active",i===n); s.classList.toggle("done",i<n); });
   const back=$("#wiz-back"), next=$("#wiz-next");
   if(back) back.style.visibility=(n===1)?"hidden":"visible";
   if(back) back.textContent=(n===3)?"← 商品・配送へ":"← 取引先・基本へ";
   if(next){ if(n>=3){ next.style.display="none"; } else { next.style.display=""; next.textContent=(n===1)?"商品・配送へ →":"確認へ →"; } }
-  setTimeout(fitPreview,40);
+  if(n===3) setTimeout(fitPreview,40);
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function validateStep(n){
@@ -1057,9 +1066,9 @@ function init(){
   $("#price-status").textContent="価格表：内蔵データ";
   refreshPricebook(); refreshYahooPrices(); loadCustomerCandidates(); loadDbHistory(); fetchFolderUrl();
 
-  window.addEventListener("resize", fitPreview);
+  window.addEventListener("resize",()=>{ if(currentStep===3) fitPreview(); });
   window.addEventListener("beforeprint",()=>{ const st=document.querySelector(".stage"); st.style.display=""; $("#sheet").style.transform="none"; st.style.height="auto"; });
-  window.addEventListener("afterprint", fitPreview);
+  window.addEventListener("afterprint",()=>{ if(currentStep===3) fitPreview(); });
   goStep(1);
 }
 init();
