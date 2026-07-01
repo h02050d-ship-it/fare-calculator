@@ -175,6 +175,36 @@
     .item-row .del{ position:absolute; top:-9px; right:-9px; width:26px; height:26px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.2); }
     .fb-grid{ grid-template-columns:1fr 1fr; }
   }
+  /* ===== ウィザード（3ステップ） ===== */
+  .wiz-nav{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 16px;flex-wrap:wrap}
+  .wiz-step{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#9aa2ac;font-weight:700;cursor:pointer;user-select:none}
+  .wiz-step .num{width:26px;height:26px;border-radius:50%;background:#e2e5e9;color:#8a929c;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .wiz-step.active{color:#2e7d32}
+  .wiz-step.active .num{background:#2e7d32;color:#fff}
+  .wiz-step.done{color:#3a8a45}
+  .wiz-step.done .num{background:#a5d6a7;color:#fff}
+  .wiz-arrow{color:#cfd4da;font-size:16px}
+  .step-pane{display:none}
+  .step-pane.show{display:block}
+  .step-pane#pane2.show,.step-pane#pane3.show{margin-top:6px}
+  .wrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:2px}
+  .wrow.mt{margin-top:14px}
+  .wiz-btns{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+  .btn-next{background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn-next:hover{background:#276b2b}
+  .btn-back{background:#eceff1;color:#333;border:none;border-radius:8px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  .cust-picker{border:1px solid #e0e0e0;border-radius:10px;padding:10px;background:#fafafa}
+  .cust-search{width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:8px;font-family:inherit}
+  .cust-list{display:flex;flex-wrap:wrap;gap:6px;max-height:230px;overflow:auto;padding:2px}
+  .cust-chip{background:#fff;border:1px solid #ccc;border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit}
+  .cust-chip:hover{border-color:#2e7d32;background:#e8f5e9}
+  .cust-chip.sel{background:#2e7d32;color:#fff;border-color:#2e7d32}
+  .cust-chip .m{font-size:10px;opacity:.75;margin-left:5px;border-left:1px solid rgba(0,0,0,.15);padding-left:5px}
+  .cust-chip.sel .m{border-left-color:rgba(255,255,255,.4)}
+  .cust-current{margin-top:10px;font-size:13px;color:#333}
+  .cust-current b{color:#2e7d32}
+  #cust-method-tag{color:#777;margin-left:6px}
+  @media(max-width:1000px){ .wrow{grid-template-columns:1fr 1fr} }
   @page{ size:A4 portrait; margin:0; }
   @media print{
     body{ background:#fff; }
@@ -208,14 +238,14 @@
       <div class="field"><label>取引先<button type="button" class="editlist" id="cust-add" title="この取引先を候補に追加">✎追加</button></label>
         <input id="f-customer" list="dl-customer" placeholder="取引先名（自由入力可）" autocomplete="off"><datalist id="dl-customer"></datalist></div>
       <div class="field"><label>取引方法</label>
-        <select id="f-kubun"><option value="付売">付売</option><option value="市売">市売</option><option value="直売">直売</option></select></div>
+        <select id="f-kubun"><option value="付売">付売</option><option value="市売">市売</option><option value="直売">直売（ネット）</option></select></div>
       <div class="field"><label>配送業者</label>
         <select id="f-carrier"><option value="">選択</option><option value="自社">自社</option><option value="西濃運輸" selected>西濃運輸</option><option value="佐川急便">佐川急便</option><option value="内藤運輸">内藤運輸</option><option value="引取">引取</option></select></div>
       <div class="field"><label>運賃</label><input type="number" id="f-freight" placeholder="0" step="1"></div>
     </div>
     <div class="hdrfields2">
       <div class="field"><label>敬称</label><select id="f-keisho"><option value="御中">御中</option><option value="様">様（個人）</option></select></div>
-      <div class="field"><label>担当</label><input id="f-tanto" value="林大樹"></div>
+      <div class="field"><label>担当</label><select id="f-tanto"><option>林潤也</option><option selected>林大樹</option><option>林楓</option></select></div>
       <div class="field"><label>納期</label><input id="f-nouki" list="dl-nouki" value="お支払から2〜5営業日前後で発送予定">
         <datalist id="dl-nouki">
           <option value="お支払から1〜3営業日前後で発送予定"></option>
@@ -474,12 +504,55 @@ async function refreshPricebook(){
     $("#price-status").textContent="価格表：最新を取得"; autofillPrices(true); render();
   }catch(e){ $("#price-status").textContent="価格表：内蔵データ（オフライン）"; }
 }
+/* ---- 取引先マスタ（名前＋取引方法）：クリック一覧＆自動仕分けに使用 ---- */
+let custMaster = []; // [{name, method}]  method: "市売"|"付売"|null(=新規→直売)
+function mergeLocalIntoMaster(){
+  const names=new Set(custMaster.map(c=>c.name));
+  loadCands().forEach(n=>{ if(n && !names.has(n)){ custMaster.push({name:n, method:null}); names.add(n); } });
+}
+function renderCustChips(filter){
+  const box=$("#cust-list-box"); if(!box) return;
+  const f=(filter||"").trim();
+  const cur=($("#f-customer")?$("#f-customer").value.trim():"");
+  const list=custMaster.slice().sort((a,b)=>a.name.localeCompare(b.name,"ja"));
+  const shown=list.filter(c=> !f || c.name.indexOf(f)>=0);
+  if(!shown.length){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
+  box.innerHTML=shown.map(c=>{
+    const t=c.method==="市売"?"市":c.method==="付売"?"付":"ネ";
+    const sel=(c.name===cur)?" sel":"";
+    return `<button type="button" class="cust-chip${sel}" data-name="${esc(c.name)}" data-method="${esc(c.method||"")}">${esc(c.name)}<span class="m">${t}</span></button>`;
+  }).join("");
+  box.querySelectorAll(".cust-chip").forEach(ch=> ch.addEventListener("click",()=> pickCustomer(ch.dataset.name, ch.dataset.method||null)));
+}
+function pickCustomer(name, method){
+  $("#f-customer").value=name;
+  setKubun(method || "直売");          // マスタに区分あれば市売/付売、無ければ直売（ネット）
+  updateCustCurrent(); renderCustChips($("#cust-search")?$("#cust-search").value:"");
+  saveDraft(); render();
+}
+function classifyTyped(){
+  const name=$("#f-customer").value.trim();
+  const m=custMaster.find(c=>c.name===name);
+  setKubun(m ? (m.method||"直売") : "直売");
+  updateCustCurrent(); renderCustChips($("#cust-search")?$("#cust-search").value:"");
+}
+function updateCustCurrent(){
+  const el=$("#cust-current"), tag=$("#cust-method-tag"); if(!el) return;
+  const name=($("#f-customer")?$("#f-customer").value.trim():"");
+  el.textContent=name||"（未選択）";
+  const m=custMaster.find(c=>c.name===name);
+  const label=name ? (m ? (m.method||"直売（ネット）") : "直売（ネット・新規）") : "";
+  if(tag) tag.textContent=label?("／ 取引方法："+label):"";
+}
 async function loadCustomerCandidates(){
   try{
     const r=await fetch(GAS_URL+"?action=getCustomers"); const j=await r.json();
+    custMaster=(j.customers||[]).filter(c=>c.name).map(c=>({name:c.name, method:(c.method==="市売"||c.method==="付売")?c.method:null}));
     (j.customers||[]).forEach(c=>{ if(c.name) addCandidate(c.name, false); });
+    mergeLocalIntoMaster();
     renderCustomerDatalist();
-  }catch(e){ /* オフライン時はローカル候補のみ */ }
+    renderCustChips($("#cust-search")?$("#cust-search").value:""); updateCustCurrent();
+  }catch(e){ mergeLocalIntoMaster(); renderCustChips(""); updateCustCurrent(); }
 }
 
 
@@ -813,6 +886,7 @@ function applyData(d){
     if(d._fb.qty!=null){ const fq2=$("#fb-qty"); if(![...fq2.options].some(o=>o.value===String(d._fb.qty))) fq2.add(new Option(String(d._fb.qty),String(d._fb.qty))); fq2.value=String(d._fb.qty); }
     freightLinked=!!d._fb.linked; }
   setKubun(d.kubun||"付売"); renderFreightCalc(); render();
+  if(typeof renderCustChips==="function"){ renderCustChips($("#cust-search")?$("#cust-search").value:""); updateCustCurrent(); }
 }
 
 /* ---- 印刷プレビュー縮小 ---- */
@@ -825,8 +899,99 @@ function fitPreview(){
 let flashTO;
 function flash(msg){ let el=$("#flash"); if(!el){ el=document.createElement("div"); el.id="flash"; el.style.cssText="position:fixed;bottom:18px;left:18px;background:#222;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;z-index:99;opacity:.95"; document.body.appendChild(el);} el.textContent=msg; el.style.display="block"; clearTimeout(flashTO); flashTO=setTimeout(()=>el.style.display="none",1600); }
 
+/* ---- ウィザード（3ステップ）：既存フィールドをステップ単位に並べ替え ---- */
+function elFrom(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; }
+let currentStep=1; const paneEls={}; let wizStageEl=null;
+function buildWizard(){
+  const panel=document.querySelector(".panel");
+  wizStageEl=document.querySelector(".stage");
+  const toolbar=panel.querySelector(".toolbar");
+  const gridWrap=panel.querySelector(".grid-wrap");
+  const addBar=panel.querySelector(".btnbar");
+  const freightBox=panel.querySelector(".freight-box");
+  const histwrap=panel.querySelector(".histwrap");
+  const hint=panel.querySelector(".hint");
+  const fld=id=>document.getElementById(id).closest(".field");
+  const fDate=fld("f-date"), fCust=fld("f-customer"), fKubun=fld("f-kubun"),
+        fCarrier=fld("f-carrier"), fFreight=fld("f-freight"),
+        fKeisho=fld("f-keisho"), fTanto=fld("f-tanto"), fNouki=fld("f-nouki"),
+        fShiharai=fld("f-shiharai"), fLimit=fld("f-limit");
+  const remarks=document.getElementById("f-remarks").closest(".field");
+
+  const nav=elFrom(`<div class="wiz-nav">
+    <div class="wiz-step" data-go="1"><span class="num">1</span>取引先・基本</div>
+    <span class="wiz-arrow">›</span>
+    <div class="wiz-step" data-go="2"><span class="num">2</span>商品・配送</div>
+    <span class="wiz-arrow">›</span>
+    <div class="wiz-step" data-go="3"><span class="num">3</span>確認・編集</div>
+  </div>`);
+  const pane1=elFrom(`<div class="step-pane" id="pane1"></div>`);
+  const pane2=elFrom(`<div class="step-pane" id="pane2"></div>`);
+  const pane3=elFrom(`<div class="step-pane" id="pane3"></div>`);
+  paneEls[1]=pane1; paneEls[2]=pane2; paneEls[3]=pane3;
+
+  /* ステップ1：見積日／担当／取引方法＋取引先ピッカー */
+  const row1=elFrom(`<div class="wrow"></div>`); row1.append(fDate, fTanto, fKubun);
+  const picker=elFrom(`<div class="field" style="margin-top:12px">
+    <label>取引先（クリックで選択。<b>市</b>＝市売／<b>付</b>＝付売／<b>ネ</b>＝直売ネット）</label>
+    <div class="cust-picker">
+      <input class="cust-search" id="cust-search" placeholder="🔍 社名で絞り込み" autocomplete="off">
+      <div class="cust-list" id="cust-list-box"></div>
+    </div>
+  </div>`);
+  fCust.querySelector("label").innerHTML='新規取引先（一覧にない場合はここに入力）<button type="button" class="editlist" id="cust-add" title="この取引先を候補に追加">✎候補に追加</button>';
+  const pickerBox=picker.querySelector(".cust-picker");
+  pickerBox.appendChild(fCust);
+  pickerBox.appendChild(elFrom(`<div class="cust-current">選択中：<b id="cust-current">（未選択）</b><span id="cust-method-tag"></span></div>`));
+  pane1.append(row1, picker);
+
+  /* ステップ2：明細／配送業者・運賃・納期／送料自動計算 */
+  pane2.append(gridWrap, addBar);
+  const row2=elFrom(`<div class="wrow mt"></div>`); row2.append(fCarrier, fFreight, fNouki);
+  pane2.append(row2, freightBox);
+
+  /* ステップ3：確認（敬称・支払・有効期限／備考／保存ツールバー／履歴） */
+  const row3=elFrom(`<div class="wrow"></div>`); row3.append(fKeisho, fShiharai, fLimit);
+  pane3.append(toolbar, row3, remarks, histwrap, hint);
+
+  const btns=elFrom(`<div class="wiz-btns">
+    <button type="button" class="btn-back" id="wiz-back">← 戻る</button>
+    <button type="button" class="btn-next" id="wiz-next">次へ →</button>
+  </div>`);
+
+  panel.append(nav, pane1, pane2, pane3, btns);
+  /* 空になった元コンテナを掃除 */
+  [...panel.querySelectorAll(".hdrfields,.hdrfields2")].forEach(c=>{ if(!c.children.length) c.remove(); });
+
+  nav.querySelectorAll(".wiz-step").forEach(s=> s.addEventListener("click",()=>goStep(+s.dataset.go)));
+  $("#wiz-back").addEventListener("click",()=>goStep(Math.max(1,currentStep-1)));
+  $("#wiz-next").addEventListener("click",()=>{ if(validateStep(currentStep)) goStep(Math.min(3,currentStep+1)); });
+  $("#cust-search").addEventListener("input",e=>renderCustChips(e.target.value));
+  $("#f-customer").addEventListener("input", classifyTyped);
+}
+function goStep(n){
+  currentStep=n;
+  paneEls[1].classList.toggle("show", n===1||n===3);
+  paneEls[2].classList.toggle("show", n===2||n===3);
+  paneEls[3].classList.toggle("show", n===3);
+  if(wizStageEl) wizStageEl.style.display=(n===3)?"":"none";
+  document.querySelectorAll(".wiz-nav .wiz-step").forEach(s=>{ const i=+s.dataset.go; s.classList.toggle("active",i===n); s.classList.toggle("done",i<n); });
+  const back=$("#wiz-back"), next=$("#wiz-next");
+  if(back) back.style.visibility=(n===1)?"hidden":"visible";
+  if(back) back.textContent=(n===3)?"← 商品・配送へ":"← 取引先・基本へ";
+  if(next){ if(n>=3){ next.style.display="none"; } else { next.style.display=""; next.textContent=(n===1)?"商品・配送へ →":"確認へ →"; } }
+  if(n===3) setTimeout(fitPreview,40);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function validateStep(n){
+  if(n===1 && !$("#f-customer").value.trim()) return confirm("⚠️ 取引先が未入力です。このまま次へ進みますか？");
+  if(n===2){ const has=[...document.querySelectorAll(".item-row")].some(r=>{const it=readRow(r);return it.name||it.qty;}); if(!has) return confirm("⚠️ 商品が未入力です。このまま次へ進みますか？"); }
+  return true;
+}
+
 /* ---- 初期化 ---- */
 function init(){
+  buildWizard();
   $("#o-qr").src=QR_DATAURI;
   const sel=$("#fb-pref"); Object.keys(SEINO_PREF_MAP).forEach(p=>sel.appendChild(new Option(p,p))); sel.value="東京";
   const fq=$("#fb-qty"); let fqo=''; for(let i=1;i<=30;i++) fqo+=`<option value="${i}">${i}</option>`; fq.innerHTML=fqo; fq.value="1";
@@ -834,13 +999,14 @@ function init(){
   // 取引先の初期候補
   if(!loadCands().length){ ["ナイス（株）相模原","ナイス（株）浜松","ナイス（株）沼津","川広建材","（株）HIKARI","（有）滝川","（株）ニッチ"].forEach(n=>addCandidate(n,true)); }
   renderCustomerDatalist();
+  mergeLocalIntoMaster(); renderCustChips(""); updateCustCurrent();
 
   $("#btn-add").addEventListener("click",()=>{ const r=addRow(); r.querySelector(".i-name").focus(); saveDraft(); });
   $("#btn-print").addEventListener("click",()=>{ if(!freightOkToProceed("印刷")) return; setTimeout(()=>window.print(),150); });
   $("#btn-save").addEventListener("click", saveToHistory);
   $("#btn-db").addEventListener("click",()=> window.open(DB_SHEET_URL,"_blank","noopener"));
   $("#btn-folder").addEventListener("click", async ()=>{ if(!dbFolderUrl) await fetchFolderUrl(); if(dbFolderUrl) window.open(dbFolderUrl,"_blank","noopener"); else flash("PDFフォルダはまだ準備されていません（DB認可後に有効）"); });
-  $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？（履歴は残ります）")){ freightLinked=false; applyData({date:todayISO(),kubun:kubun,remarks:DEFAULT_REMARKS}); saveDraft(); } });
+  $("#btn-clear").addEventListener("click",()=>{ if(confirm("入力内容をクリアしますか？（履歴は残ります）")){ freightLinked=false; applyData({date:todayISO(),kubun:kubun,remarks:DEFAULT_REMARKS}); saveDraft(); goStep(1); } });
   $("#cust-add").addEventListener("click",()=>{ const n=$("#f-customer").value.trim(); if(n){ addCandidate(n,true); renderCustomerDatalist(); flash("取引先候補に追加しました"); } });
 
   $("#f-kubun").addEventListener("change",()=>setKubun($("#f-kubun").value));
@@ -872,9 +1038,10 @@ function init(){
   $("#price-status").textContent="価格表：内蔵データ";
   refreshPricebook(); refreshYahooPrices(); loadCustomerCandidates(); loadDbHistory(); fetchFolderUrl();
 
-  fitPreview(); window.addEventListener("resize", fitPreview);
-  window.addEventListener("beforeprint",()=>{ $("#sheet").style.transform="none"; document.querySelector(".stage").style.height="auto"; });
-  window.addEventListener("afterprint", fitPreview);
+  window.addEventListener("resize",()=>{ if(currentStep===3) fitPreview(); });
+  window.addEventListener("beforeprint",()=>{ const st=document.querySelector(".stage"); st.style.display=""; $("#sheet").style.transform="none"; st.style.height="auto"; });
+  window.addEventListener("afterprint",()=>{ if(currentStep===3) fitPreview(); });
+  goStep(1);
 }
 init();
 </script>
