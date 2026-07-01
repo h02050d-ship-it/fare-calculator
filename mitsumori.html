@@ -225,7 +225,11 @@
   .wiz-nav{ justify-content:flex-start; gap:16px; margin:6px 0 18px; }
   .wiz-step{ font-size:14px; }
   .wiz-step .num{ width:28px; height:28px; font-size:14px; }
-  .cust-list{ max-height:460px; }
+  .cust-list{ display:block; max-height:560px; }
+  .cust-group{ display:flex; gap:12px; align-items:flex-start; padding:8px 2px; border-bottom:1px solid #eef0f2; }
+  .cust-group:last-child{ border-bottom:none; }
+  .cg-head{ flex:0 0 46px; font-weight:700; color:#2e7d32; font-size:13px; padding-top:8px; }
+  .cg-chips{ flex:1; display:flex; flex-wrap:wrap; gap:7px; }
   .cust-chip{ font-size:14px; padding:8px 14px; }
   .wrow{ grid-template-columns:1fr 1fr 1fr; gap:14px; }
   .items-head,.item-row{ gap:8px; }
@@ -534,6 +538,35 @@ function custSortKey(name){
   s=s.replace(/[\s　・,，.．\-ー—（）\(\)]/g,"");
   return s;
 }
+/* ---- 50音グループ分け（あ行〜わ行）。漢字・ローマ字始まりは読み辞書で判定 ---- */
+const GYO_ORDER=["あ行","か行","さ行","た行","な行","は行","ま行","や行","ら行","わ行","その他"];
+const GYO=[
+  ["あ行","アイウエオヴァィゥェォ"],["か行","カキクケコガギグゲゴヵヶ"],["さ行","サシスセソザジズゼゾ"],
+  ["た行","タチツテトダヂヅデドッ"],["な行","ナニヌネノ"],["は行","ハヒフヘホバビブベボパピプペポ"],
+  ["ま行","マミムメモ"],["や行","ヤユヨャュョ"],["ら行","ラリルレロ"],["わ行","ワヲンヮ"]
+];
+function kanaToRow(ch){
+  if(!ch) return null;
+  let c=ch; const code=c.charCodeAt(0);
+  if(code>=0x3041 && code<=0x3096) c=String.fromCharCode(code+0x60); // ひらがな→カタカナ
+  for(const [row,set] of GYO){ if(set.indexOf(c)>=0) return row; }
+  return null;
+}
+// 読み頭の辞書（キー＝法人格除去後の社名の先頭一致）
+const YOMI={ "糸永":"イ","金平":"カ","勝山":"カ","滝川":"タ","千葉":"チ","中央木材":"チ","株木":"カ",
+  "丸天":"マ","丸宇":"マ","ｉマーク":"ア","iマーク":"ア","兼松":"カ","森庄":"モ","栗山":"ク","山長":"ヤ",
+  "山田":"ヤ","吉貞":"ヨ","明治木材":"メ","遠藤":"エ","川広":"カ","HIKARI":"ヒ" };
+const YOMI_KEYS=Object.keys(YOMI).sort((a,b)=>b.length-a.length);
+function kanaKata(ch){ if(!ch) return ""; const code=ch.charCodeAt(0); return (code>=0x3041&&code<=0x3096)?String.fromCharCode(code+0x60):ch; }
+function yomiHead(name){        // 並び用の読み頭カナ（辞書優先→カナ始まり→不明は""）
+  const s=custSortKey(name); if(!s) return "";
+  for(const k of YOMI_KEYS){ if(s.indexOf(k)===0) return YOMI[k]; }
+  const kc=kanaKata(s[0]); return kanaToRow(kc)?kc:"";
+}
+function yomiRow(name){
+  const h=yomiHead(name); return h ? (kanaToRow(h)||"その他") : "その他";
+}
+function yomiSortKey(name){ return yomiHead(name)+"　"+custSortKey(name); }
 function mergeLocalIntoMaster(){
   const names=new Set(custMaster.map(c=>c.name));
   loadCands().forEach(n=>{ if(n && !isJunkCust(n) && !names.has(n)){ custMaster.push({name:n, method:null}); names.add(n); } });
@@ -542,14 +575,19 @@ function renderCustChips(filter){
   const box=$("#cust-list-box"); if(!box) return;
   const f=(filter||"").trim();
   const cur=($("#f-customer")?$("#f-customer").value.trim():"");
-  const list=custMaster.filter(c=>!isJunkCust(c.name)).sort((a,b)=>custSortKey(a.name).localeCompare(custSortKey(b.name),"ja"));
-  const shown=list.filter(c=> !f || c.name.indexOf(f)>=0);
-  if(!shown.length){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
-  box.innerHTML=shown.map(c=>{
-    const t=c.method==="市売"?"市":c.method==="付売"?"付":"ネ";
-    const sel=(c.name===cur)?" sel":"";
-    return `<button type="button" class="cust-chip${sel}" data-name="${esc(c.name)}" data-method="${esc(c.method||"")}">${esc(c.name)}<span class="m">${t}</span></button>`;
-  }).join("");
+  let list=custMaster.filter(c=>!isJunkCust(c.name));
+  if(f) list=list.filter(c=>c.name.indexOf(f)>=0);
+  if(!list.length){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
+  const groups={};
+  list.forEach(c=>{ const g=yomiRow(c.name); (groups[g]=groups[g]||[]).push(c); });
+  const chipHTML=c=>{ const t=c.method==="市売"?"市":c.method==="付売"?"付":"ネ"; const sel=(c.name===cur)?" sel":"";
+    return `<button type="button" class="cust-chip${sel}" data-name="${esc(c.name)}" data-method="${esc(c.method||"")}">${esc(c.name)}<span class="m">${t}</span></button>`; };
+  let html="";
+  GYO_ORDER.forEach(g=>{ const arr=groups[g]; if(!arr||!arr.length) return;
+    arr.sort((a,b)=>yomiSortKey(a.name).localeCompare(yomiSortKey(b.name),"ja"));
+    html+=`<div class="cust-group"><div class="cg-head">${g}</div><div class="cg-chips">${arr.map(chipHTML).join("")}</div></div>`;
+  });
+  box.innerHTML=html;
   box.querySelectorAll(".cust-chip").forEach(ch=> ch.addEventListener("click",()=> pickCustomer(ch.dataset.name, ch.dataset.method||null)));
 }
 function pickCustomer(name, method){
