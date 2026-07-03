@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>市場さま管理画面｜桧製品ご案内ページ</title>
+<style>
+  :root{ --blue:#1d4e89; --blue-dark:#15395f; --bg:#f2f5f9; --ink:#2b3442; --line:#dbe2ec; --green:#0a8a4a; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; background:var(--bg); color:var(--ink); }
+  header{ background:linear-gradient(135deg,var(--blue-dark),var(--blue)); color:#fff; padding:18px 16px; }
+  header .inner{ max-width:980px; margin:0 auto; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  header h1{ font-size:19px; margin:0; }
+  header .sub{ font-size:12px; opacity:.85; }
+  .wrap{ max-width:980px; margin:0 auto; padding:18px 14px 80px; }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+  .card h2{ font-size:16px; margin:0 0 4px; border-left:4px solid var(--blue); padding-left:9px; }
+  .card .h2sub{ font-size:12px; color:#7c8798; margin:0 0 14px 13px; }
+
+  label{ font-size:12px; font-weight:bold; color:#556; display:block; margin-bottom:4px; }
+  input[type=text],input[type=tel],input[type=email],input[type=password],input[type=number],textarea,select{
+    width:100%; padding:10px; border:1px solid #c3cddc; border-radius:8px; font-size:15px; font-family:inherit; background:#fff;
+  }
+  textarea{ resize:vertical; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  .fld{ margin-bottom:12px; }
+  .note{ font-size:11.5px; color:#8a94a5; margin-top:4px; line-height:1.7; }
+
+  button.primary{ border:none; background:var(--green); color:#fff; border-radius:9px; padding:13px 22px; font-size:15px; font-weight:bold; cursor:pointer; }
+  button.primary:hover{ filter:brightness(1.06); }
+  button.ghost{ border:1px solid #c3cddc; background:#fff; color:var(--ink); border-radius:8px; padding:9px 14px; font-size:13px; cursor:pointer; }
+  button.mini{ border:1px solid #c3cddc; background:#fff; border-radius:6px; padding:3px 9px; font-size:12px; cursor:pointer; }
+
+  table.prods{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.prods th{ background:#eef2f8; border:1px solid var(--line); padding:7px 6px; font-size:12px; }
+  table.prods td{ border:1px solid var(--line); padding:6px; text-align:center; }
+  table.prods td.l{ text-align:left; white-space:nowrap; }
+  table.prods select, table.prods input{ padding:6px; font-size:13px; }
+  table.prods input.mk{ width:70px; text-align:right; }
+  .comm-cell{ color:var(--green); font-weight:bold; font-size:12px; white-space:nowrap; }
+
+  .sec-item{ display:flex; align-items:center; gap:10px; background:#f7f9fc; border:1px solid var(--line); border-radius:8px; padding:9px 12px; margin-bottom:7px; }
+  .sec-item .nm{ flex:1; font-size:14px; font-weight:bold; }
+  .sec-item input[type=checkbox]{ width:18px; height:18px; }
+
+  .preview-table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
+  .preview-table th{ background:#eef7f0; border:1px solid #cfe6d6; padding:6px 5px; font-size:11.5px; }
+  .preview-table td{ border:1px solid #cfe6d6; padding:6px 5px; text-align:right; white-space:nowrap; }
+  .preview-table td.l{ text-align:left; }
+  .preview-table td.na{ color:#bbb; text-align:center; }
+
+  .urlbox{ display:flex; gap:8px; align-items:center; }
+  .urlbox input{ flex:1; font-size:12px; color:#556; background:#f7f9fc; }
+  #qr-img{ border:1px solid var(--line); border-radius:8px; margin-top:10px; }
+  .privacy{ background:#f0f7f2; border:1px solid #bfe0cb; border-radius:8px; padding:10px 14px; font-size:12.5px; color:#1e6b40; line-height:1.8; margin-top:12px; }
+
+  .gate{ max-width:460px; margin:60px auto; }
+  .gate .card{ padding:26px; }
+  .gate h1{ font-size:18px; text-align:center; margin:0 0 4px; }
+  .gate .lead{ font-size:12.5px; color:#7c8798; text-align:center; margin-bottom:18px; line-height:1.8; }
+  .tabbtns{ display:flex; gap:0; margin-bottom:16px; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+  .tabbtns button{ flex:1; border:none; padding:11px; font-size:14px; font-weight:bold; background:#f2f5f9; color:#7c8798; cursor:pointer; }
+  .tabbtns button.on{ background:var(--blue); color:#fff; }
+  .err{ color:#c0392b; font-size:12.5px; font-weight:bold; margin-top:8px; }
+  .savebar{ position:sticky; bottom:0; background:rgba(242,245,249,.95); padding:12px 0; display:flex; gap:10px; align-items:center; }
+  #save-msg{ font-size:13px; color:var(--green); font-weight:bold; }
+  @media (max-width:640px){ .grid2,.grid3{ grid-template-columns:1fr; } table.prods{ font-size:11.5px; } }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const fmt = n => (Math.round(n)||0).toLocaleString("ja-JP");
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ===== 招待コード（林材木店が市場さまへお渡しするコード） ===== */
+const INVITE_CODES = ["HAYAZAI2026"];
+
+/* ===== 商品マスタ・価格（客用ページと同一。GASで最新化） ===== */
+const GRADES = ["丸節","小節","特上小","無節","無節特上小","生節"];
+const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小", namabushi:"生節" };
+const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
+const PB_RAW = {
+  "市売": [
+    ["桧フローリング",15,120,2000, 4000,5000,6600,8800,7700,null],
+    ["桧フローリング",15,120,3000, 8000,8800,16500,20000,18000,null],
+    ["桧フローリング",15,120,4000, 8800,12000,20000,24000,22000,13000],
+    ["桧羽目板",12,120,2000, 4000,5000,6600,8800,7700,null],
+    ["桧羽目板",12,120,3000, 8000,8800,16500,20000,18000,null],
+    ["桧羽目板",12,120,4000, 8600,12000,20000,24000,22000,null],
+    ["桧フローリング",12,120,2000, 4000,5000,6600,8800,7700,null],
+    ["桧フローリング",12,120,3000, 8000,8800,16500,20000,18000,null],
+    ["桧フローリング",12,120,4000, 8800,12000,20000,24000,22000,null]
+  ],
+  "付売": [
+    ["桧フローリング",15,120,2000, 3500,4500,6000,8000,7000,null],
+    ["桧フローリング",15,120,3000, 7300,8000,15000,18000,16500,null],
+    ["桧フローリング",15,120,4000, 8000,12000,18000,22000,20000,null],
+    ["桧羽目板",12,120,2000, 3500,4500,6000,8000,7000,null],
+    ["桧羽目板",12,120,3000, 7300,8000,15000,18000,16500,null],
+    ["桧羽目板",12,120,4000, 7800,12000,18000,22000,20000,null],
+    ["桧フローリング",12,120,2000, 3500,4500,6000,8000,7000,null],
+    ["桧フローリング",12,120,3000, 7300,8000,15000,18000,16500,null],
+    ["桧フローリング",12,120,4000, 8000,12000,18000,22000,20000,null]
+  ]
+};
+const PRICEBOOK = { "市売":{}, "付売":{} };
+function buildPricebook(){
+  ["市売","付売"].forEach(k=>{
+    PRICEBOOK[k]={};
+    PB_RAW[k].forEach(r=>{
+      const key=`${r[0]}|${r[1]}|${r[2]}|${r[3]}`; const g={};
+      GRADES.forEach((gl,i)=>{ const v=r[4+i]; if(v!=null) g[gl]=v; });
+      PRICEBOOK[k][key]=g;
+    });
+  });
+}
+buildPricebook();
+const PROD_ROWS = PB_RAW["市売"].map(r=>({ name:r[0], t:r[1], w:r[2], l:r[3], key:`${r[0]}|${r[1]}|${r[2]}|${r[3]}` }));
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
+async function refreshPricebook(){
+  try{
+    for(const m of ["市売","付売"]){
+      const r=await fetch(GAS_URL+"?action=getPrices&method="+encodeURIComponent(m)); const j=await r.json();
+      const tbl={};
+      (j.prices||[]).forEach(p=>{ const key=`${p.hinmei}|${p.thickness}|${p.width}|${p.length}`; const g={};
+        Object.keys(GRADE_ROMAJI).forEach(rk=>{ const v=p[rk]; if(typeof v==="number" && v>0) g[GRADE_ROMAJI[rk]]=v; }); tbl[key]=g; });
+      if(Object.keys(tbl).length) PRICEBOOK[m]=tbl;
+    }
+    if($("#prods-table")) renderProds(), renderPreview();
+  }catch(e){}
+}
+
+/* ===== アカウント（この端末のブラウザにのみ保存） ===== */
+const LS_KEY = "hz_ichiba_kanri_v1";
+function loadAcc(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return null; } }
+function saveAcc(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
+
+function defaultSettings(name, tel, email){
+  const prods={};
+  PROD_ROWS.forEach(r=>{ prods[r.key]={ show:true, method:"市売", markup:"" }; });
+  return {
+    v:1, name:name||"", tel:tel||"", email:email||"", fax:"",
+    greet:"", delivery:"ご注文から約2〜3週間（在庫状況により前後します）",
+    maker:true, markup:10, round:10, comm:10,
+    sections:["items","quote","photos","flow"],
+    secOn:{ items:true, quote:true, photos:true, flow:true },
+    photos:[], prods
+  };
+}
+
+/* ===== トークン生成（掛け率はこのURLの中にだけ入る。サーバー保存なし） ===== */
+function encTok(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function buildToken(st){
+  const prods={};
+  PROD_ROWS.forEach(r=>{
+    const c=st.prods[r.key]||{};
+    prods[r.key]={ show:c.show!==false, method:c.method||"市売", markup:(c.markup===""||c.markup==null)?undefined:Number(c.markup) };
+  });
+  const tok={
+    v:1, name:st.name, tel:st.tel, email:st.email, fax:st.fax,
+    greet:st.greet, delivery:st.delivery, maker:st.maker!==false,
+    markup:Number(st.markup||0), round:Number(st.round||10),
+    sections: st.sections.filter(k=>st.secOn[k]!==false),
+    photos: st.photos, prods
+    /* comm（市売手数料率）は管理画面の表示専用。お客様用URLには入れない */
+  };
+  return encTok(tok);
+}
+function custURL(st){
+  const base = location.href.replace(/kanri\.html.*$/,"");
+  return base + "#m=" + buildToken(st);
+}
+
+/* ===== 画面 ===== */
+const SEC_NAMES = { items:"商品と価格", quote:"かんたん見積", photos:"施工イメージ", flow:"ご注文の流れ" };
+let ACC = loadAcc();
+let ST = null;          // 編集中の設定
+let authed = false;
+
+function renderGate(){
+  const hasAcc = !!ACC;
+  document.getElementById("root").innerHTML = `
+  <div class="gate">
+    <div class="card">
+      <h1>市場さま専用 管理画面</h1>
+      <p class="lead">お客様向け「桧製品ご案内ページ」の価格・表示を設定し、<br>配布用URLを発行できます。</p>
+      <div class="tabbtns">
+        <button id="tab-login" class="${hasAcc?"on":""}">ログイン</button>
+        <button id="tab-reg" class="${hasAcc?"":"on"}">新規登録</button>
+      </div>
+      <div id="gate-body"></div>
+      <div class="err" id="gate-err"></div>
+    </div>
+  </div>`;
+  const showLogin = ()=>{
+    $("#tab-login").classList.add("on"); $("#tab-reg").classList.remove("on");
+    $("#gate-body").innerHTML = hasAcc ? `
+      <div class="fld"><label>市場名</label><input type="text" value="${esc(ACC.name)}" readonly style="background:#f2f5f9"></div>
+      <div class="fld"><label>パスワード</label><input type="password" id="g-pass"></div>
+      <button class="primary" style="width:100%" id="g-login">ログイン</button>
+      <p class="note">※この端末で登録済みのアカウントです。</p>` : `
+      <p class="note">この端末にはまだ登録がありません。「新規登録」からお進みください。</p>`;
+    const b=$("#g-login"); if(b) b.addEventListener("click",doLogin);
+    const p=$("#g-pass"); if(p) p.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+  };
+  const showReg = ()=>{
+    $("#tab-reg").classList.add("on"); $("#tab-login").classList.remove("on");
+    $("#gate-body").innerHTML = `
+      <div class="fld"><label>招待コード（林材木店からのご案内に記載）</label><input type="text" id="g-code" placeholder="例）HAYAZAI2026"></div>
+      <div class="fld"><label>市場名（お客様ページに表示されます）</label><input type="text" id="g-name" placeholder="例）○○木材市場"></div>
+      <div class="grid2">
+        <div class="fld"><label>電話番号</label><input type="tel" id="g-tel" placeholder="例）053-000-0000"></div>
+        <div class="fld"><label>メール（注文受信用・任意）</label><input type="email" id="g-email"></div>
+      </div>
+      <div class="fld"><label>パスワード（お好きなもの）</label><input type="password" id="g-pass2"></div>
+      <button class="primary" style="width:100%" id="g-reg">登録してはじめる</button>
+      <p class="note">※登録情報はこの端末のブラウザ内にのみ保存されます。</p>`;
+    $("#g-reg").addEventListener("click",doReg);
+  };
+  $("#tab-login").addEventListener("click",showLogin);
+  $("#tab-reg").addEventListener("click",showReg);
+  hasAcc?showLogin():showReg();
+
+  function doLogin(){
+    if($("#g-pass").value===ACC.pass){ authed=true; ST=ACC.settings; renderMain(); }
+    else $("#gate-err").textContent="パスワードが違います";
+  }
+  function doReg(){
+    const code=($("#g-code").value||"").trim().toUpperCase();
+    const name=($("#g-name").value||"").trim();
+    const tel=($("#g-tel").value||"").trim();
+    const pass=$("#g-pass2").value;
+    if(!INVITE_CODES.includes(code)){ $("#gate-err").textContent="招待コードが正しくありません"; return; }
+    if(!name){ $("#gate-err").textContent="市場名を入力してください"; return; }
+    if(!tel){ $("#gate-err").textContent="電話番号を入力してください"; return; }
+    if(!pass){ $("#gate-err").textContent="パスワードを入力してください"; return; }
+    ACC={ name, pass, settings: defaultSettings(name, tel, ($("#g-email").value||"").trim()) };
+    saveAcc(ACC); authed=true; ST=ACC.settings; renderMain();
+  }
+}
+
+function renderMain(){
+  document.getElementById("root").innerHTML = `
+  <header><div class="inner">
+    <h1>${esc(ST.name)}｜管理画面</h1>
+    <span class="sub">お客様向けご案内ページの設定とURL発行</span>
+  </div></header>
+  <div class="wrap">
+
+    <div class="card">
+      <h2>基本情報</h2>
+      <p class="h2sub">お客様ページのヘッダー・連絡先に表示されます</p>
+      <div class="grid2">
+        <div class="fld"><label>市場名</label><input type="text" id="f-name"></div>
+        <div class="fld"><label>電話番号（お客様からの注文・相談先）</label><input type="tel" id="f-tel"></div>
+        <div class="fld"><label>メール（「この内容で注文」の送信先・任意）</label><input type="email" id="f-email"></div>
+        <div class="fld"><label>FAX（任意）</label><input type="text" id="f-fax"></div>
+      </div>
+      <div class="fld"><label>ごあいさつ文（任意・ページ上部に表示）</label><textarea id="f-greet" rows="2" placeholder="例）国産桧の無垢材を産地直送でご案内しております。お気軽にお問い合わせください。"></textarea></div>
+      <div class="grid2">
+        <div class="fld"><label>納期目安の表記</label><input type="text" id="f-delivery"></div>
+        <div class="fld"><label style="margin-top:22px"><input type="checkbox" id="f-maker" style="width:16px;height:16px;vertical-align:-3px"> ページ下部に製造元（林材木店）を表記する</label></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>価格設定</h2>
+      <p class="h2sub">市売＝定価のまま表示（売れたら手数料をお受け取り）／付売＝仕切値に貴社の掛け率を乗せて表示</p>
+      <div class="grid3">
+        <div class="fld"><label>付売の共通上乗せ率（%）</label><input type="number" id="f-markup" min="0" max="200" step="1">
+          <p class="note">例）10 → 仕切値×1.10で表示</p></div>
+        <div class="fld"><label>端数処理</label><select id="f-round">
+          <option value="1">切り上げなし（1円単位）</option><option value="10">10円単位で切り上げ</option><option value="100">100円単位で切り上げ</option></select></div>
+        <div class="fld"><label>市売の手数料率（%・貴社の目安表示用）</label><input type="number" id="f-comm" min="0" max="30" step="0.5">
+          <p class="note">この数字がお客様や林材木店に送られることはありません</p></div>
+      </div>
+      <div style="overflow-x:auto"><table class="prods" id="prods-table"></table></div>
+      <p class="note">※「個別%」を入れるとその商品だけ共通率と違う上乗せにできます（空欄＝共通率）。</p>
+      <h2 style="margin-top:22px">お客様に見える価格（プレビュー）</h2>
+      <div style="overflow-x:auto"><table class="preview-table" id="preview-table"></table></div>
+    </div>
+
+    <div class="card">
+      <h2>ページの表示カスタマイズ</h2>
+      <p class="h2sub">チェックで表示/非表示、▲▼で並び替え。お客様ページにそのまま反映されます</p>
+      <div id="sec-list"></div>
+      <div class="fld" style="margin-top:14px"><label>施工写真のURL（1行に1つ・任意）</label>
+        <textarea id="f-photos" rows="3" placeholder="https://... の画像URLを1行ずつ貼り付け"></textarea>
+        <p class="note">写真が未設定でも「準備中」として表示されます（セクションごと消すこともできます）。</p></div>
+    </div>
+
+    <div class="card">
+      <h2>お客様用URLの発行</h2>
+      <p class="h2sub">下の「設定を保存してURLを発行」を押すと最新の設定でURLが更新されます</p>
+      <div class="urlbox">
+        <input type="text" id="out-url" readonly>
+        <button class="ghost" id="btn-copy">コピー</button>
+        <button class="ghost" id="btn-open">開いて確認</button>
+      </div>
+      <img id="qr-img" width="150" height="150" alt="QRコード">
+      <div class="privacy">🔒 貴社の掛け率・手数料の設定は<b>このURLの中にだけ</b>埋め込まれます。林材木店のサーバーやスプレッドシートには一切保存されません。設定を変えたら、新しいURLを発行してお客様へご案内し直してください。</div>
+    </div>
+
+    <div class="savebar">
+      <button class="primary" id="btn-save">💾 設定を保存してURLを発行</button>
+      <span id="save-msg"></span>
+    </div>
+  </div>`;
+
+  // 値の流し込み
+  $("#f-name").value=ST.name||""; $("#f-tel").value=ST.tel||""; $("#f-email").value=ST.email||""; $("#f-fax").value=ST.fax||"";
+  $("#f-greet").value=ST.greet||""; $("#f-delivery").value=ST.delivery||""; $("#f-maker").checked=ST.maker!==false;
+  $("#f-markup").value=ST.markup!=null?ST.markup:10; $("#f-round").value=String(ST.round||10); $("#f-comm").value=ST.comm!=null?ST.comm:10;
+  $("#f-photos").value=(ST.photos||[]).join("\n");
+
+  renderProds(); renderSecList(); renderPreview(); updateURL();
+
+  ["#f-markup","#f-round","#f-comm"].forEach(s=>$(s).addEventListener("input",()=>{ pull(); renderProds(); renderPreview(); }));
+  ["#f-name","#f-tel","#f-email","#f-fax","#f-greet","#f-delivery","#f-photos"].forEach(s=>$(s).addEventListener("input",pull));
+  $("#f-maker").addEventListener("change",pull);
+  $("#btn-save").addEventListener("click",()=>{
+    pull(); ACC.name=ST.name; ACC.settings=ST; saveAcc(ACC); updateURL();
+    $("#save-msg").textContent="✅ 保存しました。URLを更新しました";
+    setTimeout(()=>{ $("#save-msg").textContent=""; },4000);
+  });
+  $("#btn-copy").addEventListener("click",()=>{
+    navigator.clipboard.writeText($("#out-url").value).then(()=>{ $("#btn-copy").textContent="✅ コピー済"; setTimeout(()=>$("#btn-copy").textContent="コピー",2000); });
+  });
+  $("#btn-open").addEventListener("click",()=>{ pull(); window.open(custURL(ST),"_blank"); });
+}
+
+function pull(){
+  ST.name=$("#f-name").value.trim(); ST.tel=$("#f-tel").value.trim(); ST.email=$("#f-email").value.trim(); ST.fax=$("#f-fax").value.trim();
+  ST.greet=$("#f-greet").value; ST.delivery=$("#f-delivery").value.trim(); ST.maker=$("#f-maker").checked;
+  ST.markup=Number($("#f-markup").value||0); ST.round=Number($("#f-round").value||10); ST.comm=Number($("#f-comm").value||0);
+  ST.photos=$("#f-photos").value.split("\n").map(s=>s.trim()).filter(Boolean);
+}
+
+function ceilTo(v,u){ if(!u||u<=1) return Math.ceil(v); return Math.ceil(v/u)*u; }
+function custPriceFor(row, grade){
+  const c=ST.prods[row.key]||{};
+  if(c.show===false) return null;
+  if((c.method||"市売")==="市売"){ const g=PRICEBOOK["市売"][row.key]; return (g&&g[grade]!=null)?g[grade]:null; }
+  const g=PRICEBOOK["付売"][row.key]; if(!g||g[grade]==null) return null;
+  const mk=(c.markup!==""&&c.markup!=null)?Number(c.markup):Number(ST.markup||0);
+  return ceilTo(g[grade]*(1+mk/100), Number(ST.round||10));
+}
+
+function renderProds(){
+  const tbl=$("#prods-table"); if(!tbl) return;
+  let html=`<tr><th>表示</th><th style="text-align:left">商品</th><th>寸法</th><th>方式</th><th>個別%</th><th>売れた時の貴社取り分（目安）</th></tr>`;
+  PROD_ROWS.forEach(r=>{
+    const c=ST.prods[r.key]=ST.prods[r.key]||{show:true,method:"市売",markup:""};
+    const isIchi=(c.method||"市売")==="市売";
+    // 取り分目安：市売＝定価×手数料率／付売＝上乗せ分（無節の単価で例示）
+    let gain="—";
+    const gIchi=PRICEBOOK["市売"][r.key], gTsuke=PRICEBOOK["付売"][r.key];
+    if(isIchi && gIchi && gIchi["無節"]!=null){
+      gain=`約${fmt(gIchi["無節"]*(Number(ST.comm||0)/100))}円/束 <span style="color:#8a94a5;font-weight:normal">(無節・手数料${ST.comm||0}%)</span>`;
+    }else if(!isIchi && gTsuke && gTsuke["無節"]!=null){
+      const mk=(c.markup!==""&&c.markup!=null)?Number(c.markup):Number(ST.markup||0);
+      const sell=ceilTo(gTsuke["無節"]*(1+mk/100), Number(ST.round||10));
+      gain=`約${fmt(sell-gTsuke["無節"])}円/束 <span style="color:#8a94a5;font-weight:normal">(無節・+${mk}%)</span>`;
+    }
+    html+=`<tr>
+      <td><input type="checkbox" class="p-show" data-k="${esc(r.key)}" ${c.show!==false?"checked":""} style="width:16px;height:16px"></td>
+      <td class="l">${esc(r.name)}</td>
+      <td>${r.t}×${r.w}×${r.l}</td>
+      <td><select class="p-method" data-k="${esc(r.key)}">
+        <option value="市売"${isIchi?" selected":""}>市売（定価）</option>
+        <option value="付売"${!isIchi?" selected":""}>付売（上乗せ）</option></select></td>
+      <td><input type="number" class="mk p-markup" data-k="${esc(r.key)}" value="${c.markup==null?"":c.markup}" placeholder="共通" ${isIchi?"disabled style='background:#f2f5f9'":""}></td>
+      <td class="comm-cell">${gain}</td>
+    </tr>`;
+  });
+  tbl.innerHTML=html;
+  tbl.querySelectorAll(".p-show").forEach(el=>el.addEventListener("change",()=>{ ST.prods[el.dataset.k].show=el.checked; renderPreview(); }));
+  tbl.querySelectorAll(".p-method").forEach(el=>el.addEventListener("change",()=>{ ST.prods[el.dataset.k].method=el.value; renderProds(); renderPreview(); }));
+  tbl.querySelectorAll(".p-markup").forEach(el=>el.addEventListener("input",()=>{ ST.prods[el.dataset.k].markup=el.value; renderProds(); renderPreview(); }));
+}
+
+function renderPreview(){
+  const tbl=$("#preview-table"); if(!tbl) return;
+  let html=`<tr><th style="text-align:left">商品</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr>`;
+  PROD_ROWS.forEach(r=>{
+    const c=ST.prods[r.key]||{};
+    if(c.show===false) return;
+    html+=`<tr><td class="l">${esc(r.name)} ${r.t}×${r.w}×${r.l}</td>`+
+      GRADES.map(g=>{ const p=custPriceFor(r,g); return p==null?`<td class="na">—</td>`:`<td><b>${fmt(p)}</b>円</td>`; }).join("")+`</tr>`;
+  });
+  tbl.innerHTML=html;
+}
+
+function renderSecList(){
+  const box=$("#sec-list"); if(!box) return;
+  box.innerHTML = ST.sections.map((k,i)=>`
+    <div class="sec-item">
+      <input type="checkbox" class="s-on" data-k="${k}" ${ST.secOn[k]!==false?"checked":""}>
+      <span class="nm">${SEC_NAMES[k]||k}</span>
+      <button class="mini s-up" data-i="${i}" ${i===0?"disabled":""}>▲</button>
+      <button class="mini s-dn" data-i="${i}" ${i===ST.sections.length-1?"disabled":""}>▼</button>
+    </div>`).join("");
+  box.querySelectorAll(".s-on").forEach(el=>el.addEventListener("change",()=>{ ST.secOn[el.dataset.k]=el.checked; }));
+  box.querySelectorAll(".s-up").forEach(el=>el.addEventListener("click",()=>{ const i=Number(el.dataset.i); [ST.sections[i-1],ST.sections[i]]=[ST.sections[i],ST.sections[i-1]]; renderSecList(); }));
+  box.querySelectorAll(".s-dn").forEach(el=>el.addEventListener("click",()=>{ const i=Number(el.dataset.i); [ST.sections[i+1],ST.sections[i]]=[ST.sections[i],ST.sections[i+1]]; renderSecList(); }));
+}
+
+function updateURL(){
+  const u=custURL(ST);
+  $("#out-url").value=u;
+  $("#qr-img").src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data="+encodeURIComponent(u);
+}
+
+if(ACC||true) renderGate();
+refreshPricebook();
+</script>
+</body>
+</html>
