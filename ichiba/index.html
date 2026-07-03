@@ -5,118 +5,179 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
 <title>桧製品のご案内</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --wood:#8a5a2b; --wood-dark:#6b4420; --cream:#faf6ef; --ink:#3a2f25;
-    --green:#0a8a4a; --line:#e5dcce;
+    --bg:#f6f1e7; --panel:#fffdf8; --panel2:#fbf7ee;
+    --ink:#2f2519; --sub:#8d7d64; --line:#e7ddc9; --line2:#d9cbb0;
+    --brown:#54381e; --brown2:#7a5530; --gold:#b98a4e; --gold-soft:#f3e7d3;
+    --green:#2e7d4f; --green-dark:#25693f;
+    --serif:"Shippori Mincho B1","Yu Mincho",serif;
+    --sans:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
+    --shadow:0 2px 14px rgba(84,56,30,.07);
   }
   *{ box-sizing:border-box; }
-  body{ margin:0; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; background:var(--cream); color:var(--ink); }
-  .wrap{ max-width:860px; margin:0 auto; padding:0 14px 60px; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; font-family:var(--sans); background:var(--bg); color:var(--ink); line-height:1.65;
+    background-image:radial-gradient(rgba(185,138,78,.05) 1px, transparent 1px); background-size:22px 22px; }
+  .wrap{ max-width:880px; margin:0 auto; padding:0 16px 120px; }
 
-  header.site{ background:linear-gradient(135deg,var(--wood-dark),var(--wood)); color:#fff; padding:26px 14px 22px; }
-  header.site .inner{ max-width:860px; margin:0 auto; }
-  .mk-name{ font-size:24px; font-weight:bold; letter-spacing:.04em; }
-  .mk-sub{ font-size:13px; opacity:.9; margin-top:4px; }
-  .mk-contact{ margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+  /* ===== ヒーロー ===== */
+  header.site{
+    background:
+      repeating-linear-gradient(105deg, rgba(255,255,255,.035) 0 2px, transparent 2px 26px),
+      linear-gradient(140deg,#3c2712 0%, #54381e 45%, #6b4a26 100%);
+    color:#f6ecdc; padding:38px 16px 34px; position:relative; overflow:hidden;
+  }
+  header.site::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:5px;
+    background:linear-gradient(90deg,var(--gold),#e2c188 40%,var(--gold)); opacity:.85; }
+  header.site .inner{ max-width:880px; margin:0 auto; position:relative; }
+  .mk-kicker{ font-size:12px; letter-spacing:.34em; color:#d9bd8f; font-weight:700; }
+  .mk-name{ font-family:var(--serif); font-size:31px; font-weight:800; letter-spacing:.06em; margin-top:6px; line-height:1.3; text-shadow:0 1px 0 rgba(0,0,0,.25); }
+  .mk-sub{ font-size:13.5px; color:#e8d7ba; margin-top:8px; letter-spacing:.06em; }
+  .mk-contact{ margin-top:18px; display:flex; gap:10px; flex-wrap:wrap; }
   .mk-contact a, .mk-contact span.chip{
-    display:inline-block; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.45);
-    color:#fff; text-decoration:none; border-radius:20px; padding:7px 16px; font-size:14px; font-weight:bold;
+    display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.1); border:1px solid rgba(233,209,168,.55);
+    color:#f6ecdc; text-decoration:none; border-radius:999px; padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.03em;
+    transition:background .15s;
   }
-  .greet{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:18px 0 0; font-size:14px; line-height:1.8; white-space:pre-wrap; }
+  .mk-contact a:hover{ background:rgba(255,255,255,.2); }
+  .greet{ background:rgba(255,253,248,.95); color:var(--ink); border-radius:12px; padding:16px 18px; margin-top:20px;
+    font-size:14px; line-height:1.9; white-space:pre-wrap; box-shadow:var(--shadow); border-left:4px solid var(--gold); }
 
-  section.blk{ margin-top:30px; }
-  .blk h2{ font-size:18px; border-left:5px solid var(--wood); padding-left:10px; margin:0 0 4px; }
-  .blk .h2sub{ font-size:12px; color:#8a7a66; margin:0 0 12px 15px; }
+  /* ===== セクション ===== */
+  section.blk{ margin-top:46px; }
+  .blk-head{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+  .blk h2{ font-family:var(--serif); font-size:23px; font-weight:800; letter-spacing:.08em; margin:0; color:var(--brown); }
+  .blk h2::before{ content:"— "; color:var(--gold); }
+  .blk .h2sub{ font-size:12.5px; color:var(--sub); margin:2px 0 16px 2px; letter-spacing:.02em; }
 
-  /* 価格表 */
-  .pcard{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
-  .pcard .pname{ font-size:16px; font-weight:bold; }
-  .pcard .psize{ font-size:12.5px; color:#8a7a66; margin-top:2px; }
-  .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  .ptable{ width:100%; border-collapse:collapse; margin-top:10px; font-size:13.5px; }
-  .ptable th{ background:#f5efe4; font-weight:bold; padding:7px 6px; border:1px solid var(--line); font-size:12.5px; }
-  .ptable td{ padding:8px 6px; border:1px solid var(--line); text-align:right; white-space:nowrap; }
-  .ptable td.na{ color:#c9bda9; text-align:center; }
-  .ptable .yen{ font-weight:bold; }
-  .addrow{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center; }
-  .addrow select{ padding:9px 8px; border:1px solid #cbbfa8; border-radius:8px; font-size:15px; background:#fff; }
-  .addrow button{ border:none; background:var(--green); color:#fff; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:bold; cursor:pointer; }
-  .addrow button:hover{ filter:brightness(1.06); }
-  .delivery-note{ font-size:12.5px; color:#8a7a66; margin-top:8px; }
+  /* ===== 商品カード ===== */
+  .pcard{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 20px 18px; margin-bottom:16px; box-shadow:var(--shadow); }
+  .pcard .phead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .pcard .pname{ font-family:var(--serif); font-size:19px; font-weight:800; letter-spacing:.05em; color:var(--brown); }
+  .pcard .psize{ font-size:12.5px; color:var(--sub); background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:2px 9px; }
+  .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:12px; border-radius:10px; }
+  .ptable{ width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:520px; }
+  .ptable th{ background:linear-gradient(180deg,#efe6d2,#e9dec5); font-weight:700; padding:8px 6px; font-size:12px; color:var(--brown); letter-spacing:.05em;
+    border:1px solid var(--line2); border-right:none; }
+  .ptable th:last-child{ border-right:1px solid var(--line2); border-top-right-radius:9px; }
+  .ptable th:first-child{ border-top-left-radius:9px; }
+  .ptable td{ padding:11px 6px; border:1px solid var(--line); border-top:none; border-right:none; text-align:center; white-space:nowrap; background:#fff; cursor:pointer; transition:background .12s; }
+  .ptable td:last-child{ border-right:1px solid var(--line); }
+  .ptable td.na{ color:#cfc2a8; cursor:default; }
+  .ptable td .p-num{ font-weight:700; font-size:15px; color:var(--ink); }
+  .ptable td .p-unit{ font-size:10.5px; color:var(--sub); }
+  .ptable td.sel{ background:var(--gold-soft); box-shadow:inset 0 0 0 2px var(--gold); border-radius:4px; }
+  .ptable td:not(.na):hover{ background:#fdf6e9; }
+  .tap-hint{ font-size:11.5px; color:var(--sub); margin-top:7px; }
+  .addrow{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+  .addrow select{ padding:11px 12px; border:1.5px solid var(--line2); border-radius:10px; font-size:15px; background:#fff; font-family:inherit; color:var(--ink); }
+  .addrow button{ border:none; background:linear-gradient(180deg,#35905c,var(--green)); color:#fff; border-radius:999px; padding:12px 24px;
+    font-size:14.5px; font-weight:700; cursor:pointer; letter-spacing:.04em; box-shadow:0 3px 10px rgba(46,125,79,.25); transition:transform .1s; }
+  .addrow button:hover{ transform:translateY(-1px); }
+  .delivery-note{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--brown2); margin-top:14px;
+    background:var(--gold-soft); border:1px solid #e8d5b4; border-radius:10px; padding:10px 14px; }
 
-  /* 見積 */
-  #quote-box{ background:#fff; border:2px solid var(--wood); border-radius:12px; padding:16px; }
-  .qtable{ width:100%; border-collapse:collapse; font-size:13.5px; }
-  .qtable th{ background:#f5efe4; padding:7px 6px; border:1px solid var(--line); font-size:12.5px; }
-  .qtable td{ padding:8px 6px; border:1px solid var(--line); text-align:right; white-space:nowrap; }
+  /* ===== 見積 ===== */
+  #quote-box{ background:var(--panel); border:1.5px solid var(--line2); border-radius:16px; padding:20px; box-shadow:var(--shadow); }
+  .qtable{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:560px; }
+  .qtable th{ background:var(--panel2); padding:9px 8px; border-bottom:2px solid var(--line2); font-size:12px; color:var(--brown); letter-spacing:.05em; text-align:left; }
+  .qtable th.r{ text-align:right; }
+  .qtable td{ padding:11px 8px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
   .qtable td.l{ text-align:left; white-space:normal; }
-  .qtable .del{ border:none; background:#fdecea; color:#c0392b; border-radius:6px; padding:4px 9px; cursor:pointer; font-size:12px; }
-  .qsum{ margin-top:12px; }
-  .qsum table{ width:100%; max-width:380px; margin-left:auto; border-collapse:collapse; font-size:14px; }
-  .qsum th{ text-align:left; font-weight:normal; color:#666; padding:5px 8px; }
-  .qsum td{ text-align:right; padding:5px 8px; font-weight:bold; }
-  .qsum tr.total th, .qsum tr.total td{ border-top:2px solid var(--ink); font-size:18px; color:var(--wood-dark); padding-top:9px; }
-  .qship{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0 4px; padding:10px; background:#f8f4ec; border-radius:8px; }
-  .qship label{ font-size:13px; font-weight:bold; }
-  .qship select{ padding:8px; border:1px solid #cbbfa8; border-radius:8px; font-size:15px; background:#fff; }
-  .qship .shipnote{ font-size:11.5px; color:#8a7a66; }
-  .qbtns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .qtable .del{ border:none; background:#fbeceb; color:#b03a2e; border-radius:8px; padding:5px 11px; cursor:pointer; font-size:12px; font-family:inherit; }
+  .qtable .del:hover{ background:#f6d9d5; }
+  .qship{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:16px 0 4px; padding:13px 15px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; }
+  .qship label{ font-size:13px; font-weight:700; color:var(--brown); }
+  .qship select{ padding:10px 12px; border:1.5px solid var(--line2); border-radius:10px; font-size:15px; background:#fff; font-family:inherit; }
+  .qship .shipnote{ font-size:11.5px; color:var(--sub); }
+  .qsum{ margin-top:14px; display:flex; justify-content:flex-end; }
+  .qsum table{ width:100%; max-width:400px; border-collapse:collapse; font-size:14px; }
+  .qsum th{ text-align:left; font-weight:500; color:var(--sub); padding:6px 10px; }
+  .qsum td{ text-align:right; padding:6px 10px; font-weight:700; }
+  .qsum tr.total th, .qsum tr.total td{ border-top:2px solid var(--brown); padding-top:12px; }
+  .qsum tr.total th{ font-weight:700; color:var(--brown); font-size:15px; }
+  .qsum tr.total td{ font-family:var(--serif); font-size:23px; color:var(--brown); letter-spacing:.02em; }
+  .cust-fields{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+  .cust-fields input{ width:100%; padding:12px; border:1.5px solid var(--line2); border-radius:10px; font-size:15px; font-family:inherit; background:#fff; }
+  .cust-fields label{ font-size:12px; font-weight:700; color:var(--brown2); display:block; margin-bottom:4px; }
+  .qbtns{ display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
   .qbtns a, .qbtns button{
-    flex:1; min-width:170px; text-align:center; border:none; border-radius:10px; padding:14px 10px;
-    font-size:15px; font-weight:bold; cursor:pointer; text-decoration:none;
+    flex:1; min-width:180px; display:flex; align-items:center; justify-content:center; gap:7px;
+    border:none; border-radius:12px; padding:16px 10px; font-size:15px; font-weight:700; cursor:pointer; text-decoration:none;
+    font-family:inherit; letter-spacing:.03em; transition:transform .1s;
   }
-  .btn-order{ background:var(--green); color:#fff; }
-  .btn-tel{ background:#fff; color:var(--green); border:2px solid var(--green) !important; }
-  .btn-print{ background:#eef2f7; color:#33415c; }
-  .qempty{ color:#8a7a66; font-size:13.5px; padding:14px 4px; }
-  .cust-fields{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
-  .cust-fields input{ width:100%; padding:10px; border:1px solid #cbbfa8; border-radius:8px; font-size:15px; }
-  .cust-fields label{ font-size:12px; font-weight:bold; color:#666; display:block; margin-bottom:3px; }
+  .qbtns a:hover, .qbtns button:hover{ transform:translateY(-1px); }
+  .btn-order{ background:linear-gradient(180deg,#35905c,var(--green)); color:#fff; box-shadow:0 4px 12px rgba(46,125,79,.28); }
+  .btn-tel{ background:#fff; color:var(--green-dark); border:2px solid var(--green) !important; }
+  .btn-print{ background:var(--panel2); color:var(--brown); border:1.5px solid var(--line2) !important; }
+  .qempty{ color:var(--sub); font-size:13.5px; padding:18px 6px; text-align:center; }
 
-  /* 施工写真 */
-  .photo-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
-  .photo-grid img{ width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; border:1px solid var(--line); background:#eee; }
-  .photo-empty{ background:#fff; border:1px dashed #cbbfa8; border-radius:10px; padding:30px; text-align:center; color:#8a7a66; font-size:13.5px; }
+  /* ===== 追従バー ===== */
+  #cartbar{ position:fixed; left:0; right:0; bottom:0; z-index:50; transform:translateY(110%); transition:transform .25s ease; }
+  #cartbar.on{ transform:translateY(0); }
+  #cartbar .cb-in{ max-width:880px; margin:0 auto 12px; padding:0 12px; }
+  #cartbar button{
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:linear-gradient(140deg,#3c2712,#54381e); color:#f6ecdc; border:1px solid rgba(233,209,168,.5);
+    border-radius:14px; padding:14px 20px; font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit;
+    box-shadow:0 6px 22px rgba(47,37,25,.35);
+  }
+  #cartbar .cb-total{ font-family:var(--serif); font-size:19px; color:#f0d9ac; letter-spacing:.02em; }
 
-  /* 流れ */
-  .flow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
-  .fstep{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center; }
-  .fstep .n{ display:inline-block; width:30px; height:30px; line-height:30px; border-radius:50%; background:var(--wood); color:#fff; font-weight:bold; margin-bottom:8px; }
-  .fstep .t{ font-weight:bold; font-size:14.5px; }
-  .fstep .d{ font-size:12.5px; color:#8a7a66; margin-top:6px; line-height:1.7; }
+  /* ===== 施工写真 ===== */
+  .photo-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
+  .photo-grid img{ width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:14px; border:1px solid var(--line); background:#eee; box-shadow:var(--shadow); }
+  .photo-empty{ background:var(--panel); border:1.5px dashed var(--line2); border-radius:14px; padding:36px 20px; text-align:center; color:var(--sub); font-size:13.5px; }
 
-  footer.site{ margin-top:44px; padding:18px 14px 26px; text-align:center; font-size:12px; color:#a0937f; border-top:1px solid var(--line); }
+  /* ===== 流れ ===== */
+  .flow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; counter-reset:fstep; }
+  .fstep{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px 18px 20px; text-align:center; box-shadow:var(--shadow); position:relative; }
+  .fstep .n{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%;
+    background:linear-gradient(140deg,var(--brown2),var(--brown)); color:#f0d9ac; font-family:var(--serif); font-weight:800; font-size:17px; margin-bottom:10px; }
+  .fstep .t{ font-family:var(--serif); font-weight:800; font-size:16px; color:var(--brown); letter-spacing:.05em; }
+  .fstep .d{ font-size:12.5px; color:var(--sub); margin-top:8px; line-height:1.8; }
 
-  .noaccess{ max-width:520px; margin:80px auto; background:#fff; border:1px solid var(--line); border-radius:12px; padding:34px; text-align:center; }
-  .noaccess h1{ font-size:18px; }
-  .noaccess p{ font-size:13.5px; color:#8a7a66; line-height:1.9; }
+  footer.site{ margin-top:56px; padding:26px 14px 30px; text-align:center; font-size:12px; color:#a5967d; border-top:1px solid var(--line2); line-height:2; }
+  footer.site .fmk{ font-family:var(--serif); letter-spacing:.1em; color:var(--brown2); font-size:13px; }
 
-  /* 印刷（概算見積） */
+  .noaccess{ max-width:540px; margin:90px auto; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:40px 34px; text-align:center; box-shadow:var(--shadow); }
+  .noaccess h1{ font-family:var(--serif); font-size:20px; color:var(--brown); letter-spacing:.08em; }
+  .noaccess p{ font-size:13.5px; color:var(--sub); line-height:2; }
+
+  /* ===== 印刷（概算見積） ===== */
   #print-area{ display:none; }
   @media print{
     body *{ visibility:hidden; }
     #print-area, #print-area *{ visibility:visible; }
-    #print-area{ display:block; position:absolute; left:0; top:0; width:100%; padding:10mm; font-size:12px; }
-    #print-area h1{ font-size:20px; text-align:center; letter-spacing:.3em; margin:0 0 14px; }
+    #print-area{ display:block; position:absolute; left:0; top:0; width:100%; padding:10mm; font-size:12px; font-family:var(--sans); }
+    #print-area h1{ font-family:var(--serif); font-size:22px; text-align:center; letter-spacing:.4em; margin:0 0 16px; }
     #print-area table{ width:100%; border-collapse:collapse; }
     #print-area th,#print-area td{ border:1px solid #999; padding:5px 7px; font-size:11.5px; }
     #print-area th{ background:#f0f0f0; }
     #print-area td.r{ text-align:right; }
     #print-area .meta{ display:flex; justify-content:space-between; margin-bottom:10px; font-size:12px; }
-    #print-area .totalline{ text-align:right; font-size:15px; font-weight:bold; margin-top:10px; }
-    #print-area .pnote{ font-size:10.5px; color:#555; margin-top:12px; line-height:1.8; }
+    #print-area .totalline{ text-align:right; font-size:16px; font-weight:bold; margin-top:12px; }
+    #print-area .pnote{ font-size:10.5px; color:#555; margin-top:14px; line-height:1.8; }
   }
   @media (max-width:600px){
-    .mk-name{ font-size:20px; }
-    .ptable{ font-size:12px; }
+    .mk-name{ font-size:24px; }
+    .blk h2{ font-size:20px; }
     .cust-fields{ grid-template-columns:1fr; }
+    .qbtns a,.qbtns button{ min-width:100%; }
   }
 </style>
 </head>
 <body>
 
 <div id="app"></div>
+
+<div id="cartbar"><div class="cb-in">
+  <button id="cartbar-btn"><span id="cb-label">🧾 お見積り</span><span class="cb-total" id="cb-total"></span></button>
+</div></div>
 
 <div id="print-area"></div>
 
@@ -224,7 +285,6 @@ function addToCart(key,grade,qty){
   const ex=cart.find(c=>c.key===key&&c.grade===grade);
   if(ex) ex.qty+=qty; else cart.push({...row, grade, qty, price:p});
   renderQuote();
-  const qb=$("#quote-anchor"); if(qb) qb.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function cartSubtotal(){ return cart.reduce((s,c)=>s+custPrice(c,c.grade)*c.qty,0); }
 
@@ -287,42 +347,43 @@ function renderApp(){
   const SECTION_HTML = {
     items: `
       <section class="blk" id="sec-items">
-        <h2>商品と価格</h2>
-        <p class="h2sub">価格は1束あたり・税別です。等級と数量を選んで「見積に追加」を押すと下の見積に入ります。</p>
+        <div class="blk-head"><h2>商品と価格</h2></div>
+        <p class="h2sub">価格は1束あたり・税別です。価格をタップして等級を選び、「見積に追加」でその場でお見積りできます。</p>
         <div id="items-box"></div>
         <div class="delivery-note">🚚 納期目安：${esc(M.delivery||"ご注文から約2〜3週間（在庫状況により前後します）")}</div>
       </section>`,
     quote: `
       <section class="blk" id="sec-quote">
         <span id="quote-anchor"></span>
-        <h2>かんたん見積</h2>
+        <div class="blk-head"><h2>かんたん見積</h2></div>
         <p class="h2sub">送料込みの概算がその場でわかります。そのまま注文・ご相談いただけます。</p>
         <div id="quote-box"></div>
       </section>`,
     photos: `
       <section class="blk" id="sec-photos">
-        <h2>施工イメージ</h2>
+        <div class="blk-head"><h2>施工イメージ</h2></div>
         <p class="h2sub">実際にお使いいただいた現場の写真です。</p>
         <div id="photos-box"></div>
       </section>`,
     flow: `
       <section class="blk" id="sec-flow">
-        <h2>ご注文の流れ</h2>
+        <div class="blk-head"><h2>ご注文の流れ</h2></div>
         <div class="flow">
-          <div class="fstep"><div class="n">1</div><div class="t">見積を作成</div><div class="d">このページで商品と数量を選ぶだけ。送料込みの概算がすぐ出ます。</div></div>
-          <div class="fstep"><div class="n">2</div><div class="t">注文・相談</div><div class="d">「この内容で注文・相談」ボタン、またはお電話・FAXでご連絡ください。</div></div>
-          <div class="fstep"><div class="n">3</div><div class="t">お届け</div><div class="d">${esc(M.delivery||"ご注文から約2〜3週間で")}お届けします。</div></div>
+          <div class="fstep"><div class="n">一</div><div class="t">見積を作成</div><div class="d">このページで商品と数量を選ぶだけ。送料込みの概算がすぐ出ます。</div></div>
+          <div class="fstep"><div class="n">二</div><div class="t">注文・相談</div><div class="d">「この内容で注文・相談」ボタン、またはお電話・FAXでご連絡ください。</div></div>
+          <div class="fstep"><div class="n">三</div><div class="t">お届け</div><div class="d">${esc(M.delivery||"ご注文から約2〜3週間で")}お届けします。</div></div>
         </div>
       </section>`
   };
 
   const order = (Array.isArray(M.sections)&&M.sections.length?M.sections:["items","quote","photos","flow"]).filter(k=>SECTION_HTML[k]);
-  const makerLine = (M.maker!==false) ? `製造元：株式会社林材木店（静岡県浜松市）` : "";
+  const makerLine = (M.maker!==false) ? `<span class="fmk">製造元　株式会社 林材木店（静岡県浜松市）</span><br>` : "";
 
   document.getElementById("app").innerHTML = `
     <header class="site"><div class="inner">
+      <div class="mk-kicker">国産桧 無垢材のご案内</div>
       <div class="mk-name">${esc(M.name)}</div>
-      <div class="mk-sub">国産桧 フローリング・羽目板のご案内</div>
+      <div class="mk-sub">桧フローリング・羽目板を、産地からまっすぐお届けします。</div>
       <div class="mk-contact">${telBtn}${faxChip}</div>
       ${M.greet?`<div class="greet">${esc(M.greet)}</div>`:""}
     </div></header>
@@ -330,12 +391,14 @@ function renderApp(){
       ${order.map(k=>SECTION_HTML[k]).join("")}
     </div>
     <footer class="site">
-      ${esc(M.name)}${M.tel?`　TEL ${esc(M.tel)}`:""}${M.fax?`　FAX ${esc(M.fax)}`:""}<br>
       ${makerLine}
+      ${esc(M.name)}${M.tel?`　TEL ${esc(M.tel)}`:""}${M.fax?`　FAX ${esc(M.fax)}`:""}
     </footer>`;
 
   renderItems(); renderQuote(); renderPhotos();
-  const qp=$("#q-pref"); if(qp) qp.addEventListener("change", renderQuote);
+  $("#cartbar-btn").addEventListener("click",()=>{
+    const q=$("#sec-quote")||$("#quote-box"); if(q) q.scrollIntoView({behavior:"smooth",block:"start"});
+  });
 }
 
 function renderItems(){
@@ -345,28 +408,40 @@ function renderItems(){
   box.innerHTML = rows.map(r=>{
     const cells = GRADES.map(g=>{
       const p=custPrice(r,g);
-      return p==null?`<td class="na">—</td>`:`<td class="yen">${fmt(p)}円</td>`;
+      return p==null?`<td class="na">—</td>`
+        :`<td class="p-cell" data-grade="${g}"><span class="p-num">${fmt(p)}</span><span class="p-unit">円</span></td>`;
     }).join("");
     const gradeOpts = GRADES.filter(g=>custPrice(r,g)!=null).map(g=>`<option value="${g}">${g}</option>`).join("");
     let qtyOpts=""; for(let i=1;i<=40;i++) qtyOpts+=`<option value="${i}">${i}束</option>`;
-    return `<div class="pcard">
-      <div class="pname">${esc(r.name)}</div>
-      <div class="psize">${r.t}×${r.w}×${r.l}mm　1束＝${NYUSU[r.l]||""}</div>
+    return `<div class="pcard" data-key="${esc(r.key)}">
+      <div class="phead">
+        <span class="pname">${esc(r.name)}</span>
+        <span class="psize">${r.t}×${r.w}×${r.l}mm</span>
+        <span class="psize">1束＝${NYUSU[r.l]||""}</span>
+      </div>
       <div class="tscroll"><table class="ptable">
         <tr>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr>
         <tr>${cells}</tr>
       </table></div>
       <div class="addrow">
-        <select class="ar-grade" data-key="${esc(r.key)}">${gradeOpts}</select>
+        <select class="ar-grade">${gradeOpts}</select>
         <select class="ar-qty">${qtyOpts}</select>
-        <button data-key="${esc(r.key)}" class="ar-add">＋ 見積に追加</button>
+        <button class="ar-add">＋ 見積に追加</button>
       </div>
     </div>`;
   }).join("");
-  box.querySelectorAll(".ar-add").forEach(b=>b.addEventListener("click",()=>{
-    const card=b.closest(".pcard");
-    addToCart(b.dataset.key, card.querySelector(".ar-grade").value, Number(card.querySelector(".ar-qty").value));
-  }));
+  box.querySelectorAll(".pcard").forEach(card=>{
+    const syncSel=()=>{ const g=card.querySelector(".ar-grade").value;
+      card.querySelectorAll(".p-cell").forEach(td=>td.classList.toggle("sel", td.dataset.grade===g)); };
+    card.querySelectorAll(".p-cell").forEach(td=>td.addEventListener("click",()=>{
+      card.querySelector(".ar-grade").value=td.dataset.grade; syncSel();
+    }));
+    card.querySelector(".ar-grade").addEventListener("change",syncSel);
+    card.querySelector(".ar-add").addEventListener("click",()=>{
+      addToCart(card.dataset.key, card.querySelector(".ar-grade").value, Number(card.querySelector(".ar-qty").value));
+    });
+    syncSel();
+  });
 }
 
 function renderPhotos(){
@@ -384,9 +459,9 @@ function renderQuote(){
 
   if(!cart.length){
     box.innerHTML = `<div class="qempty">まだ商品が入っていません。上の価格表から「＋ 見積に追加」で商品を選んでください。</div>`;
+    updateCartbar(0,null,false);
     return;
   }
-  const sub = cartSubtotal();
   const prefOpts = PREFS.map(p=>`<option${p===prevPref?" selected":""}>${p}</option>`).join("");
 
   const linesHTML = cart.map((c,i)=>{
@@ -402,7 +477,7 @@ function renderQuote(){
 
   box.innerHTML = `
     <div class="tscroll"><table class="qtable">
-      <tr><th>商品</th><th>数量</th><th>単価(税別)</th><th>金額(税別)</th><th></th></tr>
+      <tr><th>商品</th><th class="r">数量</th><th class="r">単価(税別)</th><th class="r">金額(税別)</th><th></th></tr>
       ${linesHTML}
     </table></div>
     <div class="qship">
@@ -422,21 +497,30 @@ function renderQuote(){
   updateTotals();
 }
 
+function updateCartbar(sub, totalIncl, show){
+  const bar=$("#cartbar"); if(!bar) return;
+  if(!show){ bar.classList.remove("on"); return; }
+  const n=cart.reduce((s,c)=>s+c.qty,0);
+  $("#cb-label").textContent=`🧾 見積 ${cart.length}品目（${n}束）`;
+  $("#cb-total").textContent = totalIncl!=null ? `税込 ${fmt(totalIncl)}円 ▸` : `税別 ${fmt(sub)}円 ▸`;
+  bar.classList.add("on");
+}
+
 function updateTotals(){
   const tbl=$("#qsum-table"); if(!tbl) return;
   const sub=cartSubtotal();
   const ship=calcShipping();
   $("#ship-note").textContent = ship.note||"";
-  let shipEx=null, rowsHTML="";
+  let shipEx=null, rowsHTML="", totalIncl=null;
   if(ship.ok && ship.incl!=null){
     shipEx=freightExcl(ship.incl);
     const tax=Math.floor((sub+shipEx)*0.1);
-    const total=sub+shipEx+tax;
+    totalIncl=sub+shipEx+tax;
     rowsHTML=`
       <tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr>
       <tr><th>送料（税別）</th><td>${fmt(shipEx)}円</td></tr>
       <tr><th>消費税（10%）</th><td>${fmt(tax)}円</td></tr>
-      <tr class="total"><th>合計（税込）</th><td>${fmt(total)}円</td></tr>`;
+      <tr class="total"><th>合計（税込）</th><td>${fmt(totalIncl)}円</td></tr>`;
   }else{
     rowsHTML=`
       <tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr>
@@ -444,6 +528,7 @@ function updateTotals(){
     if(!window._fareRetry){ window._fareRetry=setInterval(()=>{ if(fareFrameReady()){ clearInterval(window._fareRetry); window._fareRetry=null; updateTotals(); } },700); }
   }
   tbl.innerHTML=rowsHTML;
+  updateCartbar(sub, totalIncl, cart.length>0);
   renderQuoteButtons(sub, shipEx);
 }
 
