@@ -1268,8 +1268,8 @@ selectOffice = function(pref, el) {
 function applyUrlParams(){
   try{
     const q=new URLSearchParams(location.search);
-    const pref=q.get('pref'), len=q.get('len'), qty=q.get('qty'), addr=q.get('addr');
-    if(pref){ const sp=document.getElementById('s-pref'); if(sp) sp.value=pref; const spm=document.getElementById('s-pref-mix'); if(spm) spm.value=pref; }
+    let pref=q.get('pref'); const len=q.get('len'), qty=q.get('qty'), addr=q.get('addr');
+    if(pref){ if(pref!=='北海道') pref=pref.replace(/[都府県]$/,''); const sp=document.getElementById('s-pref'); if(sp) sp.value=pref; const spm=document.getElementById('s-pref-mix'); if(spm) spm.value=pref; }
     if(len){ const sl=document.getElementById('s-length'); if(sl){ sl.value=len; updateQtyLabel(); } }
     if(qty){ const sq=document.getElementById('s-qty'); if(sq){ if(![...sq.options].some(o=>o.value===String(qty))){ const op=document.createElement('option'); op.value=op.textContent=String(qty); sq.appendChild(op); } sq.value=String(qty); } }
     if(pref||len||qty) calcSeino();
