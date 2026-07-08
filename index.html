@@ -71,11 +71,21 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
   .form-row { flex-direction: column; }
   .form-group select, .form-group input { min-width: 100%; }
 }
+/* ===== embedモード（order-desk等にiframe埋め込み・結果だけ表示）===== */
+body.embed { margin:0; padding:6px; background:transparent; }
+body.embed h1,
+body.embed .subnote,
+body.embed .form-row,
+body.embed .channel-row,
+body.embed #bundle-ref,
+body.embed #order-panel { display:none !important; }
+body.embed .panel { margin:0 0 8px !important; border:none !important; padding:0 !important; background:transparent !important; box-shadow:none !important; }
+body.embed #office-result:empty, body.embed #seino-result:empty { display:none; }
 </style>
 </head>
 <body>
 <h1>運賃自動計算ツール（2026改定版）</h1>
-<p style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">送料＝実費×1.25（税抜）を100円切上→×1.1（税込・10円単位）｜全チャネル統一（自社EC・ヤフー・楽天・市売付売）｜運賃は10円切上</p>
+<p class="subnote" style="text-align:center;color:#5C4A33;font-size:0.85em;margin:-12px 0 14px;">送料＝実費×1.25（税抜）を100円切上→×1.1（税込・10円単位）｜全チャネル統一（自社EC・ヤフー・楽天・市売付売）｜運賃は10円切上</p>
 
 <div class="panel" style="border-radius:8px; margin-bottom:16px;">
   <div class="form-row">
@@ -1268,6 +1278,7 @@ selectOffice = function(pref, el) {
 function applyUrlParams(){
   try{
     const q=new URLSearchParams(location.search);
+    if(q.get('embed')) document.body.classList.add('embed');
     let pref=q.get('pref'); const len=q.get('len'), qty=q.get('qty'), addr=q.get('addr');
     if(pref){ if(pref!=='北海道') pref=pref.replace(/[都府県]$/,''); const sp=document.getElementById('s-pref'); if(sp) sp.value=pref; const spm=document.getElementById('s-pref-mix'); if(spm) spm.value=pref; }
     if(len){ const sl=document.getElementById('s-length'); if(sl){ sl.value=len; updateQtyLabel(); } }
