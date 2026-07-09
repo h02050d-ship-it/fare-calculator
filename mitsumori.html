@@ -222,6 +222,10 @@
   .stage{ flex:1 1 800px; position:sticky; top:16px; align-self:flex-start; max-height:calc(100vh - 32px); overflow:auto; display:flex; justify-content:center; }
   h1{ text-align:left; font-size:20px; }
   .sub{ font-size:13px; }
+  .wiz-topbar{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin:4px 0 16px; }
+  .wiz-topbar .wiz-nav{ margin:0; }
+  .wiz-utils{ display:flex; gap:8px; flex-wrap:wrap; }
+  .wiz-utils button{ font-size:13px; }
   .wiz-nav{ justify-content:flex-start; gap:16px; margin:6px 0 18px; }
   .wiz-step{ font-size:14px; }
   .wiz-step .num{ width:28px; height:28px; font-size:14px; }
@@ -251,7 +255,7 @@
       <button class="btn-save" id="btn-save">✅ 確定して保存</button>
       <button class="btn-print" id="btn-print">🖨 印刷</button>
       <button class="btn-db" id="btn-db">📊 データベース</button>
-      <button class="btn-folder" id="btn-folder">📁 PDFフォルダ</button>
+      <button class="btn-folder" id="btn-folder">📁 見積書フォルダ</button>
       <button class="btn-clear2" id="btn-clear">クリア</button>
       <span class="pricestatus" id="price-status"></span>
     </div>
@@ -1016,6 +1020,14 @@ function buildWizard(){
   const row2=elFrom(`<div class="wrow mt"></div>`); row2.append(fCarrier, fFreight, fNouki);
   pane2.append(row2, freightBox);
 
+  /* 常時表示ユーティリティ（見積書フォルダ／データベース）をナビ右へ移動＝全ステップで使える */
+  const btnFolder=document.getElementById("btn-folder"), btnDb=document.getElementById("btn-db");
+  const utils=elFrom(`<div class="wiz-utils"></div>`);
+  if(btnFolder) utils.appendChild(btnFolder);
+  if(btnDb) utils.appendChild(btnDb);
+  const topbar=elFrom(`<div class="wiz-topbar"></div>`);
+  topbar.append(nav, utils);
+
   /* ステップ3：確認（敬称・支払・有効期限／備考／保存ツールバー／履歴） */
   const row3=elFrom(`<div class="wrow"></div>`); row3.append(fKeisho, fShiharai, fLimit);
   pane3.append(toolbar, row3, remarks, histwrap, hint);
@@ -1025,7 +1037,7 @@ function buildWizard(){
     <button type="button" class="btn-next" id="wiz-next">次へ →</button>
   </div>`);
 
-  panel.append(nav, pane1, pane2, pane3, btns);
+  panel.append(topbar, pane1, pane2, pane3, btns);
   /* 空になった元コンテナを掃除 */
   [...panel.querySelectorAll(".hdrfields,.hdrfields2")].forEach(c=>{ if(!c.children.length) c.remove(); });
 
