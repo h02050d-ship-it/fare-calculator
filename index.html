@@ -1288,6 +1288,19 @@ function emitFareSummary(){
       officeAddr:off?t(off.querySelector('.office-addr')):''},'*');
   }catch(e){}
 }
+// 外部ページ（hayazai.com の送料計算・送料目安一覧など）からの定数要求に応える。
+// 運賃改定はこのツールの定数を直すだけで、参照側ページにも自動反映される（単一ソース）。
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'getFareData') return;
+  try {
+    (e.source || parent).postMessage({ type: 'fareData', data: {
+      SEINO_PREF_MAP, PREF_TO_DIST, SEINO_WEIGHTS, SEINO_FARES,
+      SEINO_DISCOUNT, FUEL_SC_RATE, EC_MULT,
+      SAGAWA_1M_COST_160, DANBALL, QUOTE_ONLY_1M, QUOTE_ONLY_2M
+    }}, '*');
+  } catch (err) {}
+});
+
 function applyUrlParams(){
   try{
     const q=new URLSearchParams(location.search);
