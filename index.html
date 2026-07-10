@@ -1275,10 +1275,30 @@ selectOffice = function(pref, el) {
 };
 
 // order-desk等からの連携: ?pref=埼玉県&len=2&qty=10&addr=... で自動プリフィル＋計算＋営業所検索
+// embed時: 計算結果のサマリ（送料・最寄り営業所）を親ページへ送る（order-deskのコンパクト表示用）
+function emitFareSummary(){
+  try{
+    const totalEl=document.querySelector('#seino-result tr.total td');
+    const off=document.querySelector('#office-result .office-item');
+    const t=el=>el?String(el.textContent||'').trim():'';
+    parent.postMessage({type:'fareSummary',
+      total:t(totalEl),
+      officeName:off?t(off.querySelector('.office-name')):'',
+      officeDist:off?t(off.querySelector('.office-dist')):'',
+      officeAddr:off?t(off.querySelector('.office-addr')):''},'*');
+  }catch(e){}
+}
 function applyUrlParams(){
   try{
     const q=new URLSearchParams(location.search);
-    if(q.get('embed')) document.body.classList.add('embed');
+    if(q.get('embed')){
+      document.body.classList.add('embed');
+      const obs=new MutationObserver(()=>emitFareSummary());
+      const sr=document.getElementById('seino-result'), or=document.getElementById('office-result');
+      if(sr) obs.observe(sr,{childList:true,subtree:true});
+      if(or) obs.observe(or,{childList:true,subtree:true});
+      [800,2500,5000,9000].forEach(ms=>setTimeout(emitFareSummary,ms)); // 遅延結果の取りこぼし防止
+    }
     let pref=q.get('pref'); const len=q.get('len'), qty=q.get('qty'), addr=q.get('addr');
     if(pref){ if(pref!=='北海道') pref=pref.replace(/[都府県]$/,''); const sp=document.getElementById('s-pref'); if(sp) sp.value=pref; const spm=document.getElementById('s-pref-mix'); if(spm) spm.value=pref; }
     if(len){ const sl=document.getElementById('s-length'); if(sl){ sl.value=len; updateQtyLabel(); } }
