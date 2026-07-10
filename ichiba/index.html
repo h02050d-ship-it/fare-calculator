@@ -221,12 +221,15 @@ const GRADE_COLOR = {
 };
 function gcOf(g){ return GRADE_COLOR[g]||{s:"#8d7d64",h:"#efe6d2",c:"#fff"}; }
 function gradeChip(g){ const c=gcOf(g); return `<span style="color:${c.s};font-weight:800">${esc(g)}</span>`; }
-const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
-/* 表示は種類ごとに集約。フローリングは厚み12/15を選択、羽目板は12のみ */
-const PRODUCTS = [
-  { type:"桧フローリング", thicknesses:[15,12], w:120, lengths:[2000,3000,4000] },
-  { type:"桧羽目板",       thicknesses:[12],    w:120, lengths:[2000,3000,4000] }
+const NYUSU = { 2000:"8枚", 3000:"10枚", 4000:"8枚" };
+/* フローリング・羽目板は共通価格の1表で表示。種類・厚みは「見積に追加」時に選択 */
+const COMMON = { w:120, lengths:[2000,3000,4000] };
+const VARIANTS = [
+  { label:"フローリング 15mm", name:"桧フローリング", t:15 },
+  { label:"フローリング 12mm", name:"桧フローリング", t:12 },
+  { label:"羽目板 12mm",       name:"桧羽目板",       t:12 }
 ];
+const canonKey = l => `桧フローリング|15|120|${l}`;   // 共通価格の基準行
 const PB_RAW = {
   "市売": [
     ["桧フローリング",15,120,2000, 4000,5000,6600,8800,7700,null],
@@ -317,13 +320,12 @@ function custPrice(row, grade){
   const cfg=(M.prods&&M.prods[row.key])||{};
   if(cfg.show===false) return null;
   const method=cfg.method||"市売";
-  if(method==="市売"){ const g=PRICEBOOK["市売"][row.key]; return (g&&g[grade]!=null)?g[grade]:null; }
-  const g=PRICEBOOK["付売"][row.key]; if(!g||g[grade]==null) return null;
+  /* 価格はフローリング・羽目板 共通（基準行＝canonKey）。市売方式の客向け価格＝市売価格の2倍 */
+  if(method==="市売"){ const g=PRICEBOOK["市売"][canonKey(row.l)]; return (g&&g[grade]!=null)? g[grade]*2 : null; }
+  const g=PRICEBOOK["付売"][canonKey(row.l)]; if(!g||g[grade]==null) return null;
   const markup=(cfg.markup!=null&&cfg.markup!=="")?Number(cfg.markup):Number(M.markup||0);
   return ceilTo(g[grade]*(1+markup/100), Number(M.round||10));
 }
-function anyPriceForKey(key){ const row=rowByKey(key); if(!row) return false; return GRADES.some(g=>custPrice(row,g)!=null); }
-function visThicknesses(pt){ return pt.thicknesses.filter(t=>pt.lengths.some(l=>anyPriceForKey(`${pt.type}|${t}|${pt.w}|${l}`))); }
 
 /* ========== 見積カート ========== */
 let cart=[];
@@ -442,74 +444,64 @@ function renderApp(){
   $("#cartbar-btn").addEventListener("click",()=>{ const q=$("#sec-quote")||$("#quote-box"); if(q) q.scrollIntoView({behavior:"smooth",block:"start"}); });
 }
 
-/* --- 商品テーブル（種類ごと・長さ×等級） --- */
-let flT = 15;                 // フローリング選択中の厚み
-const sel = {};               // sel[type] = {key, grade}
-const qtyState = {};          // qtyState[type] = 数量
+/* --- 商品テーブル（フローリング・羽目板 共通価格の1表。種類は追加時に選択） --- */
+let selC = null;              // {l, grade}
+let varC = 0;                 // 選択中の種類（VARIANTS index）
+let qtyC = 1;                 // 数量
 
 function renderProductTables(){
   const box=$("#items-box"); if(!box) return;
-  let html="";
-  PRODUCTS.forEach(pt=>{
-    const vts=visThicknesses(pt); if(!vts.length) return;
-    const multi=pt.thicknesses.length>1;
-    const useT = multi ? (vts.includes(flT)?flT:vts[0]) : vts[0];
-    const vls=pt.lengths.filter(l=>anyPriceForKey(`${pt.type}|${useT}|${pt.w}|${l}`));
 
-    let toggle="";
-    if(multi){
-      toggle=`<div class="thick-toggle">厚み<div class="seg">`+
-        pt.thicknesses.map(t=> vts.includes(t)
-          ? `<button class="seg-b ${t===useT?"on":""}" data-type="${esc(pt.type)}" data-t="${t}">${t}mm</button>`
-          : `<button class="seg-b dis" disabled>${t}mm</button>`).join("")+`</div></div>`;
-    }else{
-      toggle=`<span class="ps-tag">厚み ${useT}mm</span>`;
-    }
+  // 行の表示可否と価格は共通の基準行（canonKey）で判定
+  const rows=COMMON.lengths.map(l=>rowByKey(canonKey(l))).filter(r=>r&&GRADES.some(g=>custPrice(r,g)!=null));
+  if(!rows.length){ box.innerHTML=""; return; }
 
-    const head=`<tr><th class="lh">長さ＼等級</th>`+GRADES.map(g=>{ const c=gcOf(g); return `<th style="background:${c.h};color:${c.s};border-top:3px solid ${c.s}">${g}</th>`; }).join("")+`</tr>`;
-    const body=vls.map(l=>{
-      const key=`${pt.type}|${useT}|${pt.w}|${l}`; const row=rowByKey(key);
-      const cells=GRADES.map(g=>{
-        const p=row?custPrice(row,g):null;
-        if(p==null) return `<td class="gcell na">—</td>`;
-        const st=stockStatus(STOCK[`${key}|${g}`]);
-        const stHTML=st?`<span class="p-stock ${st.cls}">${st.cls==="st-o"?"◎":st.cls==="st-a"?"△":"×"}${st.label}</span>`:"";
-        const s=sel[pt.type]; const isSel=s&&s.key===key&&s.grade===g;
-        return `<td class="gcell${isSel?" sel":""}" style="--gc:${gcOf(g).c}" data-type="${esc(pt.type)}" data-key="${esc(key)}" data-grade="${g}"><span class="p-num">${fmt(p)}</span><span class="p-unit">円</span>${stHTML}</td>`;
-      }).join("");
-      return `<tr><th class="lh"><span class="len">${l/1000}m</span><span class="nyusu">1束＝${NYUSU[l]||""}</span></th>${cells}</tr>`;
+  // 市場側で全長さ非表示にされた種類は選択肢から外す
+  const vvars=VARIANTS.filter(v=>COMMON.lengths.some(l=>{
+    const c=(M.prods&&M.prods[`${v.name}|${v.t}|${COMMON.w}|${l}`])||{}; return c.show!==false;
+  }));
+  if(varC>=vvars.length) varC=0;
+
+  const head=`<tr><th class="lh">長さ＼等級</th>`+GRADES.map(g=>{ const c=gcOf(g); return `<th style="background:${c.h};color:${c.s};border-top:3px solid ${c.s}">${g}</th>`; }).join("")+`</tr>`;
+  const body=rows.map(row=>{
+    const cells=GRADES.map(g=>{
+      const p=custPrice(row,g);
+      if(p==null) return `<td class="gcell na">—</td>`;
+      const st=stockStatus(STOCK[`${row.key}|${g}`]);
+      const stHTML=st?`<span class="p-stock ${st.cls}">${st.cls==="st-o"?"◎":st.cls==="st-a"?"△":"×"}${st.label}</span>`:"";
+      const isSel=selC&&selC.l===row.l&&selC.grade===g;
+      return `<td class="gcell${isSel?" sel":""}" style="--gc:${gcOf(g).c}" data-l="${row.l}" data-grade="${g}"><span class="p-num">${fmt(p)}</span><span class="p-unit">円</span>${stHTML}</td>`;
     }).join("");
+    return `<tr><th class="lh"><span class="len">${row.l/1000}m</span><span class="nyusu">1束＝${NYUSU[row.l]||""}</span></th>${cells}</tr>`;
+  }).join("");
 
-    const s=sel[pt.type];
-    const q=qtyState[pt.type]||1;
-    let qtyOpts=""; for(let i=1;i<=40;i++) qtyOpts+=`<option value="${i}"${i===q?" selected":""}>${i}束</option>`;
-    const selText = s
-      ? `選択中：<b>${esc(pt.type)} ${useT}mm・${(s.key.split("|")[3])/1000}m・</b>${gradeChip(s.grade)}　${fmt(custPrice(rowByKey(s.key),s.grade))}円/束`
-      : `<span class="sel-none">価格をタップして選択してください</span>`;
+  let qtyOpts=""; for(let i=1;i<=40;i++) qtyOpts+=`<option value="${i}"${i===qtyC?" selected":""}>${i}束</option>`;
+  const varOpts=vvars.map((v,i)=>`<option value="${i}"${i===varC?" selected":""}>${v.label}</option>`).join("");
+  const selText = selC
+    ? `選択中：<b>${esc(vvars[varC].label)}・${selC.l/1000}m・</b>${gradeChip(selC.grade)}　${fmt(custPrice(rowByKey(canonKey(selC.l)),selC.grade))}円/束`
+    : `<span class="sel-none">価格をタップして選択してください</span>`;
 
-    html+=`<div class="prodsec" data-type="${esc(pt.type)}">
-      <div class="ps-head"><span class="ps-name">${esc(pt.type)}</span>${toggle}</div>
-      <div class="tscroll"><table class="gtable"><thead>${head}</thead><tbody>${body}</tbody></table></div>
-      <div class="addbar">
-        <div class="sel-text">${selText}</div>
-        <select class="ab-qty" data-type="${esc(pt.type)}">${qtyOpts}</select>
-        <button class="ab-add" data-type="${esc(pt.type)}" ${s?"":"disabled"}>＋ 見積に追加</button>
-      </div>
-    </div>`;
+  box.innerHTML=`<div class="prodsec">
+    <div class="ps-head"><span class="ps-name">桧フローリング・桧羽目板</span><span class="ps-tag">共通価格・巾${COMMON.w}mm・厚み12/15mm</span></div>
+    <div class="tscroll"><table class="gtable"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+    <div class="addbar">
+      <div class="sel-text">${selText}</div>
+      <select class="ab-var">${varOpts}</select>
+      <select class="ab-qty">${qtyOpts}</select>
+      <button class="ab-add" ${selC?"":"disabled"}>＋ 見積に追加</button>
+    </div>
+  </div>`;
+
+  box.querySelectorAll(".gcell[data-l]").forEach(td=>td.addEventListener("click",()=>{
+    selC={l:Number(td.dataset.l), grade:td.dataset.grade}; renderProductTables();
+  }));
+  const vs=box.querySelector(".ab-var"); if(vs) vs.addEventListener("change",()=>{ varC=Number(vs.value); renderProductTables(); });
+  const qs=box.querySelector(".ab-qty"); if(qs) qs.addEventListener("change",()=>{ qtyC=Number(qs.value); });
+  const ab=box.querySelector(".ab-add"); if(ab) ab.addEventListener("click",()=>{
+    if(!selC) return;
+    const v=vvars[varC]; if(!v) return;
+    addToCart(`${v.name}|${v.t}|${COMMON.w}|${selC.l}`, selC.grade, qtyC);
   });
-  box.innerHTML=html;
-
-  box.querySelectorAll(".seg-b[data-t]").forEach(b=>b.addEventListener("click",()=>{
-    flT=Number(b.dataset.t); sel[b.dataset.type]=null; renderProductTables();
-  }));
-  box.querySelectorAll(".gcell[data-key]").forEach(td=>td.addEventListener("click",()=>{
-    sel[td.dataset.type]={key:td.dataset.key, grade:td.dataset.grade}; renderProductTables();
-  }));
-  box.querySelectorAll(".ab-qty").forEach(s=>s.addEventListener("change",()=>{ qtyState[s.dataset.type]=Number(s.value); }));
-  box.querySelectorAll(".ab-add").forEach(b=>b.addEventListener("click",()=>{
-    const s=sel[b.dataset.type]; if(!s) return;
-    addToCart(s.key, s.grade, qtyState[b.dataset.type]||1);
-  }));
 }
 
 function renderPhotos(){

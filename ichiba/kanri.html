@@ -130,7 +130,8 @@ const GRADE_COLOR = {
   "生節":      {s:"#a5578a", h:"#f2dcec", c:"#fcf4f9"}
 };
 function gcOf(g){ return GRADE_COLOR[g]||{s:"#8d7d64",h:"#efe6d2",c:"#fff"}; }
-const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
+const NYUSU = { 2000:"8枚", 3000:"10枚", 4000:"8枚" };
+const canonKey = l => `桧フローリング|15|120|${l}`;   // フローリング・羽目板 共通価格の基準行
 const PB_RAW = {
   "市売": [
     ["桧フローリング",15,120,2000, 4000,5000,6600,8800,7700,null],
@@ -399,8 +400,9 @@ function ceilTo(v,u){ if(!u||u<=1) return Math.ceil(v); return Math.ceil(v/u)*u;
 function custPriceFor(row, grade){
   const c=ST.prods[row.key]||{};
   if(c.show===false) return null;
-  if((c.method||"市売")==="市売"){ const g=PRICEBOOK["市売"][row.key]; return (g&&g[grade]!=null)?g[grade]:null; }
-  const g=PRICEBOOK["付売"][row.key]; if(!g||g[grade]==null) return null;
+  /* 価格はフローリング・羽目板 共通（基準行＝canonKey）。市売方式の客向け価格＝市売価格の2倍 */
+  if((c.method||"市売")==="市売"){ const g=PRICEBOOK["市売"][canonKey(row.l)]; return (g&&g[grade]!=null)? g[grade]*2 : null; }
+  const g=PRICEBOOK["付売"][canonKey(row.l)]; if(!g||g[grade]==null) return null;
   const mk=(c.markup!==""&&c.markup!=null)?Number(c.markup):Number(ST.markup||0);
   return ceilTo(g[grade]*(1+mk/100), Number(ST.round||10));
 }
@@ -408,9 +410,9 @@ function custPriceFor(row, grade){
 function gainText(r){
   // 売れた時の貴社取り分目安（無節の単価で例示）
   const c=ST.prods[r.key]||{}; const isIchi=(c.method||"市売")==="市売";
-  const gIchi=PRICEBOOK["市売"][r.key], gTsuke=PRICEBOOK["付売"][r.key];
+  const gIchi=PRICEBOOK["市売"][canonKey(r.l)], gTsuke=PRICEBOOK["付売"][canonKey(r.l)];
   if(isIchi && gIchi && gIchi["無節"]!=null)
-    return `約${fmt(gIchi["無節"]*(Number(ST.comm||0)/100))}円/束 <span style="color:#a99;font-weight:400">(無節・手数料${ST.comm||0}%)</span>`;
+    return `約${fmt(gIchi["無節"]*2*(Number(ST.comm||0)/100))}円/束 <span style="color:#a99;font-weight:400">(無節・売価の手数料${ST.comm||0}%)</span>`;
   if(!isIchi && gTsuke && gTsuke["無節"]!=null){
     const mk=(c.markup!==""&&c.markup!=null)?Number(c.markup):Number(ST.markup||0);
     const sell=ceilTo(gTsuke["無節"]*(1+mk/100), Number(ST.round||10));
@@ -467,28 +469,22 @@ function renderProdsEditor(){
   box.querySelectorAll(".p-markup").forEach(el=>el.addEventListener("input",()=>{ ST.prods[el.dataset.k].markup=el.value; renderProdsEditor(); renderPreview(); }));
 }
 
-/* --- プレビュー（客用と同じ2表・厚み別） --- */
-function anyPriceForKeyP(key){ const row=rowByKey(key); if(!row) return false; const c=ST.prods[key]||{}; if(c.show===false) return false; return GRADES.some(g=>custPriceFor(row,g)!=null); }
+/* --- プレビュー（客用と同じ：フローリング・羽目板 共通価格の1表） --- */
 function renderPreview(){
   const box=$("#preview-box"); if(!box) return;
-  let html="";
-  PRODUCTS.forEach(pt=>{
-    const vts=pt.thicknesses.filter(t=>pt.lengths.some(l=>anyPriceForKeyP(`${pt.type}|${t}|${pt.w}|${l}`)));
-    if(!vts.length) return;
-    vts.forEach(t=>{
-      const vls=pt.lengths.filter(l=>anyPriceForKeyP(`${pt.type}|${t}|${pt.w}|${l}`));
-      if(!vls.length) return;
-      html+=`<div class="pv-title">${esc(pt.type)}　<span style="color:#8d7d64;font-weight:400">厚み ${t}mm</span></div>
-      <div style="overflow-x:auto"><table class="preview-table">
-        <tr><th style="text-align:left">長さ＼等級</th>${GRADES.map(g=>{ const c=gcOf(g); return `<th style="background:${c.h};color:${c.s};border-top:3px solid ${c.s}">${g}</th>`; }).join("")}</tr>
-        ${vls.map(l=>{ const key=`${pt.type}|${t}|${pt.w}|${l}`; const row=rowByKey(key);
-          return `<tr><td class="l">${l/1000}m</td>`+
-            GRADES.map(g=>{ const p=row?custPriceFor(row,g):null; return p==null?`<td class="na">—</td>`:`<td style="background:${gcOf(g).c}"><b>${fmt(p)}</b>円</td>`; }).join("")+`</tr>`;
-        }).join("")}
-      </table></div>`;
-    });
+  const vls=[2000,3000,4000].filter(l=>{
+    const row=rowByKey(canonKey(l));
+    return row && GRADES.some(g=>custPriceFor(row,g)!=null);
   });
-  box.innerHTML=html;
+  if(!vls.length){ box.innerHTML=""; return; }
+  box.innerHTML=`<div class="pv-title">桧フローリング・桧羽目板　<span style="color:#8d7d64;font-weight:400">共通価格・巾120mm・厚み12/15mm</span></div>
+  <div style="overflow-x:auto"><table class="preview-table">
+    <tr><th style="text-align:left">長さ＼等級</th>${GRADES.map(g=>{ const c=gcOf(g); return `<th style="background:${c.h};color:${c.s};border-top:3px solid ${c.s}">${g}</th>`; }).join("")}</tr>
+    ${vls.map(l=>{ const row=rowByKey(canonKey(l));
+      return `<tr><td class="l">${l/1000}m<span style="color:#8d7d64;font-size:11px">（1束＝${NYUSU[l]||""}）</span></td>`+
+        GRADES.map(g=>{ const p=row?custPriceFor(row,g):null; return p==null?`<td class="na">—</td>`:`<td style="background:${gcOf(g).c}"><b>${fmt(p)}</b>円</td>`; }).join("")+`</tr>`;
+    }).join("")}
+  </table></div>`;
 }
 
 function renderSecList(){
