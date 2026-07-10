@@ -14,6 +14,7 @@
     --ink:#2f2519; --sub:#8d7d64; --line:#e7ddc9; --line2:#d9cbb0;
     --brown:#54381e; --brown2:#7a5530; --gold:#b98a4e; --gold-soft:#f3e7d3;
     --green:#2e7d4f; --green-dark:#25693f;
+    --stk-o:#2e7d4f; --stk-a:#c98a1e; --stk-x:#9a8b74;
     --serif:"Shippori Mincho B1","Yu Mincho",serif;
     --sans:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif;
     --shadow:0 2px 14px rgba(84,56,30,.07);
@@ -22,7 +23,7 @@
   html{ scroll-behavior:smooth; }
   body{ margin:0; font-family:var(--sans); background:var(--bg); color:var(--ink); line-height:1.65;
     background-image:radial-gradient(rgba(185,138,78,.05) 1px, transparent 1px); background-size:22px 22px; }
-  .wrap{ max-width:880px; margin:0 auto; padding:0 16px 120px; }
+  .wrap{ max-width:920px; margin:0 auto; padding:0 16px 130px; }
 
   /* ===== ヒーロー ===== */
   header.site{
@@ -33,51 +34,68 @@
   }
   header.site::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:5px;
     background:linear-gradient(90deg,var(--gold),#e2c188 40%,var(--gold)); opacity:.85; }
-  header.site .inner{ max-width:880px; margin:0 auto; position:relative; }
+  header.site .inner{ max-width:920px; margin:0 auto; position:relative; }
   .mk-kicker{ font-size:12px; letter-spacing:.34em; color:#d9bd8f; font-weight:700; }
   .mk-name{ font-family:var(--serif); font-size:31px; font-weight:800; letter-spacing:.06em; margin-top:6px; line-height:1.3; text-shadow:0 1px 0 rgba(0,0,0,.25); }
   .mk-sub{ font-size:13.5px; color:#e8d7ba; margin-top:8px; letter-spacing:.06em; }
   .mk-contact{ margin-top:18px; display:flex; gap:10px; flex-wrap:wrap; }
   .mk-contact a, .mk-contact span.chip{
     display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.1); border:1px solid rgba(233,209,168,.55);
-    color:#f6ecdc; text-decoration:none; border-radius:999px; padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.03em;
-    transition:background .15s;
+    color:#f6ecdc; text-decoration:none; border-radius:999px; padding:9px 18px; font-size:14px; font-weight:700; letter-spacing:.03em; transition:background .15s;
   }
   .mk-contact a:hover{ background:rgba(255,255,255,.2); }
   .greet{ background:rgba(255,253,248,.95); color:var(--ink); border-radius:12px; padding:16px 18px; margin-top:20px;
     font-size:14px; line-height:1.9; white-space:pre-wrap; box-shadow:var(--shadow); border-left:4px solid var(--gold); }
 
   /* ===== セクション ===== */
-  section.blk{ margin-top:46px; }
+  section.blk{ margin-top:44px; }
   .blk-head{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
   .blk h2{ font-family:var(--serif); font-size:23px; font-weight:800; letter-spacing:.08em; margin:0; color:var(--brown); }
   .blk h2::before{ content:"— "; color:var(--gold); }
   .blk .h2sub{ font-size:12.5px; color:var(--sub); margin:2px 0 16px 2px; letter-spacing:.02em; }
 
-  /* ===== 商品カード ===== */
-  .pcard{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 20px 18px; margin-bottom:16px; box-shadow:var(--shadow); }
-  .pcard .phead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-  .pcard .pname{ font-family:var(--serif); font-size:19px; font-weight:800; letter-spacing:.05em; color:var(--brown); }
-  .pcard .psize{ font-size:12.5px; color:var(--sub); background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:2px 9px; }
-  .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:12px; border-radius:10px; }
-  .ptable{ width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:520px; }
-  .ptable th{ background:linear-gradient(180deg,#efe6d2,#e9dec5); font-weight:700; padding:8px 6px; font-size:12px; color:var(--brown); letter-spacing:.05em;
-    border:1px solid var(--line2); border-right:none; }
-  .ptable th:last-child{ border-right:1px solid var(--line2); border-top-right-radius:9px; }
-  .ptable th:first-child{ border-top-left-radius:9px; }
-  .ptable td{ padding:11px 6px; border:1px solid var(--line); border-top:none; border-right:none; text-align:center; white-space:nowrap; background:#fff; cursor:pointer; transition:background .12s; }
-  .ptable td:last-child{ border-right:1px solid var(--line); }
-  .ptable td.na{ color:#cfc2a8; cursor:default; }
-  .ptable td .p-num{ font-weight:700; font-size:15px; color:var(--ink); }
-  .ptable td .p-unit{ font-size:10.5px; color:var(--sub); }
-  .ptable td.sel{ background:var(--gold-soft); box-shadow:inset 0 0 0 2px var(--gold); border-radius:4px; }
-  .ptable td:not(.na):hover{ background:#fdf6e9; }
-  .tap-hint{ font-size:11.5px; color:var(--sub); margin-top:7px; }
-  .addrow{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; align-items:center; }
-  .addrow select{ padding:11px 12px; border:1.5px solid var(--line2); border-radius:10px; font-size:15px; background:#fff; font-family:inherit; color:var(--ink); }
-  .addrow button{ border:none; background:linear-gradient(180deg,#35905c,var(--green)); color:#fff; border-radius:999px; padding:12px 24px;
-    font-size:14.5px; font-weight:700; cursor:pointer; letter-spacing:.04em; box-shadow:0 3px 10px rgba(46,125,79,.25); transition:transform .1s; }
-  .addrow button:hover{ transform:translateY(-1px); }
+  /* ===== 商品テーブル（種類ごと） ===== */
+  .prodsec{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 18px 16px; margin-bottom:18px; box-shadow:var(--shadow); }
+  .ps-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .ps-name{ font-family:var(--serif); font-size:20px; font-weight:800; letter-spacing:.05em; color:var(--brown); }
+  .ps-tag{ font-size:12px; color:var(--sub); background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:2px 9px; }
+  .thick-toggle{ display:flex; align-items:center; gap:8px; margin-left:auto; font-size:12.5px; color:var(--brown2); font-weight:700; }
+  .seg{ display:inline-flex; border:1.5px solid var(--line2); border-radius:999px; overflow:hidden; background:#fff; }
+  .seg-b{ border:none; background:transparent; color:var(--sub); font-family:inherit; font-size:13.5px; font-weight:700; padding:8px 18px; cursor:pointer; transition:.12s; }
+  .seg-b.on{ background:linear-gradient(140deg,var(--brown2),var(--brown)); color:#f0d9ac; }
+  .seg-b.dis{ color:#cabfa8; cursor:default; }
+
+  .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px; border:1px solid var(--line); }
+  .gtable{ width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:600px; }
+  .gtable th, .gtable td{ border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:0; }
+  .gtable tr th:last-child, .gtable tr td:last-child{ border-right:none; }
+  .gtable tr:last-child th, .gtable tr:last-child td{ border-bottom:none; }
+  .gtable thead th{ background:linear-gradient(180deg,#efe6d2,#e9dec5); color:var(--brown); font-weight:700; font-size:12px; letter-spacing:.04em; padding:9px 6px; text-align:center; }
+  .gtable thead th.lh{ text-align:left; padding-left:14px; }
+  .gtable tbody th.lh{ background:var(--panel2); color:var(--brown); font-weight:700; text-align:left; padding:12px 6px 12px 14px; white-space:nowrap; }
+  .gtable tbody th .len{ font-family:var(--serif); font-size:16px; }
+  .gtable tbody th .nyusu{ display:block; font-size:10.5px; color:var(--sub); font-weight:500; margin-top:1px; }
+  .gcell{ text-align:center; background:#fff; cursor:pointer; padding:11px 6px; transition:background .12s; vertical-align:middle; }
+  .gcell:hover{ background:#fdf6e9; }
+  .gcell.na{ color:#cfc2a8; cursor:default; background:#fcfaf5; }
+  .gcell .p-num{ font-weight:700; font-size:15px; color:var(--ink); }
+  .gcell .p-unit{ font-size:10.5px; color:var(--sub); }
+  .gcell.sel{ background:var(--gold-soft); box-shadow:inset 0 0 0 2px var(--gold); }
+  .p-stock{ display:block; font-size:10.5px; font-weight:700; margin-top:3px; letter-spacing:.02em; }
+  .st-o{ color:var(--stk-o); } .st-a{ color:var(--stk-a); } .st-x{ color:var(--stk-x); font-weight:500; }
+
+  .addbar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; padding:11px 14px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; }
+  .addbar .sel-text{ flex:1; min-width:180px; font-size:13.5px; color:var(--brown2); }
+  .addbar .sel-text b{ color:var(--brown); font-family:var(--serif); }
+  .addbar .sel-none{ color:var(--sub); }
+  .addbar select{ padding:10px 12px; border:1.5px solid var(--line2); border-radius:10px; font-size:15px; background:#fff; font-family:inherit; color:var(--ink); }
+  .addbar button{ border:none; background:linear-gradient(180deg,#35905c,var(--green)); color:#fff; border-radius:999px; padding:12px 22px;
+    font-size:14.5px; font-weight:700; cursor:pointer; letter-spacing:.04em; box-shadow:0 3px 10px rgba(46,125,79,.25); transition:transform .1s; font-family:inherit; }
+  .addbar button:hover:not(:disabled){ transform:translateY(-1px); }
+  .addbar button:disabled{ opacity:.4; cursor:default; box-shadow:none; }
+
+  .stock-legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--sub); margin-top:4px; }
+  .stock-legend span b{ font-weight:700; }
   .delivery-note{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--brown2); margin-top:14px;
     background:var(--gold-soft); border:1px solid #e8d5b4; border-radius:10px; padding:10px 14px; }
 
@@ -107,8 +125,7 @@
   .qbtns{ display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
   .qbtns a, .qbtns button{
     flex:1; min-width:180px; display:flex; align-items:center; justify-content:center; gap:7px;
-    border:none; border-radius:12px; padding:16px 10px; font-size:15px; font-weight:700; cursor:pointer; text-decoration:none;
-    font-family:inherit; letter-spacing:.03em; transition:transform .1s;
+    border:none; border-radius:12px; padding:16px 10px; font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; font-family:inherit; letter-spacing:.03em; transition:transform .1s;
   }
   .qbtns a:hover, .qbtns button:hover{ transform:translateY(-1px); }
   .btn-order{ background:linear-gradient(180deg,#35905c,var(--green)); color:#fff; box-shadow:0 4px 12px rgba(46,125,79,.28); }
@@ -119,12 +136,11 @@
   /* ===== 追従バー ===== */
   #cartbar{ position:fixed; left:0; right:0; bottom:0; z-index:50; transform:translateY(110%); transition:transform .25s ease; }
   #cartbar.on{ transform:translateY(0); }
-  #cartbar .cb-in{ max-width:880px; margin:0 auto 12px; padding:0 12px; }
+  #cartbar .cb-in{ max-width:920px; margin:0 auto 12px; padding:0 12px; }
   #cartbar button{
     width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:linear-gradient(140deg,#3c2712,#54381e); color:#f6ecdc; border:1px solid rgba(233,209,168,.5);
-    border-radius:14px; padding:14px 20px; font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit;
-    box-shadow:0 6px 22px rgba(47,37,25,.35);
+    border-radius:14px; padding:14px 20px; font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 6px 22px rgba(47,37,25,.35);
   }
   #cartbar .cb-total{ font-family:var(--serif); font-size:19px; color:#f0d9ac; letter-spacing:.02em; }
 
@@ -134,8 +150,8 @@
   .photo-empty{ background:var(--panel); border:1.5px dashed var(--line2); border-radius:14px; padding:36px 20px; text-align:center; color:var(--sub); font-size:13.5px; }
 
   /* ===== 流れ ===== */
-  .flow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; counter-reset:fstep; }
-  .fstep{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px 18px 20px; text-align:center; box-shadow:var(--shadow); position:relative; }
+  .flow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; }
+  .fstep{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px 18px 20px; text-align:center; box-shadow:var(--shadow); }
   .fstep .n{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%;
     background:linear-gradient(140deg,var(--brown2),var(--brown)); color:#f0d9ac; font-family:var(--serif); font-weight:800; font-size:17px; margin-bottom:10px; }
   .fstep .t{ font-family:var(--serif); font-weight:800; font-size:16px; color:var(--brown); letter-spacing:.05em; }
@@ -148,7 +164,7 @@
   .noaccess h1{ font-family:var(--serif); font-size:20px; color:var(--brown); letter-spacing:.08em; }
   .noaccess p{ font-size:13.5px; color:var(--sub); line-height:2; }
 
-  /* ===== 印刷（概算見積） ===== */
+  /* ===== 印刷 ===== */
   #print-area{ display:none; }
   @media print{
     body *{ visibility:hidden; }
@@ -168,6 +184,7 @@
     .blk h2{ font-size:20px; }
     .cust-fields{ grid-template-columns:1fr; }
     .qbtns a,.qbtns button{ min-width:100%; }
+    .thick-toggle{ margin-left:0; width:100%; }
   }
 </style>
 </head>
@@ -190,10 +207,15 @@ const $ = s => document.querySelector(s);
 const fmt = n => (Math.round(n)||0).toLocaleString("ja-JP");
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-/* ========== 商品マスタ（fare-calculator/mitsumori と同一体系） ========== */
+/* ========== 商品マスタ（種類×厚み×長さ×等級） ========== */
 const GRADES = ["丸節","小節","特上小","無節","無節特上小","生節"];
 const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小", namabushi:"生節" };
 const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
+/* 表示は種類ごとに集約。フローリングは厚み12/15を選択、羽目板は12のみ */
+const PRODUCTS = [
+  { type:"桧フローリング", thicknesses:[15,12], w:120, lengths:[2000,3000,4000] },
+  { type:"桧羽目板",       thicknesses:[12],    w:120, lengths:[2000,3000,4000] }
+];
 const PB_RAW = {
   "市売": [
     ["桧フローリング",15,120,2000, 4000,5000,6600,8800,7700,null],
@@ -231,8 +253,9 @@ function buildPricebook(){
 }
 buildPricebook();
 const PROD_ROWS = PB_RAW["市売"].map(r=>({ name:r[0], t:r[1], w:r[2], l:r[3], key:`${r[0]}|${r[1]}|${r[2]}|${r[3]}` }));
+function rowByKey(key){ return PROD_ROWS.find(r=>r.key===key); }
 
-/* 最新価格をGASから取得（mitsumoriと同じエンドポイント）。失敗時は内蔵スナップショット */
+/* 最新価格をGASから取得。失敗時は内蔵スナップショット */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
 async function refreshPricebook(){
   try{
@@ -240,47 +263,61 @@ async function refreshPricebook(){
       const r=await fetch(GAS_URL+"?action=getPrices&method="+encodeURIComponent(m)); const j=await r.json();
       const tbl={};
       (j.prices||[]).forEach(p=>{ const key=`${p.hinmei}|${p.thickness}|${p.width}|${p.length}`; const g={};
-        Object.keys(GRADE_ROMAJI).forEach(rk=>{ const v=p[rk]; if(typeof v==="number" && v>0) g[GRADE_ROMAJI[rk]]=v; }); tbl[key]=g; });
+        Object.keys(GRADE_ROMAJI).forEach(rk=>{ const v=p[rk]; if(typeof v==="number" && v>0) g[GRADE_ROMAJI[rk]]=v; }); tbl[key]=g;
+        /* 在庫列があれば取り込む（zaiko_<romaji> 形式・任意） */
+        Object.keys(GRADE_ROMAJI).forEach(rk=>{ const zv=p["zaiko_"+rk]; if(typeof zv==="number") STOCK[`${key}|${GRADE_ROMAJI[rk]}`]=zv; });
+      });
       if(Object.keys(tbl).length) PRICEBOOK[m]=tbl;
     }
-    renderItems(); renderQuote();
+    renderProductTables(); renderQuote();
   }catch(e){ /* オフライン時はスナップショットのまま */ }
 }
 
-/* ========== 市場トークン（URLハッシュ #m=...）========== */
-function decTok(s){
+/* ========== 在庫（価格GASの在庫列 or 将来の getStock。key: name|t|w|l|grade → 束数） ========== */
+const STOCK = {};
+async function refreshStock(){
   try{
-    s=s.replace(/-/g,"+").replace(/_/g,"/"); while(s.length%4) s+="=";
-    return JSON.parse(decodeURIComponent(escape(atob(s))));
-  }catch(e){ return null; }
+    const r=await fetch(GAS_URL+"?action=getStock"); const j=await r.json();
+    (j.stock||[]).forEach(s=>{ STOCK[`${s.hinmei}|${s.thickness}|${s.width}|${s.length}|${s.grade}`]=s.qty; });
+    renderProductTables();
+  }catch(e){ /* 在庫フィード未接続時はバッジ非表示（価格のみ） */ }
+}
+function stockStatus(qty){
+  if(qty==null) return null;
+  if(qty<=0) return {cls:"st-x", label:"受注生産"};
+  if(qty<5)  return {cls:"st-a", label:"残りわずか"};
+  return {cls:"st-o", label:"在庫あり"};
+}
+
+/* ========== 市場トークン ========== */
+function decTok(s){
+  try{ s=s.replace(/-/g,"+").replace(/_/g,"/"); while(s.length%4) s+="="; return JSON.parse(decodeURIComponent(escape(atob(s)))); }catch(e){ return null; }
 }
 function getToken(){
   const h=location.hash||""; const m=h.match(/[#&]m=([^&]+)/);
   if(m) return decTok(m[1]);
-  const q=new URLSearchParams(location.search).get("m");
-  return q?decTok(q):null;
+  const q=new URLSearchParams(location.search).get("m"); return q?decTok(q):null;
 }
-const M = getToken();   // 市場設定（掛け率はこのURLの中にだけ存在し、サーバーには保存されない）
+const M = getToken();
 
-/* ========== 客向け価格の算出 ========== */
+/* ========== 客向け価格 ========== */
 function ceilTo(v,u){ if(!u||u<=1) return Math.ceil(v); return Math.ceil(v/u)*u; }
 function custPrice(row, grade){
   const cfg=(M.prods&&M.prods[row.key])||{};
   if(cfg.show===false) return null;
   const method=cfg.method||"市売";
-  if(method==="市売"){
-    const g=PRICEBOOK["市売"][row.key]; return (g&&g[grade]!=null)?g[grade]:null;
-  }
+  if(method==="市売"){ const g=PRICEBOOK["市売"][row.key]; return (g&&g[grade]!=null)?g[grade]:null; }
   const g=PRICEBOOK["付売"][row.key]; if(!g||g[grade]==null) return null;
   const markup=(cfg.markup!=null&&cfg.markup!=="")?Number(cfg.markup):Number(M.markup||0);
   return ceilTo(g[grade]*(1+markup/100), Number(M.round||10));
 }
-function visibleRows(){ return PROD_ROWS.filter(r=>{ const c=(M.prods&&M.prods[r.key])||{}; return c.show!==false; }); }
+function anyPriceForKey(key){ const row=rowByKey(key); if(!row) return false; return GRADES.some(g=>custPrice(row,g)!=null); }
+function visThicknesses(pt){ return pt.thicknesses.filter(t=>pt.lengths.some(l=>anyPriceForKey(`${pt.type}|${t}|${pt.w}|${l}`))); }
 
 /* ========== 見積カート ========== */
-let cart=[];   // {key,name,t,w,l,grade,qty(束),price(税抜/束)}
+let cart=[];
 function addToCart(key,grade,qty){
-  const row=PROD_ROWS.find(r=>r.key===key); if(!row) return;
+  const row=rowByKey(key); if(!row) return;
   const p=custPrice(row,grade); if(p==null){ alert("この等級は現在お取り扱いがありません"); return; }
   const ex=cart.find(c=>c.key===key&&c.grade===grade);
   if(ex) ex.qty+=qty; else cart.push({...row, grade, qty, price:p});
@@ -288,7 +325,7 @@ function addToCart(key,grade,qty){
 }
 function cartSubtotal(){ return cart.reduce((s,c)=>s+custPrice(c,c.grade)*c.qty,0); }
 
-/* ========== 送料（運賃ツールiframe・長さ別に計算して合算） ========== */
+/* ========== 送料（運賃ツールiframe） ========== */
 function fareFrameReady(){
   const f=document.getElementById("fare-frame");
   try{ return !!(f && f.contentWindow && f.contentWindow.calcSeino && f.contentDocument && f.contentDocument.getElementById("s-pref") && f.contentDocument.getElementById("s-pref").options.length); }catch(e){ return false; }
@@ -297,30 +334,23 @@ function fareOne(pref, lenM, qty){
   const f=document.getElementById("fare-frame"), w=f.contentWindow, doc=f.contentDocument;
   try{
     if(doc.getElementById("s-mix-mode") && doc.getElementById("s-mix-mode").style.display!=="none" && typeof w.toggleMixMode==="function") w.toggleMixMode(false);
-    doc.getElementById("s-pref").value=pref;
-    doc.getElementById("s-length").value=String(lenM);
+    doc.getElementById("s-pref").value=pref; doc.getElementById("s-length").value=String(lenM);
     if(typeof w.updateQtyLabel==="function") w.updateQtyLabel();
     const sq=doc.getElementById("s-qty");
     if(![...sq.options].some(o=>o.value===String(qty))) sq.add(new Option(String(qty),String(qty)));
-    sq.value=String(qty);
-    w.calcSeino();
+    sq.value=String(qty); w.calcSeino();
     const totalEl=doc.querySelector("#seino-result tr.total td");
     if(totalEl){ const n=parseInt(totalEl.textContent.replace(/[^0-9]/g,"")); if(n>0) return n; }
     return null;
   }catch(e){ return null; }
 }
-function calcShipping(){   // 税込合計を返す（長さ混載は長さごとに算出して合算＝安全側）
+function calcShipping(){
   if(!cart.length) return {incl:0, ok:true, note:""};
   if(!fareFrameReady()) return {incl:null, ok:false, note:"送料計算を読み込み中…"};
   const pref=$("#q-pref")?$("#q-pref").value:"東京";
-  const byLen={};
-  cart.forEach(c=>{ const lm=Math.round(c.l/1000); byLen[lm]=(byLen[lm]||0)+c.qty; });
+  const byLen={}; cart.forEach(c=>{ const lm=Math.round(c.l/1000); byLen[lm]=(byLen[lm]||0)+c.qty; });
   let sum=0;
-  for(const lm in byLen){
-    const v=fareOne(pref, lm, byLen[lm]);
-    if(v==null) return {incl:null, ok:false, note:"この地域・数量は個別見積となります（お問い合わせください）"};
-    sum+=v;
-  }
+  for(const lm in byLen){ const v=fareOne(pref, lm, byLen[lm]); if(v==null) return {incl:null, ok:false, note:"この地域・数量は個別見積となります（お問い合わせください）"}; sum+=v; }
   const note = Object.keys(byLen).length>1 ? "※長さ違いは梱包ごとに算出した合計です" : "";
   return {incl:sum, ok:true, note};
 }
@@ -340,7 +370,6 @@ function renderApp(){
     return;
   }
   document.title = `${M.name}｜桧製品のご案内`;
-
   const telBtn = M.tel ? `<a href="tel:${esc(M.tel)}">📞 ${esc(M.tel)}</a>` : "";
   const faxChip = M.fax ? `<span class="chip">FAX ${esc(M.fax)}</span>` : "";
 
@@ -350,6 +379,9 @@ function renderApp(){
         <div class="blk-head"><h2>商品と価格</h2></div>
         <p class="h2sub">価格は1束あたり・税別です。価格をタップして等級を選び、「見積に追加」でその場でお見積りできます。</p>
         <div id="items-box"></div>
+        <div class="stock-legend">
+          <span><b class="st-o">◎ 在庫あり</b></span><span><b class="st-a">△ 残りわずか</b></span><span><b class="st-x">× 受注生産（お取り寄せ）</b></span>
+        </div>
         <div class="delivery-note">🚚 納期目安：${esc(M.delivery||"ご注文から約2〜3週間（在庫状況により前後します）")}</div>
       </section>`,
     quote: `
@@ -395,53 +427,78 @@ function renderApp(){
       ${esc(M.name)}${M.tel?`　TEL ${esc(M.tel)}`:""}${M.fax?`　FAX ${esc(M.fax)}`:""}
     </footer>`;
 
-  renderItems(); renderQuote(); renderPhotos();
-  $("#cartbar-btn").addEventListener("click",()=>{
-    const q=$("#sec-quote")||$("#quote-box"); if(q) q.scrollIntoView({behavior:"smooth",block:"start"});
-  });
+  renderProductTables(); renderQuote(); renderPhotos();
+  $("#cartbar-btn").addEventListener("click",()=>{ const q=$("#sec-quote")||$("#quote-box"); if(q) q.scrollIntoView({behavior:"smooth",block:"start"}); });
 }
 
-function renderItems(){
+/* --- 商品テーブル（種類ごと・長さ×等級） --- */
+let flT = 15;                 // フローリング選択中の厚み
+const sel = {};               // sel[type] = {key, grade}
+const qtyState = {};          // qtyState[type] = 数量
+
+function renderProductTables(){
   const box=$("#items-box"); if(!box) return;
-  const rows=visibleRows();
-  if(!rows.length){ box.innerHTML=`<div class="photo-empty">現在ご案内中の商品はありません。</div>`; return; }
-  box.innerHTML = rows.map(r=>{
-    const cells = GRADES.map(g=>{
-      const p=custPrice(r,g);
-      return p==null?`<td class="na">—</td>`
-        :`<td class="p-cell" data-grade="${g}"><span class="p-num">${fmt(p)}</span><span class="p-unit">円</span></td>`;
+  let html="";
+  PRODUCTS.forEach(pt=>{
+    const vts=visThicknesses(pt); if(!vts.length) return;
+    const multi=pt.thicknesses.length>1;
+    const useT = multi ? (vts.includes(flT)?flT:vts[0]) : vts[0];
+    const vls=pt.lengths.filter(l=>anyPriceForKey(`${pt.type}|${useT}|${pt.w}|${l}`));
+
+    let toggle="";
+    if(multi){
+      toggle=`<div class="thick-toggle">厚み<div class="seg">`+
+        pt.thicknesses.map(t=> vts.includes(t)
+          ? `<button class="seg-b ${t===useT?"on":""}" data-type="${esc(pt.type)}" data-t="${t}">${t}mm</button>`
+          : `<button class="seg-b dis" disabled>${t}mm</button>`).join("")+`</div></div>`;
+    }else{
+      toggle=`<span class="ps-tag">厚み ${useT}mm</span>`;
+    }
+
+    const head=`<tr><th class="lh">長さ＼等級</th>`+GRADES.map(g=>`<th>${g}</th>`).join("")+`</tr>`;
+    const body=vls.map(l=>{
+      const key=`${pt.type}|${useT}|${pt.w}|${l}`; const row=rowByKey(key);
+      const cells=GRADES.map(g=>{
+        const p=row?custPrice(row,g):null;
+        if(p==null) return `<td class="gcell na">—</td>`;
+        const st=stockStatus(STOCK[`${key}|${g}`]);
+        const stHTML=st?`<span class="p-stock ${st.cls}">${st.cls==="st-o"?"◎":st.cls==="st-a"?"△":"×"}${st.label}</span>`:"";
+        const s=sel[pt.type]; const isSel=s&&s.key===key&&s.grade===g;
+        return `<td class="gcell${isSel?" sel":""}" data-type="${esc(pt.type)}" data-key="${esc(key)}" data-grade="${g}"><span class="p-num">${fmt(p)}</span><span class="p-unit">円</span>${stHTML}</td>`;
+      }).join("");
+      return `<tr><th class="lh"><span class="len">${l/1000}m</span><span class="nyusu">1束＝${NYUSU[l]||""}</span></th>${cells}</tr>`;
     }).join("");
-    const gradeOpts = GRADES.filter(g=>custPrice(r,g)!=null).map(g=>`<option value="${g}">${g}</option>`).join("");
-    let qtyOpts=""; for(let i=1;i<=40;i++) qtyOpts+=`<option value="${i}">${i}束</option>`;
-    return `<div class="pcard" data-key="${esc(r.key)}">
-      <div class="phead">
-        <span class="pname">${esc(r.name)}</span>
-        <span class="psize">${r.t}×${r.w}×${r.l}mm</span>
-        <span class="psize">1束＝${NYUSU[r.l]||""}</span>
-      </div>
-      <div class="tscroll"><table class="ptable">
-        <tr>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr>
-        <tr>${cells}</tr>
-      </table></div>
-      <div class="addrow">
-        <select class="ar-grade">${gradeOpts}</select>
-        <select class="ar-qty">${qtyOpts}</select>
-        <button class="ar-add">＋ 見積に追加</button>
+
+    const s=sel[pt.type];
+    const q=qtyState[pt.type]||1;
+    let qtyOpts=""; for(let i=1;i<=40;i++) qtyOpts+=`<option value="${i}"${i===q?" selected":""}>${i}束</option>`;
+    const selText = s
+      ? `選択中：<b>${esc(pt.type)} ${useT}mm・${(s.key.split("|")[3])/1000}m・${esc(s.grade)}</b>　${fmt(custPrice(rowByKey(s.key),s.grade))}円/束`
+      : `<span class="sel-none">価格をタップして選択してください</span>`;
+
+    html+=`<div class="prodsec" data-type="${esc(pt.type)}">
+      <div class="ps-head"><span class="ps-name">${esc(pt.type)}</span>${toggle}</div>
+      <div class="tscroll"><table class="gtable"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+      <div class="addbar">
+        <div class="sel-text">${selText}</div>
+        <select class="ab-qty" data-type="${esc(pt.type)}">${qtyOpts}</select>
+        <button class="ab-add" data-type="${esc(pt.type)}" ${s?"":"disabled"}>＋ 見積に追加</button>
       </div>
     </div>`;
-  }).join("");
-  box.querySelectorAll(".pcard").forEach(card=>{
-    const syncSel=()=>{ const g=card.querySelector(".ar-grade").value;
-      card.querySelectorAll(".p-cell").forEach(td=>td.classList.toggle("sel", td.dataset.grade===g)); };
-    card.querySelectorAll(".p-cell").forEach(td=>td.addEventListener("click",()=>{
-      card.querySelector(".ar-grade").value=td.dataset.grade; syncSel();
-    }));
-    card.querySelector(".ar-grade").addEventListener("change",syncSel);
-    card.querySelector(".ar-add").addEventListener("click",()=>{
-      addToCart(card.dataset.key, card.querySelector(".ar-grade").value, Number(card.querySelector(".ar-qty").value));
-    });
-    syncSel();
   });
+  box.innerHTML=html;
+
+  box.querySelectorAll(".seg-b[data-t]").forEach(b=>b.addEventListener("click",()=>{
+    flT=Number(b.dataset.t); sel[b.dataset.type]=null; renderProductTables();
+  }));
+  box.querySelectorAll(".gcell[data-key]").forEach(td=>td.addEventListener("click",()=>{
+    sel[td.dataset.type]={key:td.dataset.key, grade:td.dataset.grade}; renderProductTables();
+  }));
+  box.querySelectorAll(".ab-qty").forEach(s=>s.addEventListener("change",()=>{ qtyState[s.dataset.type]=Number(s.value); }));
+  box.querySelectorAll(".ab-add").forEach(b=>b.addEventListener("click",()=>{
+    const s=sel[b.dataset.type]; if(!s) return;
+    addToCart(s.key, s.grade, qtyState[b.dataset.type]||1);
+  }));
 }
 
 function renderPhotos(){
@@ -456,42 +513,28 @@ function renderQuote(){
   const prevPref = $("#q-pref") ? $("#q-pref").value : "東京";
   const prevName = $("#q-name") ? $("#q-name").value : "";
   const prevTel  = $("#q-tel")  ? $("#q-tel").value  : "";
-
-  if(!cart.length){
-    box.innerHTML = `<div class="qempty">まだ商品が入っていません。上の価格表から「＋ 見積に追加」で商品を選んでください。</div>`;
-    updateCartbar(0,null,false);
-    return;
-  }
+  if(!cart.length){ box.innerHTML = `<div class="qempty">まだ商品が入っていません。上の価格表から「＋ 見積に追加」で商品を選んでください。</div>`; updateCartbar(0,null,false); return; }
   const prefOpts = PREFS.map(p=>`<option${p===prevPref?" selected":""}>${p}</option>`).join("");
-
   const linesHTML = cart.map((c,i)=>{
     const p=custPrice(c,c.grade);
     return `<tr>
-      <td class="l">${esc(c.name)} ${c.t}×${c.w}×${c.l}　<b>${esc(c.grade)}</b></td>
-      <td>${c.qty}束</td>
-      <td>${fmt(p)}円</td>
-      <td>${fmt(p*c.qty)}円</td>
+      <td class="l">${esc(c.name)} ${c.t}mm×${c.w}×${c.l}　<b>${esc(c.grade)}</b></td>
+      <td>${c.qty}束</td><td>${fmt(p)}円</td><td>${fmt(p*c.qty)}円</td>
       <td><button class="del" data-i="${i}">削除</button></td>
     </tr>`;
   }).join("");
-
   box.innerHTML = `
-    <div class="tscroll"><table class="qtable">
+    <div class="tscroll" style="border:none"><table class="qtable">
       <tr><th>商品</th><th class="r">数量</th><th class="r">単価(税別)</th><th class="r">金額(税別)</th><th></th></tr>
       ${linesHTML}
     </table></div>
-    <div class="qship">
-      <label>お届け先</label>
-      <select id="q-pref">${prefOpts}</select>
-      <span class="shipnote" id="ship-note"></span>
-    </div>
+    <div class="qship"><label>お届け先</label><select id="q-pref">${prefOpts}</select><span class="shipnote" id="ship-note"></span></div>
     <div class="qsum"><table id="qsum-table"></table></div>
     <div class="cust-fields">
       <div><label>お名前・会社名（任意）</label><input id="q-name" value="${esc(prevName)}" placeholder="例）株式会社○○工務店"></div>
       <div><label>お電話番号（任意）</label><input id="q-tel" value="${esc(prevTel)}" placeholder="例）090-0000-0000"></div>
     </div>
     <div class="qbtns" id="q-btns"></div>`;
-
   box.querySelectorAll(".del").forEach(b=>b.addEventListener("click",()=>{ cart.splice(Number(b.dataset.i),1); renderQuote(); }));
   $("#q-pref").addEventListener("change", updateTotals);
   updateTotals();
@@ -508,23 +551,18 @@ function updateCartbar(sub, totalIncl, show){
 
 function updateTotals(){
   const tbl=$("#qsum-table"); if(!tbl) return;
-  const sub=cartSubtotal();
-  const ship=calcShipping();
+  const sub=cartSubtotal(); const ship=calcShipping();
   $("#ship-note").textContent = ship.note||"";
   let shipEx=null, rowsHTML="", totalIncl=null;
   if(ship.ok && ship.incl!=null){
-    shipEx=freightExcl(ship.incl);
-    const tax=Math.floor((sub+shipEx)*0.1);
-    totalIncl=sub+shipEx+tax;
+    shipEx=freightExcl(ship.incl); const tax=Math.floor((sub+shipEx)*0.1); totalIncl=sub+shipEx+tax;
     rowsHTML=`
       <tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr>
       <tr><th>送料（税別）</th><td>${fmt(shipEx)}円</td></tr>
       <tr><th>消費税（10%）</th><td>${fmt(tax)}円</td></tr>
       <tr class="total"><th>合計（税込）</th><td>${fmt(totalIncl)}円</td></tr>`;
   }else{
-    rowsHTML=`
-      <tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr>
-      <tr><th>送料</th><td>${ship.incl===null&&!ship.ok?"—":"計算中…"}</td></tr>`;
+    rowsHTML=`<tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr><tr><th>送料</th><td>${ship.incl===null&&!ship.ok?"—":"計算中…"}</td></tr>`;
     if(!window._fareRetry){ window._fareRetry=setInterval(()=>{ if(fareFrameReady()){ clearInterval(window._fareRetry); window._fareRetry=null; updateTotals(); } },700); }
   }
   tbl.innerHTML=rowsHTML;
@@ -540,7 +578,7 @@ function orderBodyText(sub, shipEx){
   if(name) t+=`お名前：${name}\n`;
   if(tel) t+=`お電話：${tel}\n`;
   t+=`お届け先：${pref}\n\n--- ご希望内容 ---\n`;
-  cart.forEach(c=>{ const p=custPrice(c,c.grade); t+=`・${c.name} ${c.t}×${c.w}×${c.l} ${c.grade}　${c.qty}束 × ${fmt(p)}円 ＝ ${fmt(p*c.qty)}円\n`; });
+  cart.forEach(c=>{ const p=custPrice(c,c.grade); t+=`・${c.name} ${c.t}mm×${c.w}×${c.l} ${c.grade}　${c.qty}束 × ${fmt(p)}円 ＝ ${fmt(p*c.qty)}円\n`; });
   t+=`\n商品計(税別)：${fmt(sub)}円\n`;
   if(shipEx!=null){ const tax=Math.floor((sub+shipEx)*0.1); t+=`送料(税別)：${fmt(shipEx)}円\n消費税：${fmt(tax)}円\n合計(税込)：${fmt(sub+shipEx+tax)}円\n`; }
   t+=`\n※このページの概算見積です。正式な金額・納期は折り返しご連絡ください。`;
@@ -550,18 +588,13 @@ function orderBodyText(sub, shipEx){
 function renderQuoteButtons(sub, shipEx){
   const box=$("#q-btns"); if(!box) return;
   let html="";
-  if(M.email){
-    html+=`<a class="btn-order" id="btn-order" href="#">✉ この内容で注文・相談する</a>`;
-  }
+  if(M.email) html+=`<a class="btn-order" id="btn-order" href="#">✉ この内容で注文・相談する</a>`;
   if(M.tel) html+=`<a class="btn-tel" href="tel:${esc(M.tel)}">📞 電話で相談（${esc(M.tel)}）</a>`;
   html+=`<button class="btn-print" id="btn-print">🖨 概算見積を印刷・保存</button>`;
   box.innerHTML=html;
   const bo=$("#btn-order");
-  if(bo) bo.addEventListener("click",e=>{
-    e.preventDefault();
-    const body=orderBodyText(sub, shipEx);
-    location.href=`mailto:${M.email}?subject=${encodeURIComponent(`【注文・相談】${M.name} 桧製品ページより`)}&body=${encodeURIComponent(body)}`;
-  });
+  if(bo) bo.addEventListener("click",e=>{ e.preventDefault(); const body=orderBodyText(sub, shipEx);
+    location.href=`mailto:${M.email}?subject=${encodeURIComponent(`【注文・相談】${M.name} 桧製品ページより`)}&body=${encodeURIComponent(body)}`; });
   $("#btn-print").addEventListener("click",()=>{ buildPrint(sub, shipEx); window.print(); });
 }
 
@@ -570,31 +603,22 @@ function buildPrint(sub, shipEx){
   const name=$("#q-name")?$("#q-name").value.trim():"";
   const t=new Date(); const dateStr=`${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`;
   const lines=cart.map(c=>{ const p=custPrice(c,c.grade);
-    return `<tr><td>${esc(c.name)}</td><td>${esc(c.grade)}</td><td class="r">${c.t}×${c.w}×${c.l}</td><td class="r">${c.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*c.qty)}円</td></tr>`; }).join("");
+    return `<tr><td>${esc(c.name)}</td><td>${esc(c.grade)}</td><td class="r">${c.t}mm×${c.w}×${c.l}</td><td class="r">${c.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*c.qty)}円</td></tr>`; }).join("");
   let sumHTML=`<tr><th colspan="5" style="text-align:right">商品計（税別）</th><td class="r">${fmt(sub)}円</td></tr>`;
   let totalLine="";
-  if(shipEx!=null){
-    const tax=Math.floor((sub+shipEx)*0.1);
-    sumHTML+=`<tr><th colspan="5" style="text-align:right">送料（税別・${esc(pref)}向け）</th><td class="r">${fmt(shipEx)}円</td></tr>
-      <tr><th colspan="5" style="text-align:right">消費税（10%）</th><td class="r">${fmt(tax)}円</td></tr>`;
-    totalLine=`<div class="totalline">合計（税込）　${fmt(sub+shipEx+tax)}円</div>`;
-  }
+  if(shipEx!=null){ const tax=Math.floor((sub+shipEx)*0.1);
+    sumHTML+=`<tr><th colspan="5" style="text-align:right">送料（税別・${esc(pref)}向け）</th><td class="r">${fmt(shipEx)}円</td></tr><tr><th colspan="5" style="text-align:right">消費税（10%）</th><td class="r">${fmt(tax)}円</td></tr>`;
+    totalLine=`<div class="totalline">合計（税込）　${fmt(sub+shipEx+tax)}円</div>`; }
   $("#print-area").innerHTML=`
     <h1>概算見積書</h1>
-    <div class="meta">
-      <div>${name?esc(name)+" 様":"　"}</div>
-      <div>発行日：${dateStr}<br>発行：${esc(M.name)}${M.tel?`（TEL ${esc(M.tel)}）`:""}</div>
-    </div>
-    <table>
-      <tr><th>品名</th><th>等級</th><th>寸法(mm)</th><th>数量</th><th>単価(税別)</th><th>金額(税別)</th></tr>
-      ${lines}${sumHTML}
-    </table>
+    <div class="meta"><div>${name?esc(name)+" 様":"　"}</div><div>発行日：${dateStr}<br>発行：${esc(M.name)}${M.tel?`（TEL ${esc(M.tel)}）`:""}</div></div>
+    <table><tr><th>品名</th><th>等級</th><th>寸法(mm)</th><th>数量</th><th>単価(税別)</th><th>金額(税別)</th></tr>${lines}${sumHTML}</table>
     ${totalLine}
     <div class="pnote">※本書はWebページ上の概算です。正式なお見積り・納期は ${esc(M.name)} までお問い合わせください。<br>※送料は荷姿により変わる場合があります。${M.delivery?`　納期目安：${esc(M.delivery)}`:""}</div>`;
 }
 
 renderApp();
-if(M && M.name) refreshPricebook();
+if(M && M.name){ refreshPricebook(); refreshStock(); }
 </script>
 </body>
 </html>

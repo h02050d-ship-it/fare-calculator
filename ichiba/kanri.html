@@ -69,6 +69,13 @@
   table.prods input.mk{ width:72px; text-align:right; }
   .comm-cell{ color:var(--green); font-weight:700; font-size:12px; white-space:nowrap; }
 
+  .prodedit{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px; background:var(--panel2); }
+  .pe-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+  .pe-name{ font-family:var(--serif); font-size:16px; font-weight:800; color:var(--brown); letter-spacing:.04em; }
+  .pe-bulk{ margin-left:auto; font-size:12px; color:var(--sub); font-weight:700; display:flex; align-items:center; gap:6px; }
+  .bulk-m.on{ background:linear-gradient(140deg,var(--brown2),var(--brown)); color:#f0d9ac; border-color:var(--brown); }
+  .pv-title{ font-family:var(--serif); font-size:14px; font-weight:800; color:var(--brown); margin:14px 0 6px; letter-spacing:.04em; }
+
   .sec-item{ display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:11px 14px; margin-bottom:8px; }
   .sec-item .nm{ flex:1; font-size:14px; font-weight:700; color:var(--brown); }
   .sec-item input[type=checkbox]{ width:18px; height:18px; accent-color:var(--green); }
@@ -151,6 +158,12 @@ function buildPricebook(){
 }
 buildPricebook();
 const PROD_ROWS = PB_RAW["市売"].map(r=>({ name:r[0], t:r[1], w:r[2], l:r[3], key:`${r[0]}|${r[1]}|${r[2]}|${r[3]}` }));
+function rowByKey(key){ return PROD_ROWS.find(r=>r.key===key); }
+/* 客用と同じ集約構造：種類×厚み×長さ */
+const PRODUCTS = [
+  { type:"桧フローリング", thicknesses:[15,12], w:120, lengths:[2000,3000,4000] },
+  { type:"桧羽目板",       thicknesses:[12],    w:120, lengths:[2000,3000,4000] }
+];
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
 async function refreshPricebook(){
   try{
@@ -310,10 +323,10 @@ function renderMain(){
         <div class="fld"><label>市売の手数料率（%・貴社の目安表示用）</label><input type="number" id="f-comm" min="0" max="30" step="0.5">
           <p class="note">この数字がお客様や林材木店に送られることはありません</p></div>
       </div>
-      <div style="overflow-x:auto"><table class="prods" id="prods-table"></table></div>
-      <p class="note">※「個別%」を入れるとその商品だけ共通率と違う上乗せにできます（空欄＝共通率）。</p>
+      <div id="prods-editor"></div>
+      <p class="note">※種類ごとに「まとめて市売／付売」を切替できます。「個別%」を入れるとその行だけ共通率と違う上乗せにできます（空欄＝共通率）。チェックを外すとお客様ページから隠れます。</p>
       <h2 style="margin-top:22px">お客様に見える価格（プレビュー）</h2>
-      <div style="overflow-x:auto"><table class="preview-table" id="preview-table"></table></div>
+      <div id="preview-box"></div>
     </div>
 
     <div class="card">
@@ -349,9 +362,9 @@ function renderMain(){
   $("#f-markup").value=ST.markup!=null?ST.markup:10; $("#f-round").value=String(ST.round||10); $("#f-comm").value=ST.comm!=null?ST.comm:10;
   $("#f-photos").value=(ST.photos||[]).join("\n");
 
-  renderProds(); renderSecList(); renderPreview(); updateURL();
+  renderProdsEditor(); renderSecList(); renderPreview(); updateURL();
 
-  ["#f-markup","#f-round","#f-comm"].forEach(s=>$(s).addEventListener("input",()=>{ pull(); renderProds(); renderPreview(); }));
+  ["#f-markup","#f-round","#f-comm"].forEach(s=>$(s).addEventListener("input",()=>{ pull(); renderProdsEditor(); renderPreview(); }));
   ["#f-name","#f-tel","#f-email","#f-fax","#f-greet","#f-delivery","#f-photos"].forEach(s=>$(s).addEventListener("input",pull));
   $("#f-maker").addEventListener("change",pull);
   $("#btn-save").addEventListener("click",()=>{
@@ -382,49 +395,90 @@ function custPriceFor(row, grade){
   return ceilTo(g[grade]*(1+mk/100), Number(ST.round||10));
 }
 
-function renderProds(){
-  const tbl=$("#prods-table"); if(!tbl) return;
-  let html=`<tr><th>表示</th><th style="text-align:left">商品</th><th>寸法</th><th>方式</th><th>個別%</th><th>売れた時の貴社取り分（目安）</th></tr>`;
-  PROD_ROWS.forEach(r=>{
-    const c=ST.prods[r.key]=ST.prods[r.key]||{show:true,method:"市売",markup:""};
-    const isIchi=(c.method||"市売")==="市売";
-    // 取り分目安：市売＝定価×手数料率／付売＝上乗せ分（無節の単価で例示）
-    let gain="—";
-    const gIchi=PRICEBOOK["市売"][r.key], gTsuke=PRICEBOOK["付売"][r.key];
-    if(isIchi && gIchi && gIchi["無節"]!=null){
-      gain=`約${fmt(gIchi["無節"]*(Number(ST.comm||0)/100))}円/束 <span style="color:#8a94a5;font-weight:normal">(無節・手数料${ST.comm||0}%)</span>`;
-    }else if(!isIchi && gTsuke && gTsuke["無節"]!=null){
-      const mk=(c.markup!==""&&c.markup!=null)?Number(c.markup):Number(ST.markup||0);
-      const sell=ceilTo(gTsuke["無節"]*(1+mk/100), Number(ST.round||10));
-      gain=`約${fmt(sell-gTsuke["無節"])}円/束 <span style="color:#8a94a5;font-weight:normal">(無節・+${mk}%)</span>`;
-    }
-    html+=`<tr>
-      <td><input type="checkbox" class="p-show" data-k="${esc(r.key)}" ${c.show!==false?"checked":""} style="width:16px;height:16px"></td>
-      <td class="l">${esc(r.name)}</td>
-      <td>${r.t}×${r.w}×${r.l}</td>
-      <td><select class="p-method" data-k="${esc(r.key)}">
-        <option value="市売"${isIchi?" selected":""}>市売（定価）</option>
-        <option value="付売"${!isIchi?" selected":""}>付売（上乗せ）</option></select></td>
-      <td><input type="number" class="mk p-markup" data-k="${esc(r.key)}" value="${c.markup==null?"":c.markup}" placeholder="共通" ${isIchi?"disabled style='background:#fbf7ee'":""}></td>
-      <td class="comm-cell">${gain}</td>
-    </tr>`;
-  });
-  tbl.innerHTML=html;
-  tbl.querySelectorAll(".p-show").forEach(el=>el.addEventListener("change",()=>{ ST.prods[el.dataset.k].show=el.checked; renderPreview(); }));
-  tbl.querySelectorAll(".p-method").forEach(el=>el.addEventListener("change",()=>{ ST.prods[el.dataset.k].method=el.value; renderProds(); renderPreview(); }));
-  tbl.querySelectorAll(".p-markup").forEach(el=>el.addEventListener("input",()=>{ ST.prods[el.dataset.k].markup=el.value; renderProds(); renderPreview(); }));
+function gainText(r){
+  // 売れた時の貴社取り分目安（無節の単価で例示）
+  const c=ST.prods[r.key]||{}; const isIchi=(c.method||"市売")==="市売";
+  const gIchi=PRICEBOOK["市売"][r.key], gTsuke=PRICEBOOK["付売"][r.key];
+  if(isIchi && gIchi && gIchi["無節"]!=null)
+    return `約${fmt(gIchi["無節"]*(Number(ST.comm||0)/100))}円/束 <span style="color:#a99;font-weight:400">(無節・手数料${ST.comm||0}%)</span>`;
+  if(!isIchi && gTsuke && gTsuke["無節"]!=null){
+    const mk=(c.markup!==""&&c.markup!=null)?Number(c.markup):Number(ST.markup||0);
+    const sell=ceilTo(gTsuke["無節"]*(1+mk/100), Number(ST.round||10));
+    return `約${fmt(sell-gTsuke["無節"])}円/束 <span style="color:#a99;font-weight:400">(無節・+${mk}%)</span>`;
+  }
+  return "—";
 }
 
-function renderPreview(){
-  const tbl=$("#preview-table"); if(!tbl) return;
-  let html=`<tr><th style="text-align:left">商品</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr>`;
-  PROD_ROWS.forEach(r=>{
-    const c=ST.prods[r.key]||{};
-    if(c.show===false) return;
-    html+=`<tr><td class="l">${esc(r.name)} ${r.t}×${r.w}×${r.l}</td>`+
-      GRADES.map(g=>{ const p=custPriceFor(r,g); return p==null?`<td class="na">—</td>`:`<td><b>${fmt(p)}</b>円</td>`; }).join("")+`</tr>`;
+/* --- 商品エディタ（種類×厚み×長さ・客用と同じ構造） --- */
+function renderProdsEditor(){
+  const box=$("#prods-editor"); if(!box) return;
+  let html="";
+  PRODUCTS.forEach(pt=>{
+    // この種類の全SKU
+    const skus=[]; pt.thicknesses.forEach(t=>pt.lengths.forEach(l=>{ const key=`${pt.type}|${t}|${pt.w}|${l}`; if(rowByKey(key)) skus.push({t,l,key}); }));
+    if(!skus.length) return;
+    // まとめて操作の現在方式（全部同じなら表示、混在なら"—"）
+    const methods=new Set(skus.map(s=>(ST.prods[s.key]&&ST.prods[s.key].method)||"市売"));
+    const allMethod = methods.size===1?[...methods][0]:"";
+    html+=`<div class="prodedit" data-type="${esc(pt.type)}">
+      <div class="pe-head">
+        <span class="pe-name">${esc(pt.type)}</span>
+        <span class="pe-bulk">まとめて
+          <button class="mini bulk-m ${allMethod==="市売"?"on":""}" data-type="${esc(pt.type)}" data-m="市売">市売</button>
+          <button class="mini bulk-m ${allMethod==="付売"?"on":""}" data-type="${esc(pt.type)}" data-m="付売">付売</button>
+        </span>
+      </div>
+      <div style="overflow-x:auto"><table class="prods">
+        <tr><th>表示</th><th>厚み</th><th>長さ</th><th>方式</th><th>個別%</th><th>売れた時の貴社取り分（目安）</th></tr>
+        ${skus.map(s=>{
+          const c=ST.prods[s.key]=ST.prods[s.key]||{show:true,method:"市売",markup:""};
+          const isIchi=(c.method||"市売")==="市売";
+          return `<tr>
+            <td><input type="checkbox" class="p-show" data-k="${esc(s.key)}" ${c.show!==false?"checked":""} style="width:16px;height:16px;accent-color:#2e7d4f"></td>
+            <td class="l">${s.t}mm</td>
+            <td class="l">${s.l/1000}m</td>
+            <td><select class="p-method" data-k="${esc(s.key)}">
+              <option value="市売"${isIchi?" selected":""}>市売（定価）</option>
+              <option value="付売"${!isIchi?" selected":""}>付売（上乗せ）</option></select></td>
+            <td><input type="number" class="mk p-markup" data-k="${esc(s.key)}" value="${c.markup==null?"":c.markup}" placeholder="共通" ${isIchi?"disabled style='background:#fbf7ee'":""}></td>
+            <td class="comm-cell">${gainText(s)}</td>
+          </tr>`;
+        }).join("")}
+      </table></div>
+    </div>`;
   });
-  tbl.innerHTML=html;
+  box.innerHTML=html;
+  box.querySelectorAll(".bulk-m").forEach(b=>b.addEventListener("click",()=>{
+    Object.keys(ST.prods).forEach(k=>{ if(k.split("|")[0]===b.dataset.type) ST.prods[k].method=b.dataset.m; });
+    renderProdsEditor(); renderPreview();
+  }));
+  box.querySelectorAll(".p-show").forEach(el=>el.addEventListener("change",()=>{ ST.prods[el.dataset.k].show=el.checked; renderPreview(); }));
+  box.querySelectorAll(".p-method").forEach(el=>el.addEventListener("change",()=>{ ST.prods[el.dataset.k].method=el.value; renderProdsEditor(); renderPreview(); }));
+  box.querySelectorAll(".p-markup").forEach(el=>el.addEventListener("input",()=>{ ST.prods[el.dataset.k].markup=el.value; renderProdsEditor(); renderPreview(); }));
+}
+
+/* --- プレビュー（客用と同じ2表・厚み別） --- */
+function anyPriceForKeyP(key){ const row=rowByKey(key); if(!row) return false; const c=ST.prods[key]||{}; if(c.show===false) return false; return GRADES.some(g=>custPriceFor(row,g)!=null); }
+function renderPreview(){
+  const box=$("#preview-box"); if(!box) return;
+  let html="";
+  PRODUCTS.forEach(pt=>{
+    const vts=pt.thicknesses.filter(t=>pt.lengths.some(l=>anyPriceForKeyP(`${pt.type}|${t}|${pt.w}|${l}`)));
+    if(!vts.length) return;
+    vts.forEach(t=>{
+      const vls=pt.lengths.filter(l=>anyPriceForKeyP(`${pt.type}|${t}|${pt.w}|${l}`));
+      if(!vls.length) return;
+      html+=`<div class="pv-title">${esc(pt.type)}　<span style="color:#8d7d64;font-weight:400">厚み ${t}mm</span></div>
+      <div style="overflow-x:auto"><table class="preview-table">
+        <tr><th style="text-align:left">長さ＼等級</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr>
+        ${vls.map(l=>{ const key=`${pt.type}|${t}|${pt.w}|${l}`; const row=rowByKey(key);
+          return `<tr><td class="l">${l/1000}m</td>`+
+            GRADES.map(g=>{ const p=row?custPriceFor(row,g):null; return p==null?`<td class="na">—</td>`:`<td><b>${fmt(p)}</b>円</td>`; }).join("")+`</tr>`;
+        }).join("")}
+      </table></div>`;
+    });
+  });
+  box.innerHTML=html;
 }
 
 function renderSecList(){
