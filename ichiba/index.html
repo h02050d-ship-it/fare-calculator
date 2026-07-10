@@ -75,8 +75,8 @@
   .gtable tbody th.lh{ background:var(--panel2); color:var(--brown); font-weight:700; text-align:left; padding:12px 6px 12px 14px; white-space:nowrap; }
   .gtable tbody th .len{ font-family:var(--serif); font-size:16px; }
   .gtable tbody th .nyusu{ display:block; font-size:10.5px; color:var(--sub); font-weight:500; margin-top:1px; }
-  .gcell{ text-align:center; background:#fff; cursor:pointer; padding:11px 6px; transition:background .12s; vertical-align:middle; }
-  .gcell:hover{ background:#fdf6e9; }
+  .gcell{ text-align:center; background:var(--gc,#fff); cursor:pointer; padding:11px 6px; transition:background .12s; vertical-align:middle; }
+  .gcell:hover:not(.sel){ filter:brightness(.965); }
   .gcell.na{ color:#cfc2a8; cursor:default; background:#fcfaf5; }
   .gcell .p-num{ font-weight:700; font-size:15px; color:var(--ink); }
   .gcell .p-unit{ font-size:10.5px; color:var(--sub); }
@@ -210,6 +210,17 @@ const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"
 /* ========== 商品マスタ（種類×厚み×長さ×等級） ========== */
 const GRADES = ["丸節","小節","特上小","無節","無節特上小","生節"];
 const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小", namabushi:"生節" };
+/* 等級カラー（節あり＝暖色 → 無節＝寒色/上位、生節＝特殊）。s=強色 h=ヘッダー地 c=セル地 */
+const GRADE_COLOR = {
+  "丸節":      {s:"#b3703f", h:"#f4e6d9", c:"#fdf7f1"},
+  "小節":      {s:"#c08722", h:"#f7eccf", c:"#fdf9f0"},
+  "特上小":    {s:"#7f9433", h:"#edf1da", c:"#f8faf1"},
+  "無節":      {s:"#2b8568", h:"#d9ece3", c:"#f1f8f4"},
+  "無節特上小":{s:"#3d79a8", h:"#dbe8f1", c:"#f1f6fa"},
+  "生節":      {s:"#a5578a", h:"#f2dcec", c:"#fcf4f9"}
+};
+function gcOf(g){ return GRADE_COLOR[g]||{s:"#8d7d64",h:"#efe6d2",c:"#fff"}; }
+function gradeChip(g){ const c=gcOf(g); return `<span style="color:${c.s};font-weight:800">${esc(g)}</span>`; }
 const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
 /* 表示は種類ごとに集約。フローリングは厚み12/15を選択、羽目板は12のみ */
 const PRODUCTS = [
@@ -455,7 +466,7 @@ function renderProductTables(){
       toggle=`<span class="ps-tag">厚み ${useT}mm</span>`;
     }
 
-    const head=`<tr><th class="lh">長さ＼等級</th>`+GRADES.map(g=>`<th>${g}</th>`).join("")+`</tr>`;
+    const head=`<tr><th class="lh">長さ＼等級</th>`+GRADES.map(g=>{ const c=gcOf(g); return `<th style="background:${c.h};color:${c.s};border-top:3px solid ${c.s}">${g}</th>`; }).join("")+`</tr>`;
     const body=vls.map(l=>{
       const key=`${pt.type}|${useT}|${pt.w}|${l}`; const row=rowByKey(key);
       const cells=GRADES.map(g=>{
@@ -464,7 +475,7 @@ function renderProductTables(){
         const st=stockStatus(STOCK[`${key}|${g}`]);
         const stHTML=st?`<span class="p-stock ${st.cls}">${st.cls==="st-o"?"◎":st.cls==="st-a"?"△":"×"}${st.label}</span>`:"";
         const s=sel[pt.type]; const isSel=s&&s.key===key&&s.grade===g;
-        return `<td class="gcell${isSel?" sel":""}" data-type="${esc(pt.type)}" data-key="${esc(key)}" data-grade="${g}"><span class="p-num">${fmt(p)}</span><span class="p-unit">円</span>${stHTML}</td>`;
+        return `<td class="gcell${isSel?" sel":""}" style="--gc:${gcOf(g).c}" data-type="${esc(pt.type)}" data-key="${esc(key)}" data-grade="${g}"><span class="p-num">${fmt(p)}</span><span class="p-unit">円</span>${stHTML}</td>`;
       }).join("");
       return `<tr><th class="lh"><span class="len">${l/1000}m</span><span class="nyusu">1束＝${NYUSU[l]||""}</span></th>${cells}</tr>`;
     }).join("");
@@ -473,7 +484,7 @@ function renderProductTables(){
     const q=qtyState[pt.type]||1;
     let qtyOpts=""; for(let i=1;i<=40;i++) qtyOpts+=`<option value="${i}"${i===q?" selected":""}>${i}束</option>`;
     const selText = s
-      ? `選択中：<b>${esc(pt.type)} ${useT}mm・${(s.key.split("|")[3])/1000}m・${esc(s.grade)}</b>　${fmt(custPrice(rowByKey(s.key),s.grade))}円/束`
+      ? `選択中：<b>${esc(pt.type)} ${useT}mm・${(s.key.split("|")[3])/1000}m・</b>${gradeChip(s.grade)}　${fmt(custPrice(rowByKey(s.key),s.grade))}円/束`
       : `<span class="sel-none">価格をタップして選択してください</span>`;
 
     html+=`<div class="prodsec" data-type="${esc(pt.type)}">
@@ -518,7 +529,7 @@ function renderQuote(){
   const linesHTML = cart.map((c,i)=>{
     const p=custPrice(c,c.grade);
     return `<tr>
-      <td class="l">${esc(c.name)} ${c.t}mm×${c.w}×${c.l}　<b>${esc(c.grade)}</b></td>
+      <td class="l">${esc(c.name)} ${c.t}mm×${c.w}×${c.l}　${gradeChip(c.grade)}</td>
       <td>${c.qty}束</td><td>${fmt(p)}円</td><td>${fmt(p*c.qty)}円</td>
       <td><button class="del" data-i="${i}">削除</button></td>
     </tr>`;

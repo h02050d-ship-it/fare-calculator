@@ -120,6 +120,16 @@ const INVITE_CODES = ["HAYAZAI2026"];
 /* ===== 商品マスタ・価格（客用ページと同一。GASで最新化） ===== */
 const GRADES = ["丸節","小節","特上小","無節","無節特上小","生節"];
 const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小", namabushi:"生節" };
+/* 等級カラー（客用ページと共通）。s=強色 h=ヘッダー地 c=セル地 */
+const GRADE_COLOR = {
+  "丸節":      {s:"#b3703f", h:"#f4e6d9", c:"#fdf7f1"},
+  "小節":      {s:"#c08722", h:"#f7eccf", c:"#fdf9f0"},
+  "特上小":    {s:"#7f9433", h:"#edf1da", c:"#f8faf1"},
+  "無節":      {s:"#2b8568", h:"#d9ece3", c:"#f1f8f4"},
+  "無節特上小":{s:"#3d79a8", h:"#dbe8f1", c:"#f1f6fa"},
+  "生節":      {s:"#a5578a", h:"#f2dcec", c:"#fcf4f9"}
+};
+function gcOf(g){ return GRADE_COLOR[g]||{s:"#8d7d64",h:"#efe6d2",c:"#fff"}; }
 const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
 const PB_RAW = {
   "市売": [
@@ -470,10 +480,10 @@ function renderPreview(){
       if(!vls.length) return;
       html+=`<div class="pv-title">${esc(pt.type)}　<span style="color:#8d7d64;font-weight:400">厚み ${t}mm</span></div>
       <div style="overflow-x:auto"><table class="preview-table">
-        <tr><th style="text-align:left">長さ＼等級</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr>
+        <tr><th style="text-align:left">長さ＼等級</th>${GRADES.map(g=>{ const c=gcOf(g); return `<th style="background:${c.h};color:${c.s};border-top:3px solid ${c.s}">${g}</th>`; }).join("")}</tr>
         ${vls.map(l=>{ const key=`${pt.type}|${t}|${pt.w}|${l}`; const row=rowByKey(key);
           return `<tr><td class="l">${l/1000}m</td>`+
-            GRADES.map(g=>{ const p=row?custPriceFor(row,g):null; return p==null?`<td class="na">—</td>`:`<td><b>${fmt(p)}</b>円</td>`; }).join("")+`</tr>`;
+            GRADES.map(g=>{ const p=row?custPriceFor(row,g):null; return p==null?`<td class="na">—</td>`:`<td style="background:${gcOf(g).c}"><b>${fmt(p)}</b>円</td>`; }).join("")+`</tr>`;
         }).join("")}
       </table></div>`;
     });
