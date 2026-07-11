@@ -232,6 +232,10 @@
   .wiz-nav{ justify-content:flex-start; gap:16px; margin:6px 0 18px; }
   .wiz-step{ font-size:14px; }
   .wiz-step .num{ width:28px; height:28px; font-size:14px; }
+  .sel-bar{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin:14px 0 4px; padding:10px 14px; background:#f2f8f3; border:1px solid #dfeee1; border-radius:10px; }
+  .sel-bar .sel-info{ font-size:14.5px; }
+  .sel-bar .sel-info b{ color:#2e7d32; }
+  .sel-bar .btn-next{ padding:10px 22px; font-size:14px; white-space:nowrap; }
   .cust-list{ display:block; max-height:560px; }
   .cust-group{ display:flex; gap:12px; align-items:flex-start; padding:8px 2px; border-bottom:1px solid #eef0f2; }
   .cust-group:last-child{ border-bottom:none; }
@@ -1054,8 +1058,12 @@ function buildWizard(){
   const pane3=elFrom(`<div class="step-pane" id="pane3"></div>`);
   paneEls[1]=pane1; paneEls[2]=pane2; paneEls[3]=pane3;
 
-  /* ステップ1：見積日／担当／取引方法＋取引先ピッカー */
+  /* ステップ1：見積日／担当／取引方法＋選択中バー＋取引先ピッカー */
   const row1=elFrom(`<div class="wrow"></div>`); row1.append(fDate, fTanto, fKubun);
+  const selBar=elFrom(`<div class="sel-bar">
+    <div class="sel-info">選択中：<b id="cust-current">（未選択）</b><span id="cust-method-tag"></span></div>
+    <button type="button" class="btn-next" id="wiz-next-top">商品・配送へ →</button>
+  </div>`);
   const picker=elFrom(`<div class="field" style="margin-top:12px">
     <label>取引先（クリックで選択。<b>市</b>＝市売／<b>付</b>＝付売／<b>ネ</b>＝直売ネット）</label>
     <div class="cust-picker">
@@ -1066,8 +1074,7 @@ function buildWizard(){
   fCust.querySelector("label").innerHTML='新規取引先（一覧にない場合はここに入力）<button type="button" class="editlist" id="cust-add" title="この取引先を候補に追加">✎候補に追加</button>';
   const pickerBox=picker.querySelector(".cust-picker");
   pickerBox.appendChild(fCust);
-  pickerBox.appendChild(elFrom(`<div class="cust-current">選択中：<b id="cust-current">（未選択）</b><span id="cust-method-tag"></span></div>`));
-  pane1.append(row1, picker);
+  pane1.append(row1, selBar, picker);
 
   /* ステップ2：明細／必要数量計算／配送業者・運賃・納期／送料自動計算 */
   pane2.append(gridWrap, addBar);
@@ -1114,6 +1121,7 @@ function buildWizard(){
   $("#cv-sync").addEventListener("click", syncCalcFromItems);
   ["#cv-val","#cv-unit","#cv-w","#cv-l","#cv-n"].forEach(s=> $(s).addEventListener("input", calcQtyTool));
   calcQtyTool();
+  $("#wiz-next-top").addEventListener("click",()=>{ if(validateStep(1)) goStep(2); });
 }
 function goStep(n){
   currentStep=n;
@@ -1122,6 +1130,7 @@ function goStep(n){
   paneEls[3].classList.toggle("show", n===3);
   if(wizStageEl) wizStageEl.style.display=(n===3)?"":"none";   // プレビューは確認（ステップ3）のみ表示
   document.querySelector(".app").classList.toggle("single", n!==3);   // 1・2はパネルを中央寄せ・適正幅に
+  const nt=$("#wiz-next-top"); if(nt) nt.style.display=(n===1)?"":"none";   // 選択中バーの「商品・配送へ」はステップ1のみ
   document.querySelectorAll(".wiz-nav .wiz-step").forEach(s=>{ const i=+s.dataset.go; s.classList.toggle("active",i===n); s.classList.toggle("done",i<n); });
   const back=$("#wiz-back"), next=$("#wiz-next");
   if(back) back.style.visibility=(n===1)?"hidden":"visible";
