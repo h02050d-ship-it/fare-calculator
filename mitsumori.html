@@ -238,6 +238,14 @@
   .wrow{ grid-template-columns:1fr 1fr 1fr; gap:14px; }
   .items-head,.item-row{ gap:8px; }
   .item-row input,.item-row select{ padding:8px; font-size:13.5px; }
+  .calc-box .cv-grid{ grid-template-columns:repeat(4,1fr); gap:12px; }
+  .cv-inline{ display:flex; gap:6px; }
+  .cv-inline input{ flex:1; min-width:0; }
+  .cv-inline select{ flex:0 0 72px; }
+  .cv-line{ margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .cv-sep{ margin-left:14px; }
+  .cv-apply{ padding:6px 12px; border:1px solid #2e7d32; background:#e8f5e9; color:#2e7d32; border-radius:6px; cursor:pointer; font-weight:700; font-size:13px; }
+  .cv-apply:hover{ background:#d3ecd6; }
   .btn-next,.btn-back{ padding:13px 30px; font-size:15px; }
   .wiz-btns{ margin-top:22px; }
   .freight-box{ padding:14px 16px; }
@@ -738,6 +746,10 @@ function addRow(data){
     else row.remove();
     saveDraft(); render(); deriveFreightFromItems();
   });
+  row.querySelector(".i-l").addEventListener("change",()=>{   // 長さ→入数の初期値（未入力時のみ・手修正可）
+    const inEl=row.querySelector(".i-in");
+    if(!inEl.value){ const d=NYUSU_DEF[Number(row.querySelector(".i-l").value)]; if(d) inEl.value=d; }
+  });
   ["i-grade","i-t","i-w","i-l"].forEach(c=> row.querySelector("."+c).addEventListener("change",()=>{ applyAutoPrice(row); updateAmt(row); saveDraft(); render(); deriveFreightFromItems(); }));
   row.querySelector(".i-name").addEventListener("input",()=>{ applyAutoPrice(row); updateAmt(row); saveDraft(); render();
     const rows=[...document.querySelectorAll(".item-row")]; if(row===rows[rows.length-1] && readRow(row).name) addRow(); });
@@ -969,6 +981,45 @@ function fitPreview(){
 let flashTO;
 function flash(msg){ let el=$("#flash"); if(!el){ el=document.createElement("div"); el.id="flash"; el.style.cssText="position:fixed;bottom:18px;left:18px;background:#222;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;z-index:99;opacity:.95"; document.body.appendChild(el);} el.textContent=msg; el.style.display="block"; clearTimeout(flashTO); flashTO=setTimeout(()=>el.style.display="none",1600); }
 
+/* ---- 必要数量計算（畳・㎡→束数）＋入数の長さ連動デフォルト ---- */
+const NYUSU_DEF={910:20,1820:20,2000:10,3000:10,4000:8};   // 長さ→入数の初期値（明細で手修正可）
+const JO_M2=1.62;                                           // 1畳=1.62㎡
+function firstFilledRow(){ return [...document.querySelectorAll(".item-row")].find(r=>{const it=readRow(r); return it.l||it.name;}); }
+function workingWidth(w){ w=Number(w)||0; return w>12 ? w-12 : w; }   // 働き幅の目安=幅−12mm（実さね分）
+function syncCalcFromItems(){
+  const row=firstFilledRow();
+  if(!row){ flash("明細がまだありません（品名か長さを入れてから）"); return; }
+  const it=readRow(row);
+  if(it.w) $("#cv-w").value=workingWidth(it.w);
+  if(it.l) $("#cv-l").value=it.l;
+  const n=parseInt(it.in)||NYUSU_DEF[Number(it.l)]||"";
+  if(n) $("#cv-n").value=n;
+  calcQtyTool();
+}
+function calcQtyTool(){
+  const box=$("#cv-result"); if(!box) return;
+  const val=parseFloat($("#cv-val").value)||0, unit=$("#cv-unit").value;
+  const w=parseFloat($("#cv-w").value)||0, l=parseFloat($("#cv-l").value)||0, n=parseFloat($("#cv-n").value)||0;
+  if(!val||!w||!l||!n){ box.innerHTML='<div class="fb-note">広さ・働き幅・長さ・入数がそろうと必要束数を計算します。</div>'; return; }
+  const area=(unit==="jo") ? val*JO_M2 : val;
+  const per=(w/1000)*(l/1000)*n;                 // 1束あたり㎡
+  const pure=Math.ceil(area/per), loss=Math.ceil(area*1.1/per);
+  box.innerHTML=`<div>必要面積 <b>${area.toFixed(2)}㎡</b> ／ 1束あたり <b>${per.toFixed(2)}㎡</b>（働き幅${w}×長さ${l}×${n}枚）</div>
+    <div class="cv-line">
+      <span>純面積：<b>${pure}束</b></span><button type="button" class="cv-apply" data-q="${pure}">この束数を明細へ</button>
+      <span class="cv-sep">ロス1割込み：<b>${loss}束</b></span><button type="button" class="cv-apply" data-q="${loss}">この束数を明細へ</button>
+    </div>`;
+  box.querySelectorAll(".cv-apply").forEach(b=> b.addEventListener("click",()=>applyCalcQty(parseInt(b.dataset.q))));
+}
+function applyCalcQty(q){
+  if(!q) return;
+  let row=firstFilledRow() || document.querySelector(".item-row"); if(!row) return;
+  const qe=row.querySelector(".i-qty");
+  if(![...qe.options].some(o=>o.value===String(q))) qe.add(new Option(String(q),String(q)));
+  qe.value=String(q); qe.dispatchEvent(new Event("change",{bubbles:true}));
+  flash("数量 "+q+"束 を明細に反映しました");
+}
+
 /* ---- ウィザード（3ステップ）：既存フィールドをステップ単位に並べ替え ---- */
 function elFrom(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; }
 let currentStep=1; const paneEls={}; let wizStageEl=null;
@@ -1015,10 +1066,21 @@ function buildWizard(){
   pickerBox.appendChild(elFrom(`<div class="cust-current">選択中：<b id="cust-current">（未選択）</b><span id="cust-method-tag"></span></div>`));
   pane1.append(row1, picker);
 
-  /* ステップ2：明細／配送業者・運賃・納期／送料自動計算 */
+  /* ステップ2：明細／必要数量計算／配送業者・運賃・納期／送料自動計算 */
   pane2.append(gridWrap, addBar);
+  const calcBox=elFrom(`<div class="freight-box calc-box">
+    <div class="fb-title"><span>📐 必要数量を計算（畳・㎡ → 束数）</span><button type="button" class="fb-apply-top" id="cv-sync">明細から取得</button></div>
+    <div class="fb-grid cv-grid">
+      <div><label>広さ</label><div class="cv-inline"><input id="cv-val" type="number" step="0.5" min="0" placeholder="例 6"><select id="cv-unit"><option value="jo">畳</option><option value="m2">㎡</option></select></div></div>
+      <div><label>働き幅（mm）</label><input id="cv-w" type="number" step="1" placeholder="108"></div>
+      <div><label>長さ（mm）</label><input id="cv-l" type="number" step="1" placeholder="910"></div>
+      <div><label>入数（枚）</label><input id="cv-n" type="number" step="1" placeholder="20"></div>
+    </div>
+    <div class="fb-note">※1畳=1.62㎡で換算。働き幅＝実（さね）を除いた有効幅で、「明細から取得」は幅−12mmの目安を入れます（例 120→108）。実寸に合わせて手修正OK。</div>
+    <div class="fb-result" id="cv-result"></div>
+  </div>`);
   const row2=elFrom(`<div class="wrow mt"></div>`); row2.append(fCarrier, fFreight, fNouki);
-  pane2.append(row2, freightBox);
+  pane2.append(calcBox, row2, freightBox);
 
   /* 常時表示ユーティリティ（見積書フォルダ／データベース）をナビ右へ移動＝全ステップで使える */
   const btnFolder=document.getElementById("btn-folder"), btnDb=document.getElementById("btn-db");
@@ -1046,6 +1108,9 @@ function buildWizard(){
   $("#wiz-next").addEventListener("click",()=>{ if(validateStep(currentStep)) goStep(Math.min(3,currentStep+1)); });
   $("#cust-search").addEventListener("input",e=>renderCustChips(e.target.value));
   $("#f-customer").addEventListener("input", classifyTyped);
+  $("#cv-sync").addEventListener("click", syncCalcFromItems);
+  ["#cv-val","#cv-unit","#cv-w","#cv-l","#cv-n"].forEach(s=> $(s).addEventListener("input", calcQtyTool));
+  calcQtyTool();
 }
 function goStep(n){
   currentStep=n;
