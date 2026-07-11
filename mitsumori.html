@@ -217,8 +217,11 @@
 </style>
 <style>
   /* ===== PC全画面 最適化（PC専用運用・入力左／A4プレビュー常時右） ===== */
-  .app{ max-width:min(1760px, 98vw); gap:26px; padding:16px 22px; align-items:flex-start; }
+  .app{ max-width:min(1760px, 98vw); margin:0 auto; gap:26px; padding:16px 22px; align-items:flex-start; }
   .panel{ flex:1 1 560px; min-width:0; position:static; max-height:none; overflow:visible; padding:20px 26px; }
+  /* ステップ1・2（プレビュー非表示）：パネルを適正幅で中央寄せ */
+  .app.single{ justify-content:center; }
+  .app.single .panel{ flex:0 1 940px; max-width:940px; }
   .stage{ flex:1 1 800px; position:sticky; top:16px; align-self:flex-start; max-height:calc(100vh - 32px); overflow:auto; display:flex; justify-content:center; }
   h1{ text-align:left; font-size:20px; }
   .sub{ font-size:13px; }
@@ -1118,6 +1121,7 @@ function goStep(n){
   paneEls[2].classList.toggle("show", n===2||n===3);
   paneEls[3].classList.toggle("show", n===3);
   if(wizStageEl) wizStageEl.style.display=(n===3)?"":"none";   // プレビューは確認（ステップ3）のみ表示
+  document.querySelector(".app").classList.toggle("single", n!==3);   // 1・2はパネルを中央寄せ・適正幅に
   document.querySelectorAll(".wiz-nav .wiz-step").forEach(s=>{ const i=+s.dataset.go; s.classList.toggle("active",i===n); s.classList.toggle("done",i<n); });
   const back=$("#wiz-back"), next=$("#wiz-next");
   if(back) back.style.visibility=(n===1)?"hidden":"visible";
