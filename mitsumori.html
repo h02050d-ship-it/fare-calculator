@@ -640,6 +640,70 @@ async function loadCustomerCandidates(){
   }catch(e){ mergeLocalIntoMaster(); renderCustChips(""); updateCustCurrent(); }
 }
 
+/* ---- 顧客マスタAPI（fax-desk partners）を取引先候補にマージ ----
+   このツールはログインが無い公開ツールなので、同一オリジンの他ツール
+   （salesboard / 西濃デスク）が保存した資格情報を localStorage から拝借する。
+   資格情報が無ければ何もしない（従来動作のまま）。失敗は完全に無音でスキップ。 */
+const PARTNERS_URL = "https://script.google.com/macros/s/AKfycbxQCf2HVfLjUAzOYXJHzzhquN3zkNrUAgcusg3mH5uhlm-UySsDYXBChhLjZGI2DyecIg/exec";
+const PARTNERS_CACHE_KEY = "mitsumori_partners";
+const PARTNERS_CACHE_MS = 30*60*1000;      // sessionStorage 30分キャッシュ
+// 同一オリジンの他ツールが保存した資格情報を拝借（壊れたJSON・別形式でも例外で死なない）
+function borrowCred(){
+  for(const k of ["hayazai_board_cred","seinodesk_cred"]){
+    try{
+      const raw=localStorage.getItem(k); if(!raw) continue;
+      const c=JSON.parse(raw);
+      if(c && c.email && c.pass) return {email:String(c.email), pass:String(c.pass)};
+    }catch(e){ /* 壊れたJSON等は無視して次のキーへ */ }
+  }
+  return null;
+}
+// 重複排除用の正規化名（空白除去＋全角括弧→半角＋株式会社→(株)／有限会社→(有)）
+function custNormKey(name){
+  let s=(name==null?"":String(name)).trim();
+  s=s.replace(/株式会社/g,"(株)").replace(/有限会社/g,"(有)");
+  s=s.replace(/（/g,"(").replace(/）/g,")");
+  s=s.replace(/[\s　]/g,"");
+  return s;
+}
+// partners を取得（sessionStorageキャッシュ→無ければfetch。15秒タイムアウト・失敗はnull）
+async function fetchPartners(cred){
+  try{
+    const cached=JSON.parse(sessionStorage.getItem(PARTNERS_CACHE_KEY)||"null");
+    if(cached && Array.isArray(cached.list) && cached.at && (Date.now()-cached.at)<PARTNERS_CACHE_MS) return cached.list;
+  }catch(e){ /* キャッシュ破損は無視して取得へ */ }
+  const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),15000);
+  try{
+    const url=PARTNERS_URL+"?action=partners&email="+encodeURIComponent(cred.email)+"&pass="+encodeURIComponent(cred.pass);
+    const r=await fetch(url,{signal:ctrl.signal});
+    const j=await r.json();
+    if(!j || !j.ok || !Array.isArray(j.partners)) return null;
+    try{ sessionStorage.setItem(PARTNERS_CACHE_KEY, JSON.stringify({at:Date.now(), list:j.partners})); }catch(e){}
+    return j.partners;
+  }catch(e){ return null; }        // タイムアウト/通信/JSON失敗すべて無音
+  finally{ clearTimeout(to); }
+}
+// 取引先候補（datalist＋チップ）に、まだ無い名前だけを追加する（既存候補は消さない）
+async function loadPartnerCustomers(){
+  const cred=borrowCred(); if(!cred) return;               // 資格情報が無ければ従来通り（変化ゼロ）
+  const partners=await fetchPartners(cred);
+  if(!Array.isArray(partners) || !partners.length) return;
+  const seen=new Set();                                    // 既存名の正規化キー（チップ＋localStorage候補）
+  custMaster.forEach(c=> seen.add(custNormKey(c.name)));
+  loadCands().forEach(n=> seen.add(custNormKey(n)));
+  let added=0;
+  partners.forEach(p=>{
+    const name=(p && p.name!=null ? String(p.name) : "").trim();
+    if(!name || isJunkCust(name)) return;
+    const key=custNormKey(name); if(!key || seen.has(key)) return;
+    seen.add(key);
+    custMaster.push({name, method:null});                  // マスタ側に取引区分は無い→新規（直売）扱い
+    addCandidate(name, true);                              // datalist（localStorage候補）にも反映
+    added++;
+  });
+  if(added){ renderCustomerDatalist(); renderCustChips($("#cust-search")?$("#cust-search").value:""); updateCustCurrent(); }
+}
+
 
 /* ========== 送料計算：運賃ツール(index.html)を隠しiframeで呼び出し、その結果をそのまま使う ==========
    → 数値も内訳も運賃ツールと完全一致。改定も自動反映。送料は全チャネル統一の「税込」。 */
@@ -1193,7 +1257,7 @@ function init(){
   renderHist();
 
   $("#price-status").textContent="価格表：内蔵データ";
-  refreshPricebook(); refreshYahooPrices(); loadCustomerCandidates(); loadDbHistory(); fetchFolderUrl();
+  refreshPricebook(); refreshYahooPrices(); loadCustomerCandidates().then(loadPartnerCustomers); loadDbHistory(); fetchFolderUrl();
 
   window.addEventListener("resize",()=>{ if(currentStep===3) fitPreview(); });
   window.addEventListener("beforeprint",()=>{ const st=document.querySelector(".stage"); st.style.display=""; $("#sheet").style.transform="none"; st.style.height="auto"; });
