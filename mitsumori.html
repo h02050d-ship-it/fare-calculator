@@ -208,7 +208,10 @@
   .manage-hint{font-size:12px;color:#c62828;background:#fff3f3;border:1px solid #f3c0c0;border-radius:8px;padding:6px 10px;margin-bottom:8px}
   .cust-chip.del{border-color:#e57373;background:#fff5f5}
   .cust-chip.del:hover{border-color:#c62828;background:#ffebeb}
-  .cust-chip.del .x{color:#c62828;font-weight:700;margin-left:6px}
+  .cust-chip.del .x{color:#c62828;font-weight:700;margin-left:8px;padding:2px 5px;border-radius:6px}
+  .cust-chip.del .x:hover{background:#c62828;color:#fff}
+  .cust-chip.del .m{cursor:pointer;border:1px solid #90a4ae;border-left:1px solid #90a4ae;border-radius:6px;padding:2px 7px;margin-left:6px;background:#eceff1;color:#37474f;font-size:11px;font-weight:700;opacity:1}
+  .cust-chip.del .m:hover{background:#2e7d32;border-color:#2e7d32;color:#fff}
   .cust-hidden-sec{margin-top:12px;padding-top:10px;border-top:2px dashed #ddd}
   .chs-head{font-size:12px;color:#777;margin-bottom:6px}
   .cust-chip.ghost{background:#f2f2f2;color:#999;border-style:dashed}
@@ -613,11 +616,12 @@ function renderCustChips(filter){
   if(!list.length && !custManage){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
   const groups={};
   list.forEach(c=>{ const g=yomiRow(c.name); (groups[g]=groups[g]||[]).push(c); });
-  const chipHTML=c=>{ const t=c.method==="市売"?"市":c.method==="付売"?"付":"ネ"; const sel=(c.name===cur)?" sel":"";
-    const del=custManage?" del":""; const x=custManage?'<span class="x">✕</span>':"";
-    return `<button type="button" class="cust-chip${sel}${del}" data-name="${esc(c.name)}" data-method="${esc(c.method||"")}">${esc(c.name)}<span class="m">${t}</span>${x}</button>`; };
+  const chipHTML=c=>{ const em=methodOf(c.name, c.method); const t=em==="市売"?"市":em==="付売"?"付":"ネ"; const sel=(c.name===cur)?" sel":"";
+    const del=custManage?" del":""; const x=custManage?'<span class="x" title="この取引先を非表示にする">✕</span>':"";
+    const mTitle=custManage?' title="クリックで取引方法を切替（市→付→ネ）"':"";
+    return `<button type="button" class="cust-chip${sel}${del}" data-name="${esc(c.name)}" data-method="${esc(em||"")}">${esc(c.name)}<span class="m"${mTitle}>${t}</span>${x}</button>`; };
   let html="";
-  if(custManage) html+='<div class="manage-hint">整理モード：✕を押すと候補一覧から非表示になります（下の「非表示中」からいつでも戻せます）</div>';
+  if(custManage) html+='<div class="manage-hint">整理モード：<b>✕</b>＝非表示（下の「非表示中」から戻せます）／<b>市・付・ネ</b>のタグをクリック＝取引方法を切替（市売→付売→直売ネット）</div>';
   GYO_ORDER.forEach(g=>{ const arr=groups[g]; if(!arr||!arr.length) return;
     arr.sort((a,b)=>yomiSortKey(a.name).localeCompare(yomiSortKey(b.name),"ja"));
     html+=`<div class="cust-group"><div class="cg-head">${g}</div><div class="cg-chips">${arr.map(chipHTML).join("")}</div></div>`;
@@ -630,7 +634,12 @@ function renderCustChips(filter){
   box.innerHTML=html;
   box.querySelectorAll(".cust-chip").forEach(ch=>{
     if(ch.dataset.hname!==undefined){ ch.addEventListener("click",()=>{ unhideCust(ch.dataset.hname); renderCustomerDatalist(); renderCustChips(f); }); }
-    else if(custManage){ ch.addEventListener("click",()=>{ hideCust(ch.dataset.name); renderCustomerDatalist(); renderCustChips(f); }); }
+    else if(custManage){
+      ch.addEventListener("click",e=>{
+        if(e.target.classList.contains("m")){ cycleMethod(ch.dataset.name); renderCustChips(f); updateCustCurrent(); }
+        else if(e.target.classList.contains("x")){ hideCust(ch.dataset.name); renderCustomerDatalist(); renderCustChips(f); }
+      });
+    }
     else ch.addEventListener("click",()=> pickCustomer(ch.dataset.name, ch.dataset.method||null));
   });
   const ua=box.querySelector("#cust-unhide-all"); if(ua) ua.addEventListener("click",()=>{ saveHidden([]); renderCustomerDatalist(); renderCustChips(f); });
@@ -644,7 +653,7 @@ function pickCustomer(name, method){
 function classifyTyped(){
   const name=$("#f-customer").value.trim();
   const m=custMaster.find(c=>c.name===name);
-  setKubun(m ? (m.method||"直売") : "直売");
+  setKubun(methodOf(name, m?m.method:null) || "直売");
   updateCustCurrent(); renderCustChips($("#cust-search")?$("#cust-search").value:"");
 }
 function updateCustCurrent(){
@@ -652,7 +661,8 @@ function updateCustCurrent(){
   const name=($("#f-customer")?$("#f-customer").value.trim():"");
   el.textContent=name||"（未選択）";
   const m=custMaster.find(c=>c.name===name);
-  const label=name ? (m ? (m.method||"直売（ネット）") : "直売（ネット・新規）") : "";
+  const eff=methodOf(name, m?m.method:null);
+  const label=name ? (m ? (eff||"直売（ネット）") : (eff||"直売（ネット・新規）")) : "";
   if(tag) tag.textContent=label?("／ 取引方法："+label):"";
 }
 async function loadCustomerCandidates(){
@@ -797,6 +807,19 @@ function saveHidden(a){ localStorage.setItem(LS_HIDE, JSON.stringify(a)); }
 function hiddenKeySet(){ return new Set(loadHidden().map(n=>custNormKey(n))); }
 function hideCust(name){ const a=loadHidden(); const k=custNormKey(name); if(!a.some(x=>custNormKey(x)===k)) a.push(name); saveHidden(a); }
 function unhideCust(name){ const k=custNormKey(name); saveHidden(loadHidden().filter(x=>custNormKey(x)!==k)); }
+
+/* ---- 取引方法の上書き（市売/付売/直売をツール側で設定。マスタ本体は触らない）---- */
+const LS_METHOD = "hayazai_mitsumori_method_ovr";
+function loadMethodOvr(){ try{ return JSON.parse(localStorage.getItem(LS_METHOD))||{}; }catch(e){ return {}; } }
+function saveMethodOvr(m){ localStorage.setItem(LS_METHOD, JSON.stringify(m)); }
+// 実効の取引方法（上書きがあれば優先。返り値は "市売"|"付売"|null(=直売)）
+function methodOf(name, base){ const o=loadMethodOvr()[custNormKey(name)]; if(o==="市売"||o==="付売") return o; if(o==="直売") return null; return base||null; }
+function cycleMethod(name){
+  const base=(custMaster.find(c=>c.name===name)||{}).method;
+  const cur=methodOf(name, base);
+  const next=cur==="市売"?"付売":cur==="付売"?"直売":"市売";   // 市→付→ネ→市…
+  const m=loadMethodOvr(); m[custNormKey(name)]=next; saveMethodOvr(m);
+}
 
 /* ---- 明細行 ---- */
 const QTY_MAX = 40;
