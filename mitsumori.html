@@ -201,6 +201,18 @@
   .cust-chip.sel{background:#2e7d32;color:#fff;border-color:#2e7d32}
   .cust-chip .m{font-size:10px;opacity:.75;margin-left:5px;border-left:1px solid rgba(0,0,0,.15);padding-left:5px}
   .cust-chip.sel .m{border-left-color:rgba(255,255,255,.4)}
+  .cust-tools{display:flex;gap:8px;margin-bottom:8px}
+  .cust-tools .cust-search{flex:1;margin-bottom:0}
+  #cust-manage{border:1px solid #ccc;background:#fff;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit}
+  #cust-manage.on{background:#c62828;border-color:#c62828;color:#fff}
+  .manage-hint{font-size:12px;color:#c62828;background:#fff3f3;border:1px solid #f3c0c0;border-radius:8px;padding:6px 10px;margin-bottom:8px}
+  .cust-chip.del{border-color:#e57373;background:#fff5f5}
+  .cust-chip.del:hover{border-color:#c62828;background:#ffebeb}
+  .cust-chip.del .x{color:#c62828;font-weight:700;margin-left:6px}
+  .cust-hidden-sec{margin-top:12px;padding-top:10px;border-top:2px dashed #ddd}
+  .chs-head{font-size:12px;color:#777;margin-bottom:6px}
+  .cust-chip.ghost{background:#f2f2f2;color:#999;border-style:dashed}
+  .cust-chip.ghost:hover{border-color:#2e7d32;color:#2e7d32;background:#f0f7f0}
   .cust-current{margin-top:10px;font-size:13px;color:#333}
   .cust-current b{color:#2e7d32}
   #cust-method-tag{color:#777;margin-left:6px}
@@ -590,24 +602,38 @@ function mergeLocalIntoMaster(){
   const names=new Set(custMaster.map(c=>c.name));
   loadCands().forEach(n=>{ if(n && !isJunkCust(n) && !names.has(n)){ custMaster.push({name:n, method:null}); names.add(n); } });
 }
+let custManage=false;   // 🗂 リスト整理モード（✕で非表示にする）
 function renderCustChips(filter){
   const box=$("#cust-list-box"); if(!box) return;
   const f=(filter||"").trim();
   const cur=($("#f-customer")?$("#f-customer").value.trim():"");
-  let list=custMaster.filter(c=>!isJunkCust(c.name));
+  const hid=hiddenKeySet();
+  let list=custMaster.filter(c=>!isJunkCust(c.name) && !hid.has(custNormKey(c.name)));
   if(f) list=list.filter(c=>c.name.indexOf(f)>=0);
-  if(!list.length){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
+  if(!list.length && !custManage){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
   const groups={};
   list.forEach(c=>{ const g=yomiRow(c.name); (groups[g]=groups[g]||[]).push(c); });
   const chipHTML=c=>{ const t=c.method==="市売"?"市":c.method==="付売"?"付":"ネ"; const sel=(c.name===cur)?" sel":"";
-    return `<button type="button" class="cust-chip${sel}" data-name="${esc(c.name)}" data-method="${esc(c.method||"")}">${esc(c.name)}<span class="m">${t}</span></button>`; };
+    const del=custManage?" del":""; const x=custManage?'<span class="x">✕</span>':"";
+    return `<button type="button" class="cust-chip${sel}${del}" data-name="${esc(c.name)}" data-method="${esc(c.method||"")}">${esc(c.name)}<span class="m">${t}</span>${x}</button>`; };
   let html="";
+  if(custManage) html+='<div class="manage-hint">整理モード：✕を押すと候補一覧から非表示になります（下の「非表示中」からいつでも戻せます）</div>';
   GYO_ORDER.forEach(g=>{ const arr=groups[g]; if(!arr||!arr.length) return;
     arr.sort((a,b)=>yomiSortKey(a.name).localeCompare(yomiSortKey(b.name),"ja"));
     html+=`<div class="cust-group"><div class="cg-head">${g}</div><div class="cg-chips">${arr.map(chipHTML).join("")}</div></div>`;
   });
+  if(custManage){
+    let hiddenNames=loadHidden(); if(f) hiddenNames=hiddenNames.filter(n=>n.indexOf(f)>=0);
+    html+=`<div class="cust-hidden-sec"><div class="chs-head">非表示中（クリックで戻す）${hiddenNames.length?'　<button type="button" class="editlist" id="cust-unhide-all">すべて戻す</button>':""}</div><div class="cg-chips">`+
+      (hiddenNames.length ? hiddenNames.map(n=>`<button type="button" class="cust-chip ghost" data-hname="${esc(n)}">${esc(n)}</button>`).join("") : '<span class="muted">非表示の取引先はありません</span>')+`</div></div>`;
+  }
   box.innerHTML=html;
-  box.querySelectorAll(".cust-chip").forEach(ch=> ch.addEventListener("click",()=> pickCustomer(ch.dataset.name, ch.dataset.method||null)));
+  box.querySelectorAll(".cust-chip").forEach(ch=>{
+    if(ch.dataset.hname!==undefined){ ch.addEventListener("click",()=>{ unhideCust(ch.dataset.hname); renderCustomerDatalist(); renderCustChips(f); }); }
+    else if(custManage){ ch.addEventListener("click",()=>{ hideCust(ch.dataset.name); renderCustomerDatalist(); renderCustChips(f); }); }
+    else ch.addEventListener("click",()=> pickCustomer(ch.dataset.name, ch.dataset.method||null));
+  });
+  const ua=box.querySelector("#cust-unhide-all"); if(ua) ua.addEventListener("click",()=>{ saveHidden([]); renderCustomerDatalist(); renderCustChips(f); });
 }
 function pickCustomer(name, method){
   $("#f-customer").value=name;
@@ -762,7 +788,15 @@ const LS_CUST = "hayazai_mitsumori_customers";
 function loadCands(){ try{ return JSON.parse(localStorage.getItem(LS_CUST))||[]; }catch(e){ return []; } }
 function saveCands(a){ localStorage.setItem(LS_CUST, JSON.stringify(a.slice(0,500))); }
 function addCandidate(name, persist){ name=(name||"").trim(); if(!name) return; const a=loadCands(); if(!a.includes(name)){ a.push(name); if(persist!==false) saveCands(a); else { window._candCache=a; localStorage.setItem(LS_CUST, JSON.stringify(a.slice(0,500))); } } }
-function renderCustomerDatalist(){ const dl=$("#dl-customer"); const a=loadCands().sort((x,y)=>x.localeCompare(y,"ja")); dl.innerHTML=a.map(v=>`<option value="${esc(v)}">`).join(""); }
+function renderCustomerDatalist(){ const dl=$("#dl-customer"); const hid=hiddenKeySet(); const a=loadCands().filter(n=>!hid.has(custNormKey(n))).sort((x,y)=>x.localeCompare(y,"ja")); dl.innerHTML=a.map(v=>`<option value="${esc(v)}">`).join(""); }
+
+/* ---- 非表示リスト（見積に関係ない取引先を候補から隠す。マスタ本体は消さない）---- */
+const LS_HIDE = "hayazai_mitsumori_hidden";
+function loadHidden(){ try{ return JSON.parse(localStorage.getItem(LS_HIDE))||[]; }catch(e){ return []; } }
+function saveHidden(a){ localStorage.setItem(LS_HIDE, JSON.stringify(a)); }
+function hiddenKeySet(){ return new Set(loadHidden().map(n=>custNormKey(n))); }
+function hideCust(name){ const a=loadHidden(); const k=custNormKey(name); if(!a.some(x=>custNormKey(x)===k)) a.push(name); saveHidden(a); }
+function unhideCust(name){ const k=custNormKey(name); saveHidden(loadHidden().filter(x=>custNormKey(x)!==k)); }
 
 /* ---- 明細行 ---- */
 const QTY_MAX = 40;
@@ -1131,7 +1165,10 @@ function buildWizard(){
   const picker=elFrom(`<div class="field" style="margin-top:12px">
     <label>取引先（クリックで選択。<b>市</b>＝市売／<b>付</b>＝付売／<b>ネ</b>＝直売ネット）</label>
     <div class="cust-picker">
-      <input class="cust-search" id="cust-search" placeholder="🔍 社名で絞り込み" autocomplete="off">
+      <div class="cust-tools">
+        <input class="cust-search" id="cust-search" placeholder="🔍 社名で絞り込み" autocomplete="off">
+        <button type="button" id="cust-manage" title="見積に関係ない取引先を一覧から非表示にできます">🗂 リスト整理</button>
+      </div>
       <div class="cust-list" id="cust-list-box"></div>
     </div>
   </div>`);
@@ -1181,6 +1218,11 @@ function buildWizard(){
   $("#wiz-back").addEventListener("click",()=>goStep(Math.max(1,currentStep-1)));
   $("#wiz-next").addEventListener("click",()=>{ if(validateStep(currentStep)) goStep(Math.min(3,currentStep+1)); });
   $("#cust-search").addEventListener("input",e=>renderCustChips(e.target.value));
+  $("#cust-manage").addEventListener("click",()=>{
+    custManage=!custManage;
+    const b=$("#cust-manage"); b.classList.toggle("on",custManage); b.textContent=custManage?"✅ 整理を終了":"🗂 リスト整理";
+    renderCustChips($("#cust-search")?$("#cust-search").value:"");
+  });
   $("#f-customer").addEventListener("input", classifyTyped);
   $("#cv-sync").addEventListener("click", syncCalcFromItems);
   ["#cv-val","#cv-unit","#cv-w","#cv-l","#cv-n"].forEach(s=> $(s).addEventListener("input", calcQtyTool));
