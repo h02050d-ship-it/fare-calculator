@@ -510,9 +510,12 @@ function buildPricebook(){
 buildPricebook();
 function priceFor(kubun, it){
   if(!it.name || !it.grade || !it.t || !it.w || !it.l) return null;
+  // ナイスは取引方法が市売でも付売価格を適用（表示上の取引方法は市売のまま／今後の営業所も自動）
+  var _cust=($("#f-customer")?$("#f-customer").value.trim():"");
+  var pk = (/ナイス/.test(_cust) && kubun==="市売") ? "付売" : kubun;
   const key=`${it.name}|${it.t}|${it.w}|${it.l}`;
-  if(kubun==="市売" || kubun==="付売"){ const g=PRICEBOOK[kubun][key]; if(g && g[it.grade]!=null) return {price:g[it.grade], incl:false}; return null; }
-  if(kubun==="直売"){ const yp=yahooPriceFor(it); if(yp!=null) return {price:Math.round(yp*0.95/1.1), incl:false}; return null; }
+  if(pk==="市売" || pk==="付売"){ const g=PRICEBOOK[pk][key]; if(g && g[it.grade]!=null) return {price:g[it.grade], incl:false}; return null; }
+  if(pk==="直売"){ const yp=yahooPriceFor(it); if(yp!=null) return {price:Math.round(yp*0.95/1.1), incl:false}; return null; }
   return null;
 }
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
