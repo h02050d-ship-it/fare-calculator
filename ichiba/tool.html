@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>市場さま向け 価格・在庫・見積ツール｜林材木店</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --panel2:#f7f9fc; --ink:#2a3340; --sub:#7a869a;
+    --line:#e3e8ef; --line2:#cfd8e3; --brand:#2f6f4f; --brand2:#3a8a63; --accent:#1d4e89;
+    --ichi:#1d4e89; --tsuke:#b06a1f;
+    --ok:#2e7d4f; --warn:#c98a1e; --ng:#b0483a;
+    --shadow:0 1px 3px rgba(30,40,60,.08),0 3px 14px rgba(30,40,60,.05);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 14px 120px; }
+
+  header.top{ background:linear-gradient(120deg,#274b73,#1d4e89); color:#fff; padding:16px 16px 14px; }
+  header.top .in{ max-width:1080px; margin:0 auto; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header.top h1{ font-size:18px; margin:0; font-weight:800; letter-spacing:.02em; }
+  header.top .sub{ font-size:12px; opacity:.85; }
+  header.top .who{ margin-left:auto; font-size:12px; opacity:.9; display:flex; gap:10px; align-items:center; }
+  header.top .who button{ background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:7px; padding:5px 10px; font-size:12px; cursor:pointer; font-family:inherit; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; box-shadow:var(--shadow); }
+  .card h2{ font-size:16px; margin:0 0 3px; display:flex; align-items:center; gap:8px; }
+  .card h2 .badge{ font-size:11px; font-weight:700; color:#fff; background:var(--brand); border-radius:20px; padding:2px 9px; }
+  .card .h2sub{ font-size:12px; color:var(--sub); margin:0 0 14px; }
+
+  .seg{ display:inline-flex; border:1.5px solid var(--line2); border-radius:10px; overflow:hidden; background:#fff; }
+  .seg button{ border:none; background:transparent; color:var(--sub); font-family:inherit; font-size:13.5px; font-weight:700; padding:8px 20px; cursor:pointer; }
+  .seg button.on{ color:#fff; }
+  .seg.method button.on[data-v="市売"]{ background:var(--ichi); }
+  .seg.method button.on[data-v="付売"]{ background:var(--tsuke); }
+  .seg.thick button.on{ background:#556; }
+  .toolbar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .toolbar .lbl{ font-size:12.5px; font-weight:700; color:var(--sub); }
+  .method-hint{ font-size:12px; color:var(--sub); }
+  .method-hint b.ichi{ color:var(--ichi); } .method-hint b.tsuke{ color:var(--tsuke); }
+
+  .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:10px; }
+  table.grid{ width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:600px; }
+  table.grid th, table.grid td{ border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:9px 7px; text-align:center; white-space:nowrap; }
+  table.grid tr th:last-child, table.grid tr td:last-child{ border-right:none; }
+  table.grid tr:last-child td, table.grid tr:last-child th{ border-bottom:none; }
+  table.grid thead th{ background:var(--panel2); font-size:12px; color:var(--ink); font-weight:700; }
+  table.grid tbody th{ background:var(--panel2); font-weight:700; text-align:left; padding-left:12px; }
+  table.grid tbody th small{ display:block; font-size:10px; color:var(--sub); font-weight:500; }
+  .ptype{ font-size:13.5px; font-weight:800; color:var(--ink); margin:14px 0 7px; display:flex; align-items:center; gap:10px; }
+  .ptype:first-child{ margin-top:0; }
+  .ptype .tag{ font-size:11px; font-weight:600; color:var(--sub); background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 7px; }
+
+  .pcell{ cursor:pointer; transition:background .1s; }
+  .pcell:hover{ background:#eef6f0; }
+  .pcell .num{ font-weight:700; font-size:14.5px; }
+  .pcell .add{ display:block; font-size:10px; color:var(--brand); font-weight:700; opacity:0; }
+  .pcell:hover .add{ opacity:1; }
+  .pcell.na{ color:#c3ccd8; cursor:default; background:#fafbfc; }
+  .pcell.na:hover{ background:#fafbfc; }
+
+  /* 在庫グリッド */
+  .stk-cell{ font-weight:700; }
+  .stk-o{ color:var(--ok); } .stk-a{ color:var(--warn); } .stk-x{ color:var(--ng); } .stk-none{ color:#c3ccd8; font-weight:500; }
+  .stk-cell small{ display:block; font-size:10px; font-weight:600; }
+  .stk-meta{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--sub); margin-top:8px; }
+  .stk-meta button{ border:1px solid var(--line2); background:#fff; border-radius:7px; padding:5px 11px; font-size:12px; cursor:pointer; font-family:inherit; color:var(--ink); }
+  .stk-legend{ display:flex; gap:12px; flex-wrap:wrap; font-size:11.5px; }
+  .stk-note{ font-size:11.5px; color:var(--sub); margin-top:6px; }
+
+  /* 見積 */
+  .qwrap{ display:grid; grid-template-columns:1fr; gap:0; }
+  table.qt{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:640px; }
+  table.qt th{ background:var(--panel2); border-bottom:2px solid var(--line2); padding:8px; font-size:12px; color:var(--sub); text-align:right; }
+  table.qt th.l{ text-align:left; }
+  table.qt td{ border-bottom:1px solid var(--line); padding:8px; text-align:right; white-space:nowrap; }
+  table.qt td.l{ text-align:left; white-space:normal; }
+  table.qt .mtag{ font-size:10.5px; font-weight:700; border-radius:4px; padding:1px 6px; color:#fff; }
+  table.qt .mtag.ichi{ background:var(--ichi); } table.qt .mtag.tsuke{ background:var(--tsuke); }
+  table.qt input.qy{ width:60px; text-align:right; padding:6px; border:1px solid var(--line2); border-radius:7px; font-family:inherit; font-size:13.5px; }
+  table.qt .del{ border:none; background:#fbeceb; color:#b0483a; border-radius:6px; padding:4px 9px; cursor:pointer; font-size:12px; font-family:inherit; }
+  .q-empty{ color:var(--sub); font-size:13.5px; padding:16px; text-align:center; background:var(--panel2); border-radius:10px; }
+
+  .q-foot{ display:grid; grid-template-columns:1.1fr .9fr; gap:20px; margin-top:16px; align-items:start; }
+  @media(max-width:720px){ .q-foot{ grid-template-columns:1fr; } }
+  .q-fields label{ font-size:12px; font-weight:700; color:var(--sub); display:block; margin:0 0 3px; }
+  .q-fields .row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .q-fields input, .q-fields select{ width:100%; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; background:#fff; }
+  .ship-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .ship-row .note{ font-size:11px; color:var(--sub); }
+
+  .sumbox{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .sumbox table{ width:100%; border-collapse:collapse; font-size:14px; }
+  .sumbox th{ text-align:left; font-weight:500; color:var(--sub); padding:5px 4px; }
+  .sumbox td{ text-align:right; font-weight:700; padding:5px 4px; }
+  .sumbox tr.total th{ font-size:15px; color:var(--ink); font-weight:800; border-top:2px solid var(--line2); padding-top:10px; }
+  .sumbox tr.total td{ font-size:22px; color:var(--brand); border-top:2px solid var(--line2); padding-top:10px; }
+  .qbtns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .qbtns button{ flex:1; min-width:150px; border:none; border-radius:10px; padding:13px 10px; font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .b-print{ background:var(--brand); color:#fff; }
+  .b-save{ background:#fff; color:var(--accent); border:2px solid var(--accent) !important; }
+  .b-clear{ background:#f4f6f9; color:var(--sub); border:1px solid var(--line2) !important; }
+  #save-msg{ font-size:12.5px; color:var(--brand); font-weight:700; margin-top:8px; }
+
+  /* ログインゲート */
+  .gate{ max-width:380px; margin:70px auto; }
+  .gate .card{ padding:28px 26px; text-align:center; }
+  .gate h1{ font-size:19px; margin:0 0 4px; }
+  .gate p{ font-size:12.5px; color:var(--sub); margin:0 0 18px; }
+  .gate input{ width:100%; padding:12px; border:2px solid var(--line2); border-radius:11px; font-size:15px; text-align:center; font-family:inherit; margin-bottom:10px; }
+  .gate button{ width:100%; padding:13px; border:none; border-radius:11px; background:var(--accent); color:#fff; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .gate .keep{ font-size:12px; color:var(--sub); margin-top:12px; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .gate .err{ color:#b0483a; font-size:12.5px; font-weight:700; margin-top:8px; min-height:16px; }
+
+  /* 印刷 見積書 */
+  #print-area{ display:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    #print-area, #print-area *{ visibility:visible; }
+    #print-area{ display:block; position:absolute; left:0; top:0; width:100%; padding:12mm 12mm 0; font-size:12px; color:#000; }
+    #print-area h1{ text-align:center; font-size:24px; letter-spacing:.5em; margin:0 0 18px; }
+    #print-area .pa-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+    #print-area .pa-to{ font-size:15px; border-bottom:1px solid #000; padding-bottom:3px; min-width:220px; }
+    #print-area .pa-from{ font-size:11.5px; text-align:right; line-height:1.7; }
+    #print-area .pa-total{ font-size:16px; font-weight:bold; border:2px solid #000; padding:8px 14px; display:inline-block; margin:6px 0 14px; }
+    #print-area table{ width:100%; border-collapse:collapse; }
+    #print-area th,#print-area td{ border:1px solid #555; padding:6px 8px; font-size:11.5px; }
+    #print-area th{ background:#eee; }
+    #print-area td.r{ text-align:right; }
+    #print-area .pa-sum{ width:auto; margin-left:auto; margin-top:8px; }
+    #print-area .pa-sum td{ border:none; padding:3px 8px; }
+    #print-area .pa-sum td.r{ text-align:right; font-weight:bold; }
+    #print-area .pa-note{ font-size:10.5px; color:#333; margin-top:14px; line-height:1.8; white-space:pre-wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+<div id="print-area"></div>
+
+<iframe id="fare-frame" src="../index.html" title="運賃計算" style="position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px;" aria-hidden="true"></iframe>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const fmt = n => (Math.round(n)||0).toLocaleString("ja-JP");
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const todayJP = ()=>{ const t=new Date(); return `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`; };
+
+/* ===== ログイン（市場だけが使える・端末に保持） ===== */
+const PASS = "ichiba2026";
+const LS_AUTH = "hz_ichiba_tool_auth";
+function isAuthed(){ return localStorage.getItem(LS_AUTH)==="1" || sessionStorage.getItem(LS_AUTH)==="1"; }
+
+/* ===== 商品マスタ ===== */
+const GRADES = ["丸節","小節","特上小","無節","無節特上小","生節"];
+const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小", namabushi:"生節" };
+const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
+const PRODUCTS = [
+  { type:"桧フローリング", thicknesses:[15,12], w:120, lengths:[2000,3000,4000] },
+  { type:"桧羽目板",       thicknesses:[12],    w:120, lengths:[2000,3000,4000] }
+];
+const PB_RAW = {
+  "市売": [
+    ["桧フローリング",15,120,2000, 4000,5000,6600,8800,7700,null],
+    ["桧フローリング",15,120,3000, 8000,8800,16500,20000,18000,null],
+    ["桧フローリング",15,120,4000, 8800,12000,20000,24000,22000,13000],
+    ["桧羽目板",12,120,2000, 4000,5000,6600,8800,7700,null],
+    ["桧羽目板",12,120,3000, 8000,8800,16500,20000,18000,null],
+    ["桧羽目板",12,120,4000, 8600,12000,20000,24000,22000,null],
+    ["桧フローリング",12,120,2000, 4000,5000,6600,8800,7700,null],
+    ["桧フローリング",12,120,3000, 8000,8800,16500,20000,18000,null],
+    ["桧フローリング",12,120,4000, 8800,12000,20000,24000,22000,null]
+  ],
+  "付売": [
+    ["桧フローリング",15,120,2000, 3500,4500,6000,8000,7000,null],
+    ["桧フローリング",15,120,3000, 7300,8000,15000,18000,16500,null],
+    ["桧フローリング",15,120,4000, 8000,12000,18000,22000,20000,null],
+    ["桧羽目板",12,120,2000, 3500,4500,6000,8000,7000,null],
+    ["桧羽目板",12,120,3000, 7300,8000,15000,18000,16500,null],
+    ["桧羽目板",12,120,4000, 7800,12000,18000,22000,20000,null],
+    ["桧フローリング",12,120,2000, 3500,4500,6000,8000,7000,null],
+    ["桧フローリング",12,120,3000, 7300,8000,15000,18000,16500,null],
+    ["桧フローリング",12,120,4000, 8000,12000,18000,22000,20000,null]
+  ]
+};
+const PRICEBOOK = { "市売":{}, "付売":{} };
+function buildPricebook(){
+  ["市売","付売"].forEach(k=>{ PRICEBOOK[k]={};
+    PB_RAW[k].forEach(r=>{ const key=`${r[0]}|${r[1]}|${r[2]}|${r[3]}`; const g={};
+      GRADES.forEach((gl,i)=>{ const v=r[4+i]; if(v!=null) g[gl]=v; }); PRICEBOOK[k][key]=g; });
+  });
+}
+buildPricebook();
+function priceOf(method,name,t,w,l,grade){ const g=PRICEBOOK[method][`${name}|${t}|${w}|${l}`]; return (g&&g[grade]!=null)?g[grade]:null; }
+
+/* ===== GAS ===== */
+const GAS_URL   = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec"; // getPrices
+const STOCK_URL = "https://script.google.com/macros/s/AKfycbxvPjDv81vrJMW2GaqpCJooyxxt7__gvMF4mJkmcGNbNS2xGMoXgTnn6_OEPZ3Rr0spdg/exec"; // webboard: api=ichibastock
+const STOCK_TOKEN = "hzy-ichiba-stock-2026";
+const DB_URL    = "https://script.google.com/macros/s/AKfycbzskqossGk7mBeZEY2XrfqE2-MNS5b0PfgX65tpBfowD7mMwqXvueRe7E6Cclob2iFQ/exec"; // saveQuote
+
+async function refreshPricebook(){
+  try{
+    for(const m of ["市売","付売"]){
+      const r=await fetch(GAS_URL+"?action=getPrices&method="+encodeURIComponent(m)); const j=await r.json();
+      const tbl={};
+      (j.prices||[]).forEach(p=>{ const key=`${p.hinmei}|${p.thickness}|${p.width}|${p.length}`; const g={};
+        Object.keys(GRADE_ROMAJI).forEach(rk=>{ const v=p[rk]; if(typeof v==="number" && v>0) g[GRADE_ROMAJI[rk]]=v; }); tbl[key]=g; });
+      if(Object.keys(tbl).length) PRICEBOOK[m]=tbl;
+    }
+    renderPriceTables();
+  }catch(e){}
+}
+
+/* 在庫（A級120mm原板共通・長さ×等級・束数）。webboardのトークン読取口から取得 */
+const STOCK = {};   // "length|grade" -> qty(束)
+let stockUpdated = "", stockOk = false;
+async function refreshStock(){
+  const meta=$("#stk-updated"); if(meta) meta.textContent="在庫を取得中…";
+  try{
+    const r=await fetch(STOCK_URL+"?api=ichibastock&token="+encodeURIComponent(STOCK_TOKEN),{cache:"no-store"});
+    const j=await r.json();
+    if(j&&j.ok&&Array.isArray(j.stock)){
+      for(const k in STOCK) delete STOCK[k];
+      j.stock.forEach(s=>{ STOCK[`${s.length}|${s.grade}`]=s.qty; });
+      stockUpdated=j.updated||todayJP(); stockOk=true;
+    }else{ stockOk=false; }
+  }catch(e){ stockOk=false; }
+  renderStock();
+}
+function stockClass(q){ if(q==null) return null; if(q<=0) return {c:"stk-x",m:"×",t:"受注生産"}; if(q<5) return {c:"stk-a",m:"△",t:"残少"}; return {c:"stk-o",m:"◎",t:"あり"}; }
+
+/* ===== 状態 ===== */
+let METHOD = "付売";    // 市売 / 付売
+let FLT = 15;           // フローリング厚み
+let lines = [];         // 見積 {name,t,w,l,grade,qty,method,price}
+let DEST = "東京";
+
+const PREFS = ["北海道","青森","岩手","宮城","秋田","山形","福島","茨城","栃木","群馬","埼玉","千葉","東京","神奈川","新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重","滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島"];
+
+/* ===== 画面 ===== */
+function renderGate(){
+  document.getElementById("root").innerHTML = `
+    <div class="gate"><div class="card">
+      <h1>市場さま向けツール</h1>
+      <p>桧製品の価格表・リアルタイム在庫の確認と、<br>運賃込みのお見積り作成ができます。</p>
+      <input type="password" id="g-pass" placeholder="パスワード" autocomplete="current-password">
+      <button id="g-btn">ログイン</button>
+      <label class="keep"><input type="checkbox" id="g-keep" checked> この端末で次回から自動ログイン</label>
+      <div class="err" id="g-err"></div>
+    </div></div>`;
+  const go=()=>{
+    if($("#g-pass").value===PASS){
+      ($("#g-keep").checked?localStorage:sessionStorage).setItem(LS_AUTH,"1");
+      renderMain();
+    }else $("#g-err").textContent="パスワードが違います";
+  };
+  $("#g-btn").addEventListener("click",go);
+  $("#g-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
+  $("#g-pass").focus();
+}
+
+function renderMain(){
+  document.getElementById("root").innerHTML = `
+  <header class="top"><div class="in">
+    <div><h1>市場さま向け 価格・在庫・見積ツール</h1><div class="sub">株式会社 林材木店（製造元）</div></div>
+    <div class="who"><span>ようこそ</span><button id="logout">ログアウト</button></div>
+  </div></header>
+  <div class="wrap">
+
+    <div class="card">
+      <h2>① 価格表 <span class="badge" id="pm-badge"></span></h2>
+      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。</p>
+      <div class="toolbar">
+        <span class="lbl">取引方法</span>
+        <div class="seg method" id="seg-method">
+          <button data-v="市売">市売（定価）</button>
+          <button data-v="付売">付売（買取）</button>
+        </div>
+        <span class="method-hint" id="method-hint"></span>
+      </div>
+      <div id="price-box"></div>
+      <div class="stk-note" id="price-status"></div>
+    </div>
+
+    <div class="card">
+      <h2>② リアルタイム在庫 <span class="badge" style="background:#1d4e89">束数</span></h2>
+      <p class="h2sub">A級120mm原板の在庫束数（フローリング・羽目板 共通）。倉庫の実在庫と自動連動します。</p>
+      <div id="stock-box"></div>
+      <div class="stk-meta">
+        <span id="stk-updated"></span>
+        <button id="stk-refresh">↻ 最新に更新</button>
+        <span class="stk-legend"><b class="stk-o">◎ あり</b><b class="stk-a">△ 残少(5束未満)</b><b class="stk-x">× 受注生産</b></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>③ お見積り（運賃込み）</h2>
+      <p class="h2sub">価格表からタップで追加 → 数量とお届け先を入れると運賃込みの見積になります。運賃は運賃ツールと完全一致。</p>
+      <div id="quote-box"></div>
+    </div>
+
+  </div>`;
+
+  $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); renderGate(); });
+  $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));
+
+  renderPriceTables(); renderStock(); renderQuote();
+  refreshPricebook(); refreshStock();
+  $("#stk-refresh").addEventListener("click",refreshStock);
+}
+
+/* --- 価格表 --- */
+function anyPrice(method,name,t,w,l){ return GRADES.some(g=>priceOf(method,name,t,w,l,g)!=null); }
+function renderPriceTables(){
+  const box=$("#price-box"); if(!box) return;
+  $("#seg-method").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v===METHOD));
+  $("#pm-badge").textContent = METHOD==="市売"?"市売：定価":"付売：買取価格";
+  $("#pm-badge").style.background = METHOD==="市売"?"var(--ichi)":"var(--tsuke)";
+  $("#method-hint").innerHTML = METHOD==="市売"
+    ? `いま表示中は <b class="ichi">市売＝当社設定の定価</b>（売れたら手数料をお受け取り）`
+    : `いま表示中は <b class="tsuke">付売＝買取価格</b>（この値で仕入れて、貴社の売値を上乗せ）`;
+
+  let html="";
+  PRODUCTS.forEach(pt=>{
+    const vts=pt.thicknesses.filter(t=>pt.lengths.some(l=>anyPrice(METHOD,pt.type,t,pt.w,l)));
+    if(!vts.length) return;
+    const multi=pt.thicknesses.length>1;
+    const useT= multi ? (vts.includes(FLT)?FLT:vts[0]) : vts[0];
+    let toggle = multi
+      ? `<div class="seg thick" id="thick-${esc(pt.type)}">`+pt.thicknesses.map(t=>`<button data-t="${t}" class="${t===useT?"on":""}" ${vts.includes(t)?"":"disabled"}>${t}mm</button>`).join("")+`</div>`
+      : `<span class="tag">厚み ${useT}mm</span>`;
+    const vls=pt.lengths.filter(l=>anyPrice(METHOD,pt.type,useT,pt.w,l));
+    html+=`<div class="ptype">${esc(pt.type)} ${toggle}</div>
+      <div class="tscroll"><table class="grid">
+        <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr></thead>
+        <tbody>${vls.map(l=>{
+          return `<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
+            const p=priceOf(METHOD,pt.type,useT,pt.w,l,g);
+            if(p==null) return `<td class="pcell na">—</td>`;
+            return `<td class="pcell" data-name="${esc(pt.type)}" data-t="${useT}" data-w="${pt.w}" data-l="${l}" data-grade="${g}"><span class="num">${fmt(p)}</span><span class="add">＋見積</span></td>`;
+          }).join("")+`</tr>`;
+        }).join("")}</tbody>
+      </table></div>`;
+  });
+  box.innerHTML=html;
+  box.querySelectorAll('.seg.thick button[data-t]').forEach(b=>b.addEventListener("click",()=>{ FLT=Number(b.dataset.t); renderPriceTables(); }));
+  box.querySelectorAll(".pcell[data-name]").forEach(td=>td.addEventListener("click",()=>{
+    addLine(td.dataset.name, Number(td.dataset.t), Number(td.dataset.w), Number(td.dataset.l), td.dataset.grade);
+  }));
+}
+
+/* --- 在庫 --- */
+function renderStock(){
+  const box=$("#stock-box"); if(!box) return;
+  const lens=[2000,3000,4000];
+  box.innerHTML=`<div class="tscroll"><table class="grid">
+    <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr></thead>
+    <tbody>${lens.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
+      const q=STOCK[`${l}|${g}`];
+      const s=stockClass(q);
+      if(!stockOk || q==null) return `<td class="stk-cell stk-none">—</td>`;
+      return `<td class="stk-cell ${s.c}">${s.m} ${q}<small>束</small></td>`;
+    }).join("")+`</tr>`).join("")}</tbody>
+  </table></div>`;
+  const meta=$("#stk-updated");
+  if(meta) meta.textContent = stockOk ? `最終更新：${stockUpdated}` : "在庫連携は準備中（GASに在庫読取口を追加すると自動表示）";
+}
+
+/* --- 見積 --- */
+function addLine(name,t,w,l,grade){
+  const price=priceOf(METHOD,name,t,w,l,grade); if(price==null) return;
+  const ex=lines.find(x=>x.name===name&&x.t===t&&x.l===l&&x.grade===grade&&x.method===METHOD);
+  if(ex) ex.qty+=1; else lines.push({name,t,w,l,grade,qty:1,method:METHOD,price});
+  renderQuote();
+}
+function linesSubtotal(){ return lines.reduce((s,x)=>s+priceOf(x.method,x.name,x.t,x.w,x.l,x.grade)*x.qty,0); }
+
+function renderQuote(){
+  const box=$("#quote-box"); if(!box) return;
+  if(!lines.length){ box.innerHTML=`<div class="q-empty">価格表の金額をタップすると、ここに見積の明細が入ります。</div>`; return; }
+  const rows=lines.map((x,i)=>{
+    const p=priceOf(x.method,x.name,x.t,x.w,x.l,x.grade);
+    return `<tr>
+      <td class="l"><span class="mtag ${x.method==="市売"?"ichi":"tsuke"}">${x.method}</span> ${esc(x.name)} ${x.t}mm×${x.w}×${x.l}　<b>${esc(x.grade)}</b></td>
+      <td><input class="qy" type="number" min="1" value="${x.qty}" data-i="${i}"></td>
+      <td>${fmt(p)}円</td>
+      <td>${fmt(p*x.qty)}円</td>
+      <td><button class="del" data-i="${i}">削除</button></td>
+    </tr>`;
+  }).join("");
+  const prefOpts=PREFS.map(p=>`<option${p===DEST?" selected":""}>${p}</option>`).join("");
+  box.innerHTML=`
+    <div class="tscroll" style="border:none"><table class="qt">
+      <thead><tr><th class="l">商品（取引方法・寸法・等級）</th><th>数量</th><th>単価</th><th>金額</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="q-foot">
+      <div class="q-fields">
+        <div class="ship-row" style="margin-bottom:12px">
+          <label style="margin:0">お届け先</label>
+          <select id="q-dest" style="max-width:150px">${prefOpts}</select>
+          <span class="note" id="ship-note"></span>
+        </div>
+        <div class="row">
+          <div><label>宛先（お客様名・任意）</label><input id="q-to" placeholder="例）○○工務店 御中"></div>
+          <div><label>発行者</label><input id="q-from" value="株式会社 林材木店"></div>
+        </div>
+        <div class="row">
+          <div><label>担当・備考（任意）</label><input id="q-memo" placeholder="例）担当 林"></div>
+          <div><label>納期目安</label><input id="q-nouki" value="約2〜3週間"></div>
+        </div>
+      </div>
+      <div class="sumbox">
+        <table id="sum-table"></table>
+        <div class="qbtns">
+          <button class="b-print" id="b-print">🖨 見積書を印刷 / PDF</button>
+          <button class="b-save" id="b-save">💾 履歴に保存</button>
+        </div>
+        <button class="b-clear" id="b-clear" style="width:100%;margin-top:8px;border-radius:10px;padding:10px;cursor:pointer">明細をクリア</button>
+        <div id="save-msg"></div>
+      </div>
+    </div>`;
+  box.querySelectorAll(".qy").forEach(inp=>inp.addEventListener("input",()=>{ const i=Number(inp.dataset.i); lines[i].qty=Math.max(1,Number(inp.value)||1); updateSum(); }));
+  box.querySelectorAll(".del").forEach(b=>b.addEventListener("click",()=>{ lines.splice(Number(b.dataset.i),1); renderQuote(); }));
+  $("#q-dest").addEventListener("change",e=>{ DEST=e.target.value; updateSum(); });
+  $("#b-print").addEventListener("click",doPrint);
+  $("#b-save").addEventListener("click",doSave);
+  $("#b-clear").addEventListener("click",()=>{ if(confirm("見積明細をすべて消しますか？")){ lines=[]; renderQuote(); } });
+  updateSum();
+}
+
+/* --- 運賃（運賃ツールiframe） --- */
+function fareReady(){ const f=$("#fare-frame"); try{ return !!(f&&f.contentWindow&&f.contentWindow.calcSeino&&f.contentDocument&&f.contentDocument.getElementById("s-pref")&&f.contentDocument.getElementById("s-pref").options.length); }catch(e){ return false; } }
+function fareOne(pref,lenM,qty){ const f=$("#fare-frame"),w=f.contentWindow,doc=f.contentDocument;
+  try{ if(doc.getElementById("s-mix-mode")&&doc.getElementById("s-mix-mode").style.display!=="none"&&typeof w.toggleMixMode==="function") w.toggleMixMode(false);
+    doc.getElementById("s-pref").value=pref; doc.getElementById("s-length").value=String(lenM);
+    if(typeof w.updateQtyLabel==="function") w.updateQtyLabel();
+    const sq=doc.getElementById("s-qty"); if(![...sq.options].some(o=>o.value===String(qty))) sq.add(new Option(String(qty),String(qty)));
+    sq.value=String(qty); w.calcSeino();
+    const el=doc.querySelector("#seino-result tr.total td"); if(el){ const n=parseInt(el.textContent.replace(/[^0-9]/g,"")); if(n>0) return n; } return null;
+  }catch(e){ return null; }
+}
+function calcFreight(){
+  if(!lines.length) return {incl:0,ok:true,note:""};
+  if(!fareReady()) return {incl:null,ok:false,note:"運賃計算を読み込み中…"};
+  const byLen={}; lines.forEach(x=>{ const lm=Math.round(x.l/1000); byLen[lm]=(byLen[lm]||0)+x.qty; });
+  let sum=0; for(const lm in byLen){ const v=fareOne(DEST,lm,byLen[lm]); if(v==null) return {incl:null,ok:false,note:"この地域・数量は個別見積（運賃はお問い合わせ）"}; sum+=v; }
+  return {incl:sum, ok:true, note:Object.keys(byLen).length>1?"※長さ違いは梱包ごとに算出した合計":""};
+}
+const excl = incl => Math.round((incl||0)/1.1);
+
+let _lastCalc={sub:0,shipEx:null,tax:0,total:0};
+function updateSum(){
+  const t=$("#sum-table"); if(!t) return;
+  const sub=linesSubtotal(); const fr=calcFreight();
+  if($("#ship-note")) $("#ship-note").textContent=fr.note||"";
+  let shipEx=null,total=null,tax=0;
+  if(fr.ok&&fr.incl!=null){ shipEx=excl(fr.incl); tax=Math.floor((sub+shipEx)*0.1); total=sub+shipEx+tax;
+    t.innerHTML=`<tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr>
+      <tr><th>運賃（税別・${esc(DEST)}）</th><td>${fmt(shipEx)}円</td></tr>
+      <tr><th>消費税（10%）</th><td>${fmt(tax)}円</td></tr>
+      <tr class="total"><th>合計（税込）</th><td>${fmt(total)}円</td></tr>`;
+  }else{
+    t.innerHTML=`<tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr><tr><th>運賃</th><td>${fr.incl===null&&!fr.ok?"—":"計算中…"}</td></tr>`;
+    if(!window._fr){ window._fr=setInterval(()=>{ if(fareReady()){ clearInterval(window._fr); window._fr=null; updateSum(); } },700); }
+  }
+  _lastCalc={sub,shipEx,tax,total};
+}
+
+/* --- 見積書 印刷 --- */
+function doPrint(){
+  const {sub,shipEx,tax,total}=_lastCalc;
+  const to=($("#q-to")&&$("#q-to").value.trim())||"";
+  const from=($("#q-from")&&$("#q-from").value.trim())||"株式会社 林材木店";
+  const memo=($("#q-memo")&&$("#q-memo").value.trim())||"";
+  const nouki=($("#q-nouki")&&$("#q-nouki").value.trim())||"";
+  const rows=lines.map(x=>{ const p=priceOf(x.method,x.name,x.t,x.w,x.l,x.grade);
+    return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${x.t}×${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
+  let sumRows=`<tr><td>商品計（税別）</td><td class="r">${fmt(sub)}円</td></tr>`;
+  if(shipEx!=null){ sumRows+=`<tr><td>運賃（税別・${esc(DEST)}向け）</td><td class="r">${fmt(shipEx)}円</td></tr><tr><td>消費税（10%）</td><td class="r">${fmt(tax)}円</td></tr>`; }
+  const totalStr = shipEx!=null ? `${fmt(total)}円` : "（運賃 別途）";
+  $("#print-area").innerHTML=`
+    <h1>御 見 積 書</h1>
+    <div class="pa-head">
+      <div><div class="pa-to">${to?esc(to):"　"}</div><div style="font-size:11px;margin-top:6px">下記の通りお見積り申し上げます。</div>
+        <div class="pa-total">御見積金額　${totalStr}（税込）</div></div>
+      <div class="pa-from"><b>${esc(from)}</b><br>静岡県浜松市中央区和田町439-2<br>TEL 053-461-0230　FAX 053-462-3673<br>発行日：${todayJP()}${memo?`<br>${esc(memo)}`:""}</div>
+    </div>
+    <table>
+      <tr><th>品名</th><th>等級</th><th>寸法(mm)</th><th>数量</th><th>単価(税別)</th><th>金額(税別)</th></tr>
+      ${rows}
+    </table>
+    <table class="pa-sum"><tbody>${sumRows}<tr><td style="font-weight:bold">合計（税込）</td><td class="r" style="font-weight:bold;font-size:14px">${totalStr}</td></tr></tbody></table>
+    <div class="pa-note">※運賃は${esc(DEST)}向けの目安です。荷姿・お届け先により変わる場合があります。${nouki?`\n※納期目安：${esc(nouki)}`:""}\n※本見積の有効期限：発行日より2週間</div>`;
+  window.print();
+}
+
+/* --- 履歴保存（見積DB） --- */
+function doSave(){
+  if(!lines.length) return;
+  const {sub,shipEx,tax,total}=_lastCalc;
+  const quote={
+    date:new Date().toISOString().slice(0,10),
+    customer:($("#q-to")&&$("#q-to").value.trim())||"", kubun:lines[0].method,
+    carrier:"", tanto:($("#q-memo")&&$("#q-memo").value.trim())||"",
+    freight:shipEx||"", tax:tax||"", grand:total||"",
+    nouki:($("#q-nouki")&&$("#q-nouki").value.trim())||"", remarks:"市場ツールより",
+    items:lines.map(x=>({name:x.name,grade:x.grade,t:x.t,w:x.w,l:x.l,"in":NYUSU[x.l]||"",qty:x.qty,price:priceOf(x.method,x.name,x.t,x.w,x.l,x.grade)}))
+  };
+  try{ fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
+    $("#save-msg").textContent="✅ 履歴に保存しました"; setTimeout(()=>{ if($("#save-msg")) $("#save-msg").textContent=""; },4000);
+  }catch(e){ $("#save-msg").textContent="保存に失敗しました"; }
+}
+
+/* ===== 起動 ===== */
+if(isAuthed()) renderMain(); else renderGate();
+</script>
+</body>
+</html>
