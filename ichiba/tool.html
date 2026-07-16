@@ -231,7 +231,8 @@ async function refreshStock(){
   }catch(e){ stockOk=false; }
   renderStock();
 }
-function stockClass(q){ if(q==null) return null; if(q<=0) return {c:"stk-x",m:"×",t:"受注生産"}; if(q<5) return {c:"stk-a",m:"△",t:"残少"}; return {c:"stk-o",m:"◎",t:"あり"}; }
+// 丸節2m/4m等の常時入荷品は在庫を「無限在庫」で運用しており負値で返る＝潤沢扱い。0=受注生産。
+function stockClass(q){ if(q==null) return null; if(q<0) return {c:"stk-o",m:"◎",t:"潤沢",ample:true}; if(q===0) return {c:"stk-x",m:"×",t:"受注生産"}; if(q<5) return {c:"stk-a",m:"△",t:"残少"}; return {c:"stk-o",m:"◎",t:"あり"}; }
 
 /* ===== 状態 ===== */
 let METHOD = "付売";    // 市売 / 付売
@@ -363,6 +364,7 @@ function renderStock(){
       const q=STOCK[`${l}|${g}`];
       const s=stockClass(q);
       if(!stockOk || q==null) return `<td class="stk-cell stk-none">—</td>`;
+      if(s.ample) return `<td class="stk-cell ${s.c}">${s.m} 潤沢</td>`;
       return `<td class="stk-cell ${s.c}">${s.m} ${q}<small>束</small></td>`;
     }).join("")+`</tr>`).join("")}</tbody>
   </table></div>`;
