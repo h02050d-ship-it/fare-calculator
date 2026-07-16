@@ -96,12 +96,37 @@
   .sumbox td{ text-align:right; font-weight:700; padding:5px 4px; }
   .sumbox tr.total th{ font-size:15px; color:var(--ink); font-weight:800; border-top:2px solid var(--line2); padding-top:10px; }
   .sumbox tr.total td{ font-size:22px; color:var(--brand); border-top:2px solid var(--line2); padding-top:10px; }
-  .qbtns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
-  .qbtns button{ flex:1; min-width:150px; border:none; border-radius:10px; padding:13px 10px; font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit; }
-  .b-print{ background:var(--brand); color:#fff; }
+  .contact-block{ border:1px dashed var(--line2); border-radius:11px; padding:12px 12px 4px; margin-bottom:12px; background:#fbfcfe; }
+  .cb-title{ font-size:11.5px; color:var(--accent); font-weight:700; margin-bottom:8px; }
+  .req{ color:#b0483a; margin-left:2px; }
+  .qbtns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .qbtns button{ flex:1; min-width:140px; border:none; border-radius:10px; padding:13px 10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .qbtns.primary button{ padding:15px 10px; font-size:15px; box-shadow:0 3px 10px rgba(30,40,60,.14); }
+  .b-req{ background:linear-gradient(180deg,#2f7fbf,#1d4e89); color:#fff; }
+  .b-order{ background:linear-gradient(180deg,#e08a2b,#c26a12); color:#fff; }
+  .b-print{ background:#fff; color:var(--brand); border:2px solid var(--brand) !important; }
   .b-save{ background:#fff; color:var(--accent); border:2px solid var(--accent) !important; }
-  .b-clear{ background:#f4f6f9; color:var(--sub); border:1px solid var(--line2) !important; }
-  #save-msg{ font-size:12.5px; color:var(--brand); font-weight:700; margin-top:8px; }
+  .q-underbtns{ display:flex; gap:10px; margin-top:10px; }
+  .q-underbtns button{ flex:1; border-radius:10px; padding:10px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .b-drafts{ background:#eef2f7; color:var(--accent); border:1px solid var(--line2); }
+  .b-clear{ background:#f4f6f9; color:var(--sub); border:1px solid var(--line2); }
+  #save-msg{ font-size:12.5px; color:var(--brand); font-weight:700; margin-top:10px; }
+
+  .drafts-box{ margin-top:16px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; background:var(--panel2); }
+  .db-head{ font-size:13.5px; font-weight:800; color:var(--ink); margin-bottom:10px; }
+  .draft-row{ display:flex; gap:10px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .dr-main{ flex:1; min-width:0; }
+  .dr-top{ display:flex; align-items:center; gap:8px; font-size:14px; }
+  .dr-top b{ color:var(--brand); }
+  .dr-date{ font-size:11px; color:var(--sub); margin-left:auto; }
+  .dr-tag{ font-size:10.5px; font-weight:700; color:#fff; border-radius:5px; padding:1px 7px; }
+  .tg-order{ background:#c26a12; } .tg-req{ background:#1d4e89; } .tg-draft{ background:#8a94a5; }
+  .dr-items{ font-size:12px; color:var(--sub); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dr-mk{ color:var(--accent); }
+  .dr-btns{ display:flex; gap:6px; flex:0 0 auto; }
+  .dr-btns button{ border:1px solid var(--line2); background:#fff; border-radius:7px; padding:6px 11px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .dr-recall{ color:var(--accent); font-weight:700; }
+  .dr-del{ color:#b0483a; }
 
   /* ログインゲート */
   .gate{ max-width:380px; margin:70px auto; }
@@ -299,9 +324,10 @@ function renderMain(){
     </div>
 
     <div class="card">
-      <h2>③ お見積り（運賃込み）</h2>
+      <h2>③ お見積り（運賃込み）<button class="b-drafts" id="b-drafts" style="margin-left:auto">📂 保存した控え <span id="draft-n"></span></button></h2>
       <p class="h2sub">価格表からタップで追加 → 数量とお届け先を入れると運賃込みの見積になります。運賃は運賃ツールと完全一致。</p>
       <div id="quote-box"></div>
+      <div id="drafts-panel" style="display:none"></div>
     </div>
 
   </div>`;
@@ -312,6 +338,8 @@ function renderMain(){
   renderPriceTables(); renderStock(); renderQuote();
   refreshPricebook(); refreshStock();
   $("#stk-refresh").addEventListener("click",refreshStock);
+  $("#b-drafts").addEventListener("click",toggleDrafts);
+  updateDraftCount();
 }
 
 /* --- 価格表 --- */
@@ -407,30 +435,48 @@ function renderQuote(){
           <select id="q-dest" style="max-width:150px">${prefOpts}</select>
           <span class="note" id="ship-note"></span>
         </div>
-        <div class="row">
-          <div><label>宛先（お客様名・任意）</label><input id="q-to" placeholder="例）○○工務店 御中"></div>
-          <div><label>発行者</label><input id="q-from" value="株式会社 林材木店"></div>
+        <div class="contact-block">
+          <div class="cb-title">▼ 依頼・注文される場合のご連絡先（正式見積依頼・注文で必要）</div>
+          <div class="row">
+            <div><label>発注元（貴社・市場名）<span class="req">*</span></label><input id="q-market" placeholder="例）○○木材市場"></div>
+            <div><label>ご連絡先（TEL / メール）<span class="req">*</span></label><input id="q-contact" placeholder="例）053-000-0000"></div>
+          </div>
+          <div class="row">
+            <div><label>ご担当者（任意）</label><input id="q-reqtanto" placeholder="例）山田"></div>
+            <div><label>宛先（お客様名・任意）</label><input id="q-to" placeholder="例）○○工務店 御中"></div>
+          </div>
         </div>
         <div class="row">
-          <div><label>担当・備考（任意）</label><input id="q-memo" placeholder="例）担当 林"></div>
+          <div><label>発行者（見積書用）</label><input id="q-from" value="株式会社 林材木店"></div>
           <div><label>納期目安</label><input id="q-nouki" value="約2〜3週間"></div>
         </div>
+        <input type="hidden" id="q-memo" value="">
       </div>
       <div class="sumbox">
         <table id="sum-table"></table>
-        <div class="qbtns">
-          <button class="b-print" id="b-print">🖨 見積書を印刷 / PDF</button>
-          <button class="b-save" id="b-save">💾 履歴に保存</button>
+        <div class="qbtns primary">
+          <button class="b-req" id="b-req">📋 正式な見積りを依頼</button>
+          <button class="b-order" id="b-order">🛒 この内容で注文</button>
         </div>
-        <button class="b-clear" id="b-clear" style="width:100%;margin-top:8px;border-radius:10px;padding:10px;cursor:pointer">明細をクリア</button>
+        <div class="qbtns">
+          <button class="b-print" id="b-print">🖨 印刷 / PDF</button>
+          <button class="b-save" id="b-save">💾 控えを保存（この端末）</button>
+        </div>
+        <div class="q-underbtns">
+          <button class="b-clear" id="b-clear">明細をクリア</button>
+        </div>
         <div id="save-msg"></div>
       </div>
     </div>`;
   box.querySelectorAll(".qy").forEach(inp=>inp.addEventListener("input",()=>{ const i=Number(inp.dataset.i); lines[i].qty=Math.max(1,Number(inp.value)||1); updateSum(); }));
   box.querySelectorAll(".del").forEach(b=>b.addEventListener("click",()=>{ lines.splice(Number(b.dataset.i),1); renderQuote(); }));
+  // 連絡先は端末に記憶（毎回入力しなくて済む）
+  ["q-market","q-contact","q-reqtanto"].forEach(id=>{ const el=$("#"+id); if(el){ el.value=localStorage.getItem("hz_ichiba_"+id)||""; el.addEventListener("input",()=>localStorage.setItem("hz_ichiba_"+id,el.value)); } });
   $("#q-dest").addEventListener("change",e=>{ DEST=e.target.value; updateSum(); });
   $("#b-print").addEventListener("click",doPrint);
-  $("#b-save").addEventListener("click",doSave);
+  $("#b-save").addEventListener("click",doSaveDraft);
+  $("#b-req").addEventListener("click",()=>doRequest("依頼"));
+  $("#b-order").addEventListener("click",()=>doRequest("注文"));
   $("#b-clear").addEventListener("click",()=>{ if(confirm("見積明細をすべて消しますか？")){ lines=[]; renderQuote(); } });
   updateSum();
 }
@@ -501,21 +547,90 @@ function doPrint(){
   window.print();
 }
 
-/* --- 履歴保存（見積DB） --- */
-function doSave(){
-  if(!lines.length) return;
+/* --- 見積内容をオブジェクト化 --- */
+function buildQuoteObj(reqType){
   const {sub,shipEx,tax,total}=_lastCalc;
-  const quote={
+  return {
+    reqType: reqType||"",
     date:new Date().toISOString().slice(0,10),
-    customer:($("#q-to")&&$("#q-to").value.trim())||"", kubun:lines[0].method,
-    carrier:"", tanto:($("#q-memo")&&$("#q-memo").value.trim())||"",
-    freight:shipEx||"", tax:tax||"", grand:total||"",
+    market:($("#q-market")&&$("#q-market").value.trim())||"",
+    reqTanto:($("#q-reqtanto")&&$("#q-reqtanto").value.trim())||"",
+    contact:($("#q-contact")&&$("#q-contact").value.trim())||"",
+    customer:($("#q-to")&&$("#q-to").value.trim())||"",
+    kubun:lines.length?lines[0].method:"", dest:DEST,
+    carrier:"", freight:shipEx||"", sub:sub||"", tax:tax||"", grand:total||"",
     nouki:($("#q-nouki")&&$("#q-nouki").value.trim())||"", remarks:"市場ツールより",
-    items:lines.map(x=>({name:x.name,grade:x.grade,t:x.t,w:x.w,l:x.l,"in":NYUSU[x.l]||"",qty:x.qty,price:priceOf(x.method,x.name,x.t,x.w,x.l,x.grade)}))
+    items:lines.map(x=>({name:x.name,grade:x.grade,t:x.t,w:x.w,l:x.l,"in":NYUSU[x.l]||"",qty:x.qty,price:priceOf(x.method,x.name,x.t,x.w,x.l,x.grade),method:x.method}))
   };
-  try{ fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
-    $("#save-msg").textContent="✅ 履歴に保存しました"; setTimeout(()=>{ if($("#save-msg")) $("#save-msg").textContent=""; },4000);
-  }catch(e){ $("#save-msg").textContent="保存に失敗しました"; }
+}
+function flash(msg,ok){ const m=$("#save-msg"); if(!m) return; m.textContent=msg; m.style.color=ok===false?"#b0483a":"#2e7d4f"; setTimeout(()=>{ if($("#save-msg")) $("#save-msg").textContent=""; },5000); }
+
+/* --- 林材木店へ 正式見積依頼 / 注文 を送信 --- */
+function doRequest(reqType){
+  if(!lines.length){ flash("先に商品を追加してください",false); return; }
+  const market=($("#q-market")&&$("#q-market").value.trim())||"";
+  const contact=($("#q-contact")&&$("#q-contact").value.trim())||"";
+  if(!market || !contact){ flash("発注元（市場名）とご連絡先をご入力ください",false);
+    const f=$("#q-market"); if(f&&!market) f.focus(); else if($("#q-contact")&&!contact) $("#q-contact").focus(); return; }
+  const label = reqType==="注文" ? "注文" : "正式見積依頼";
+  if(!confirm(`林材木店へ「${label}」を送信します。よろしいですか？\n\n発注元：${market}\n合計（税込）：${fmt(_lastCalc.total||0)}円`)) return;
+  const quote=buildQuoteObj(reqType);
+  try{
+    fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
+    saveDraftLocal(quote, reqType);   // 送信控えも端末に残す
+    flash(`✅ 林材木店へ${label}を送信しました。折り返しご連絡します。`);
+  }catch(e){ flash("送信に失敗しました。お手数ですがお電話ください。",false); }
+}
+
+/* --- 端末内の控え（localStorage） --- */
+const LS_DRAFTS="hz_ichiba_drafts";
+function loadDrafts(){ try{ return JSON.parse(localStorage.getItem(LS_DRAFTS))||[]; }catch(e){ return []; } }
+function saveDraftLocal(quote, tag){
+  const d=loadDrafts();
+  d.unshift({ id:"D"+Date.now()+Math.floor(Math.random()*1000), savedAt:new Date().toLocaleString("ja-JP"), tag:tag||"控え", quote });
+  localStorage.setItem(LS_DRAFTS, JSON.stringify(d.slice(0,50)));
+  updateDraftCount();
+}
+function doSaveDraft(){
+  if(!lines.length){ flash("先に商品を追加してください",false); return; }
+  saveDraftLocal(buildQuoteObj(""), "控え");
+  flash("✅ この端末に控えを保存しました（下の「保存した控え」で確認できます）");
+}
+function updateDraftCount(){ const n=$("#draft-n"); if(n){ const c=loadDrafts().length; n.textContent=c?`(${c})`:""; } }
+function toggleDrafts(){ const p=$("#drafts-panel"); if(!p) return; if(p.style.display==="none"){ renderDrafts(); p.style.display="block"; p.scrollIntoView({behavior:"smooth",block:"nearest"}); } else p.style.display="none"; }
+function renderDrafts(){
+  const p=$("#drafts-panel"); if(!p) return;
+  const d=loadDrafts();
+  if(!d.length){ p.innerHTML=`<div class="drafts-box"><div class="q-empty">保存した控えはまだありません。「💾 控えを保存」で残せます。</div></div>`; return; }
+  p.innerHTML=`<div class="drafts-box"><div class="db-head">📂 保存した控え（この端末）</div>`+
+    d.map(r=>{
+      const q=r.quote; const items=(q.items||[]).map(it=>`${it.name} ${it.grade} ${it.l/1000}m×${it.qty}束`).join("、");
+      const tagCls = r.tag==="注文"?"tg-order":r.tag==="依頼"?"tg-req":"tg-draft";
+      const tagTxt = r.tag==="注文"?"注文済":r.tag==="依頼"?"依頼済":"控え";
+      return `<div class="draft-row">
+        <div class="dr-main">
+          <div class="dr-top"><span class="dr-tag ${tagCls}">${tagTxt}</span><b>${fmt(q.grand||0)}円</b><span class="dr-date">${esc(r.savedAt)}</span></div>
+          <div class="dr-items">${esc(items)}${q.market?`　<span class="dr-mk">発注元:${esc(q.market)}</span>`:""}${q.dest?`／${esc(q.dest)}`:""}</div>
+        </div>
+        <div class="dr-btns">
+          <button class="dr-recall" data-id="${r.id}">再表示</button>
+          <button class="dr-del" data-id="${r.id}">削除</button>
+        </div>
+      </div>`;
+    }).join("")+`</div>`;
+  p.querySelectorAll(".dr-recall").forEach(b=>b.addEventListener("click",()=>recallDraft(b.dataset.id)));
+  p.querySelectorAll(".dr-del").forEach(b=>b.addEventListener("click",()=>{ const d2=loadDrafts().filter(x=>x.id!==b.dataset.id); localStorage.setItem(LS_DRAFTS,JSON.stringify(d2)); renderDrafts(); updateDraftCount(); }));
+}
+function recallDraft(id){
+  const r=loadDrafts().find(x=>x.id===id); if(!r) return;
+  const q=r.quote;
+  lines=(q.items||[]).map(it=>({name:it.name,t:Number(it.t),w:Number(it.w),l:Number(it.l),grade:it.grade,qty:Number(it.qty),method:it.method||q.kubun||"付売",price:it.price}));
+  DEST=q.dest||"東京";
+  renderQuote();
+  if($("#q-dest")) $("#q-dest").value=DEST;
+  if(q.customer&&$("#q-to")) $("#q-to").value=q.customer;
+  updateSum();
+  $("#quote-box").scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 /* ===== 起動 ===== */
