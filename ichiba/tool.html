@@ -399,17 +399,27 @@ function renderPriceTables(){
 }
 
 /* --- 在庫 --- */
+// 無節特上小の在庫＝無節と特上小の少ない方（負値=無限在庫は制約なし扱い→もう一方が効く。両方無限なら-1=潤沢）
+function derivedStock(qm, qt){
+  if(qm==null || qt==null) return null;
+  const em = qm<0 ? Infinity : qm, et = qt<0 ? Infinity : qt;
+  const mn = Math.min(em, et);
+  return mn===Infinity ? -1 : mn;
+}
 function renderStock(){
   const box=$("#stock-box"); if(!box) return;
   const lens=[2000,3000,4000];
   box.innerHTML=`<div class="tscroll"><table class="grid">
     <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr></thead>
     <tbody>${lens.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
-      const q=STOCK[`${l}|${g}`];
+      const derived = (g==="無節特上小");   // 無節特上小は在庫を持たず、無節と特上小の少ない方で表示
+      const q = derived ? derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]) : STOCK[`${l}|${g}`];
       const s=stockClass(q);
       if(!stockOk || q==null) return `<td class="stk-cell stk-none">—</td>`;
-      if(s.ample) return `<td class="stk-cell ${s.c}">${s.m} 潤沢</td>`;
-      return `<td class="stk-cell ${s.c}">${s.m} ${q}<small>束</small></td>`;
+      const tip = derived ? ` title="無節と特上小の少ない方の在庫を表示"` : "";
+      const mark = derived ? "≒" : "";
+      if(s.ample) return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${mark}潤沢</td>`;
+      return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${mark}${q}<small>束</small></td>`;
     }).join("")+`</tr>`).join("")}</tbody>
   </table></div>`;
   const meta=$("#stk-updated");
