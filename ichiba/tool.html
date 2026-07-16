@@ -411,18 +411,32 @@ function derivedStock(qm, qt){
   const mn = Math.min(em, et);
   return mn===Infinity ? -1 : mn;
 }
+// 2m小節＝2m在庫＋4m小節の倍量（最悪4mを木取り: 4m1束→2m相当2束）。どちらか潤沢なら潤沢
+function cutAugmented(base, four){
+  if(base==null && four==null) return null;
+  const b=base==null?0:base, f=four==null?0:four;
+  if(b<0 || f<0) return -1;
+  return b + f*2;
+}
 function renderStock(){
   const box=$("#stock-box"); if(!box) return;
   const lens=[2000,3000,4000];
   box.innerHTML=`<div class="tscroll"><table class="grid">
     <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th style="background:${GRADE_COLORS[g]||'#556'};color:#fff;border-bottom:none">${g}</th>`).join("")}</tr></thead>
     <tbody>${lens.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
-      const derived = (g==="無節特上小");   // 無節特上小は在庫を持たず、無節と特上小の少ない方で表示
-      const q = derived ? derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]) : STOCK[`${l}|${g}`];
+      let q, mark="", tipTxt="";
+      if(g==="無節特上小"){            // 在庫を持たず、無節と特上小の少ない方で表示
+        q=derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]); mark="≒"; tipTxt="無節と特上小の少ない方の在庫を表示";
+      }else if(l===2000 && g==="小節"){  // 最悪4m小節を木取り（4m1束→2m相当2束）できる分を上乗せ
+        const four=STOCK[`4000|小節`];
+        q=cutAugmented(STOCK[`2000|小節`], four);
+        if(four!=null && four!==0){ mark="≒"; tipTxt="4m小節を木取りできる分（1束→2m×2束）を含む"; }
+      }else{
+        q=STOCK[`${l}|${g}`];
+      }
       const s=stockClass(q);
       if(!stockOk || q==null) return `<td class="stk-cell stk-none">—</td>`;
-      const tip = derived ? ` title="無節と特上小の少ない方の在庫を表示"` : "";
-      const mark = derived ? "≒" : "";
+      const tip = tipTxt ? ` title="${tipTxt}"` : "";
       if(s.ample) return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${mark}潤沢</td>`;
       return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${mark}${q}<small>束</small></td>`;
     }).join("")+`</tr>`).join("")}</tbody>
