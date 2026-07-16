@@ -184,6 +184,8 @@ function isAuthed(){ return localStorage.getItem(LS_AUTH)==="1" || sessionStorag
 
 /* ===== 商品マスタ ===== */
 const GRADES = ["丸節","小節","特上小","無節","無節特上小"];
+/* 等級カラー（加工予定表 gradeColors と同一。無節特上→無節特上小に対応付け） */
+const GRADE_COLORS = { "丸節":"#d32f2f", "小節":"#ef6c00", "特上小":"#8e24aa", "無節":"#1565c0", "無節特上小":"#6a1b9a" };
 const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小" };
 const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
 const PRODUCTS = [
@@ -363,38 +365,41 @@ function renderPriceTables(){
     ? `いま表示中は <b class="ichi">市売＝当社設定の定価</b>（売れたら手数料をお受け取り）`
     : `いま表示中は <b class="tsuke">付売＝買取価格</b>（この値で仕入れて、貴社の売値を上乗せ）`;
 
-  // 現METHODで価格を持つ (type × thickness) を列挙し、同thickness内で価格完全一致するtypeを統合
+  // 現METHODで価格を持つ (type × thickness) を列挙し、厚み跨ぎでも価格完全一致なら1表に統合
   const combos=[];
   PRODUCTS.forEach(pt=>{ pt.thicknesses.forEach(t=>{
     if(pt.lengths.some(l=>anyPrice(METHOD,pt.type,t,pt.w,l))) combos.push({type:pt.type,thickness:t,w:pt.w,lengths:pt.lengths});
   }); });
   const groups=[], idx={};
   combos.forEach(c=>{
-    const sig=c.thickness+"@"+c.lengths.join("_")+"@"+priceSig(METHOD,c.type,c.thickness,c.w,c.lengths);
-    if(idx[sig]==null){ idx[sig]=groups.length; groups.push({thickness:c.thickness,w:c.w,lengths:c.lengths,types:[]}); }
-    groups[idx[sig]].types.push(c.type);
+    const sig=c.lengths.join("_")+"@"+priceSig(METHOD,c.type,c.thickness,c.w,c.lengths);
+    if(idx[sig]==null){ idx[sig]=groups.length; groups.push({w:c.w,lengths:c.lengths,members:[]}); }
+    groups[idx[sig]].members.push(c);
   });
 
   let html="";
   groups.forEach(gr=>{
-    const rep=gr.types[0];                 // 価格を引く実type（グループ代表）
-    const dispName=gr.types.join("・");     // 表示名（統合名）
-    const vls=gr.lengths.filter(l=>anyPrice(METHOD,rep,gr.thickness,gr.w,l));
-    html+=`<div class="ptype">${esc(dispName)} <span class="tag">厚み ${gr.thickness}mm</span></div>
+    const rep=gr.members[0];                                    // 価格を引く実SKU（type＋厚みの代表）
+    const types=[...new Set(gr.members.map(m=>m.type))];
+    const thicks=[...new Set(gr.members.map(m=>m.thickness))].sort((a,b)=>b-a);
+    const dispName=types.join("・");
+    const tDisp=thicks.join("・");
+    const vls=gr.lengths.filter(l=>anyPrice(METHOD,rep.type,rep.thickness,gr.w,l));
+    html+=`<div class="ptype">${esc(dispName)} <span class="tag">厚み ${tDisp}mm</span></div>
       <div class="tscroll"><table class="grid">
-        <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr></thead>
+        <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th style="background:${GRADE_COLORS[g]||'#556'};color:#fff;border-bottom:none">${g}</th>`).join("")}</tr></thead>
         <tbody>${vls.map(l=>{
           return `<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
-            const p=priceOf(METHOD,rep,gr.thickness,gr.w,l,g);
+            const p=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
             if(p==null) return `<td class="pcell na">—</td>`;
-            return `<td class="pcell" data-name="${esc(dispName)}" data-pname="${esc(rep)}" data-t="${gr.thickness}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"><span class="num">${fmt(p)}</span><span class="add">＋見積</span></td>`;
+            return `<td class="pcell" data-name="${esc(dispName)}" data-pname="${esc(rep.type)}" data-t="${rep.thickness}" data-tdisp="${tDisp}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"><span class="num">${fmt(p)}</span><span class="add">＋見積</span></td>`;
           }).join("")+`</tr>`;
         }).join("")}</tbody>
       </table></div>`;
   });
   box.innerHTML=html;
   box.querySelectorAll(".pcell[data-name]").forEach(td=>td.addEventListener("click",()=>{
-    addLine(td.dataset.name, td.dataset.pname, Number(td.dataset.t), Number(td.dataset.w), Number(td.dataset.l), td.dataset.grade);
+    addLine(td.dataset.name, td.dataset.pname, Number(td.dataset.t), Number(td.dataset.w), Number(td.dataset.l), td.dataset.grade, td.dataset.tdisp);
   }));
 }
 
@@ -410,7 +415,7 @@ function renderStock(){
   const box=$("#stock-box"); if(!box) return;
   const lens=[2000,3000,4000];
   box.innerHTML=`<div class="tscroll"><table class="grid">
-    <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th>${g}</th>`).join("")}</tr></thead>
+    <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th style="background:${GRADE_COLORS[g]||'#556'};color:#fff;border-bottom:none">${g}</th>`).join("")}</tr></thead>
     <tbody>${lens.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
       const derived = (g==="無節特上小");   // 無節特上小は在庫を持たず、無節と特上小の少ない方で表示
       const q = derived ? derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]) : STOCK[`${l}|${g}`];
@@ -427,10 +432,10 @@ function renderStock(){
 }
 
 /* --- 見積 --- */
-function addLine(name,pname,t,w,l,grade){
+function addLine(name,pname,t,w,l,grade,tDisp){
   const price=priceOf(METHOD,pname,t,w,l,grade); if(price==null) return;
   const ex=lines.find(x=>x.name===name&&x.pname===pname&&x.t===t&&x.l===l&&x.grade===grade&&x.method===METHOD);
-  if(ex) ex.qty+=1; else lines.push({name,pname,t,w,l,grade,qty:1,method:METHOD,price});
+  if(ex) ex.qty+=1; else lines.push({name,pname,t,tDisp:tDisp||String(t),w,l,grade,qty:1,method:METHOD,price});
   renderQuote();
 }
 function linesSubtotal(){ return lines.reduce((s,x)=>s+priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade)*x.qty,0); }
@@ -441,7 +446,7 @@ function renderQuote(){
   const rows=lines.map((x,i)=>{
     const p=priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade);
     return `<tr>
-      <td class="l"><span class="mtag ${x.method==="市売"?"ichi":"tsuke"}">${x.method}</span> ${esc(x.name)} ${x.t}mm×${x.w}×${x.l}　<b>${esc(x.grade)}</b></td>
+      <td class="l"><span class="mtag ${x.method==="市売"?"ichi":"tsuke"}">${x.method}</span> ${esc(x.name)} ${esc(x.tDisp||x.t)}mm×${x.w}×${x.l}　<b style="color:${GRADE_COLORS[x.grade]||'inherit'}">${esc(x.grade)}</b></td>
       <td><input class="qy" type="number" min="1" value="${x.qty}" data-i="${i}"></td>
       <td>${fmt(p)}円</td>
       <td>${fmt(p*x.qty)}円</td>
@@ -553,7 +558,7 @@ function doPrint(){
   const memo=($("#q-memo")&&$("#q-memo").value.trim())||"";
   const nouki=($("#q-nouki")&&$("#q-nouki").value.trim())||"";
   const rows=lines.map(x=>{ const p=priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade);
-    return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${x.t}×${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
+    return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${esc(x.tDisp||x.t)}×${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
   let sumRows=`<tr><td>商品計（税別）</td><td class="r">${fmt(sub)}円</td></tr>`;
   if(shipEx!=null){ sumRows+=`<tr><td>運賃（税別・${esc(DEST)}向け）</td><td class="r">${fmt(shipEx)}円</td></tr><tr><td>消費税（10%）</td><td class="r">${fmt(tax)}円</td></tr>`; }
   const totalStr = shipEx!=null ? `${fmt(total)}円` : "（運賃 別途）";
@@ -586,7 +591,7 @@ function buildQuoteObj(reqType){
     kubun:lines.length?lines[0].method:"", dest:DEST,
     carrier:"", freight:shipEx||"", sub:sub||"", tax:tax||"", grand:total||"",
     nouki:($("#q-nouki")&&$("#q-nouki").value.trim())||"", remarks:"市場ツールより",
-    items:lines.map(x=>({name:x.name,pname:x.pname,grade:x.grade,t:x.t,w:x.w,l:x.l,"in":NYUSU[x.l]||"",qty:x.qty,price:priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade),method:x.method}))
+    items:lines.map(x=>({name:x.name,pname:x.pname,grade:x.grade,t:x.t,tDisp:x.tDisp||String(x.t),w:x.w,l:x.l,"in":NYUSU[x.l]||"",qty:x.qty,price:priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade),method:x.method}))
   };
 }
 function flash(msg,ok){ const m=$("#save-msg"); if(!m) return; m.textContent=msg; m.style.color=ok===false?"#b0483a":"#2e7d4f"; setTimeout(()=>{ if($("#save-msg")) $("#save-msg").textContent=""; },5000); }
@@ -649,7 +654,7 @@ function renderDrafts(){
 function recallDraft(id){
   const r=loadDrafts().find(x=>x.id===id); if(!r) return;
   const q=r.quote;
-  lines=(q.items||[]).map(it=>({name:it.name,pname:it.pname||it.name,t:Number(it.t),w:Number(it.w),l:Number(it.l),grade:it.grade,qty:Number(it.qty),method:it.method||q.kubun||"付売",price:it.price}));
+  lines=(q.items||[]).map(it=>({name:it.name,pname:it.pname||it.name,t:Number(it.t),tDisp:it.tDisp||String(it.t),w:Number(it.w),l:Number(it.l),grade:it.grade,qty:Number(it.qty),method:it.method||q.kubun||"付売",price:it.price}));
   DEST=q.dest||"東京";
   renderQuote();
   if($("#q-dest")) $("#q-dest").value=DEST;
