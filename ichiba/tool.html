@@ -37,6 +37,7 @@
   .seg.method button.on[data-v="市売"]{ background:var(--ichi); }
   .seg.method button.on[data-v="付売"]{ background:var(--tsuke); }
   .seg.thick button.on{ background:#556; }
+  .seg.carrier button.on{ background:var(--brand); }
   .toolbar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
   .toolbar .lbl{ font-size:12.5px; font-weight:700; color:var(--sub); }
   .method-hint{ font-size:12px; color:var(--sub); margin-left:6px; }
@@ -149,6 +150,25 @@
   .dr-btns button{ border:1px solid var(--line2); background:#fff; border-radius:7px; padding:6px 11px; font-size:12px; cursor:pointer; font-family:inherit; }
   .dr-recall{ color:var(--accent); font-weight:700; }
   .dr-del{ color:#b0483a; }
+
+  /* 設定モーダル */
+  .modal-ov{ position:fixed; inset:0; background:rgba(20,28,40,.5); display:flex; align-items:flex-start; justify-content:center; padding:40px 14px; z-index:1000; overflow:auto; }
+  .modal-card{ background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; box-shadow:var(--shadow); }
+  .modal-card h3{ margin:0 0 12px; font-size:16px; }
+  .ms-field{ margin-bottom:12px; }
+  .ms-field label{ font-size:12px; font-weight:700; color:var(--sub); display:block; margin-bottom:3px; }
+  .ms-field input{ width:100%; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; }
+  .ms-ro{ font-size:14px; font-weight:700; color:var(--ink); background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:9px; }
+  .ms-staff{ display:flex; gap:8px; align-items:center; border:1px solid var(--line); border-radius:9px; padding:8px 10px; margin-bottom:6px; }
+  .ms-staff .info{ flex:1; min-width:0; font-size:13px; font-weight:700; }
+  .ms-staff .info small{ display:block; color:var(--sub); font-size:11px; font-weight:500; }
+  .ms-staff button{ border:none; background:#fbeceb; color:#b0483a; border-radius:6px; padding:5px 9px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .ms-add{ border:1px dashed var(--line2); border-radius:9px; padding:10px; margin-top:6px; }
+  .ms-add input{ width:100%; padding:8px; border:1.5px solid var(--line2); border-radius:8px; font-size:13.5px; font-family:inherit; }
+  .ms-btns{ display:flex; gap:10px; margin-top:16px; }
+  .ms-btns button{ flex:1; border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .ms-save{ background:var(--accent); color:#fff; }
+  .ms-cancel{ background:#f4f6f9; color:var(--sub); border:1px solid var(--line2) !important; }
 
   /* ログインゲート */
   .gate{ max-width:380px; margin:70px auto; }
@@ -349,6 +369,36 @@ let DEST = "東京";
 
 const PREFS = ["北海道","青森","岩手","宮城","秋田","山形","福島","茨城","栃木","群馬","埼玉","千葉","東京","神奈川","新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重","滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島"];
 
+/* ===== 配送方法（内藤運輸＝市場便 / 西濃運輸＝直送） ===== */
+const LS_CARRIER = "hz_ichiba_carrier";
+let CARRIER = localStorage.getItem(LS_CARRIER) || "内藤運輸";
+let NAITO_TANKA = null;   // { "取引先名": {"2000":円,"3000":円,"4000":円}, ... }（束あたり税抜円）
+async function fetchNaitoTanka(){
+  try{
+    const r = await fetch(GAS_URL+"?action=getNaitoTanka");
+    const j = await r.json();
+    NAITO_TANKA = (j && j.ok && j.prices) ? j.prices : null;
+  }catch(e){ NAITO_TANKA = null; }
+  return NAITO_TANKA;
+}
+// ログイン市場名から内藤単価表を照合（matchCustomerと同じゆるさ：完全一致→前方一致）
+function naitoTankaFor(market){
+  if(!NAITO_TANKA) return null;
+  const m = normName(market); if(!m) return null;
+  for(const k in NAITO_TANKA){ if(normName(k)===m) return NAITO_TANKA[k]; }
+  for(const k in NAITO_TANKA){ const n=normName(k); if(n && (n.indexOf(m)===0 || m.indexOf(n)===0)) return NAITO_TANKA[k]; }
+  return null;
+}
+
+/* ===== プロファイル（担当者・メール・TEL・FAX。端末に保持） ===== */
+const LS_PROFILE = "hz_ichiba_profile";
+function loadProfile(){ try{ const p=JSON.parse(localStorage.getItem(LS_PROFILE)); if(p && Array.isArray(p.staffs)) return p; }catch(e){} return null; }
+function saveProfile(p){ try{ localStorage.setItem(LS_PROFILE, JSON.stringify(p)); }catch(e){} }
+// プロファイル無し端末向けの「その場生成」用テンプレ（market/faxは既存キーから流用）
+function currentProfile(){
+  return loadProfile() || { market: localStorage.getItem(LS_MARKET)||"", tel:"", fax: localStorage.getItem("hz_ichiba_fax")||"", staffs:[], active:0 };
+}
+
 /* ===== 画面 ===== */
 /* FAX番号の正規化（記号除去・国際表記81→0） */
 function normFax(s){
@@ -380,6 +430,15 @@ function renderGate(){
         <input type="text" id="g-market" placeholder="市場名（貴社名）" list="g-market-list" autocomplete="off">
         <datalist id="g-market-list"></datalist>
         <button id="g-manual-btn">この会社名でログイン</button>
+      </div>
+      <div id="g-setup" style="display:none">
+        <p style="margin-bottom:6px">はじめてのご利用です。<br>ご担当者さまの情報をご登録ください。</p>
+        <div class="g-name" id="gs-market"></div>
+        <input type="text" id="gs-staff" placeholder="ご担当者名（例）山田太郎" autocomplete="off">
+        <input type="email" id="gs-email" placeholder="メールアドレス（例）info@example.co.jp" autocomplete="off">
+        <label class="keep" style="justify-content:flex-start;margin:2px 0 10px"><input type="checkbox" id="gs-nomail"> メールアドレスは無い（FAXで受け取る）</label>
+        <input type="tel" id="gs-tel" placeholder="電話番号（例）053-000-0000（任意）" autocomplete="off">
+        <button id="gs-btn">登録してはじめる</button>
       </div>
       <div class="err" id="g-err"></div>
     </div></div>`;
@@ -415,17 +474,50 @@ function renderGate(){
     $("#g-step1").style.display="none";
     $("#g-confirm").style.display="";
   };
+  // 会社名確定後：プロファイル未作成ならセットアップへ、作成済み（管理者含む）は即ログイン
+  let pendingSetupMarket = "";
+  const proceed = (marketName)=>{
+    pendingSetupMarket = marketName || "";
+    const isAdmin = normName(marketName).indexOf("林材木店")>=0;
+    if(isAdmin || loadProfile()){ finish(marketName); return; }   // 管理者と登録済み端末はスキップ
+    showSetup(marketName);
+  };
+  const showSetup = (marketName)=>{
+    $("#g-step1").style.display="none";
+    $("#g-confirm").style.display="none";
+    $("#g-manual").style.display="none";
+    $("#g-setup").style.display="";
+    $("#g-err").textContent="";
+    $("#gs-market").textContent = marketName || "（市場名未設定）";
+    const hit = matchCustomer(marketName);   // 取引先マスタにTELがあれば自動セット
+    if(hit && hit.tel && $("#gs-tel")) $("#gs-tel").value = hit.tel;
+    $("#gs-staff").focus();
+  };
+
   $("#g-btn").addEventListener("click",go);
   $("#g-fax").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-pass").focus(); });
   $("#g-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
-  $("#g-yes").addEventListener("click",()=>finish(pendingName));
+  $("#g-yes").addEventListener("click",()=>proceed(pendingName));
   $("#g-no").addEventListener("click",()=>{ $("#g-confirm").style.display="none"; $("#g-manual").style.display=""; $("#g-market").focus(); });
   $("#g-manual-btn").addEventListener("click",()=>{
     const mk=$("#g-market").value.trim();
     if(!mk){ $("#g-err").textContent="会社名（市場名）をご入力ください"; return; }
-    finish(mk);
+    proceed(mk);
   });
   $("#g-market").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-manual-btn").click(); });
+  $("#gs-btn").addEventListener("click",()=>{
+    const name=$("#gs-staff").value.trim();
+    const noMail=$("#gs-nomail").checked;
+    const email=$("#gs-email").value.trim();
+    const tel=$("#gs-tel").value.trim();
+    if(!name){ $("#g-err").textContent="ご担当者名をご入力ください"; $("#gs-staff").focus(); return; }
+    if(!noMail && !email){ $("#g-err").textContent="メールアドレスをご入力ください（無い場合はチェックを）"; $("#gs-email").focus(); return; }
+    const market = pendingSetupMarket;
+    saveProfile({ market, tel, fax: $("#g-fax").value.trim(), staffs:[{name, email:noMail?"":email, noMail}], active:0 });
+    finish(market);
+  });
+  $("#gs-email").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#gs-btn").click(); });
+  $("#gs-tel").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#gs-btn").click(); });
   (savedFax ? $("#g-pass") : $("#g-fax")).focus();
 }
 
@@ -441,7 +533,7 @@ function renderMain(){
       <span class="adm-tag" id="adm-tag" style="display:none">管理者表示</span>
       <span class="method-fixed" id="method-fixed" style="display:none"></span>
     </div>
-    <div class="who"><span>ようこそ</span><button id="logout">ログアウト</button></div>
+    <div class="who"><span>ようこそ</span><button id="open-settings">⚙ 設定</button><button id="logout">ログアウト</button></div>
   </div></header>
   <div class="wrap">
 
@@ -488,6 +580,7 @@ function renderMain(){
   </div>`;
 
   $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); localStorage.removeItem(LS_MARKET); renderGate(); });
+  $("#open-settings").addEventListener("click",openSettings);
   $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));
 
   // 市場名から取引方法を確定（マスタ照合）。確定できればトグルを隠して固定表示、できなければ従来通り。
@@ -503,6 +596,7 @@ function renderMain(){
 
   renderPriceTables(); renderStock(); renderQuote(); renderDrafts();
   refreshPricebook(); refreshStock();
+  fetchNaitoTanka().then(()=>{ if(lines.length) updateSum(); });   // 内藤単価表を先読み
   $("#stk-refresh").addEventListener("click",refreshStock);
   updateDraftCount();
 }
@@ -629,6 +723,14 @@ function renderQuote(){
     </tr>`;
   }).join("");
   const prefOpts=PREFS.map(p=>`<option${p===DEST?" selected":""}>${p}</option>`).join("");
+  const prof=loadProfile();
+  const hasStaff = !!(prof && prof.staffs && prof.staffs.length);
+  const actIdx = hasStaff ? Math.min(prof.active||0, prof.staffs.length-1) : 0;
+  const tantoFieldHTML = hasStaff
+    ? `<label>ご担当者<span class="req">*</span></label>
+       <select id="q-tanto-sel">${prof.staffs.map((s,i)=>`<option value="${i}"${i===actIdx?" selected":""}>${esc(s.name)}${s.noMail?"（メール無し）":""}</option>`).join("")}<option value="__add">＋ 担当者を追加…</option></select>
+       <input type="hidden" id="q-reqtanto" value="${esc((prof.staffs[actIdx]||{}).name||"")}">`
+    : `<label>ご担当者（任意）</label><input id="q-reqtanto" placeholder="例）山田">`;
   box.innerHTML=`
     <div class="tscroll" style="border:none"><table class="qt">
       <thead><tr><th class="l">商品（取引方法・寸法・等級）</th><th>数量</th><th>単価</th><th>金額</th><th></th></tr></thead>
@@ -637,15 +739,19 @@ function renderQuote(){
     <div class="q-foot">
       <div class="q-fields">
         <div class="ship-row" style="margin-bottom:12px">
-          <label style="margin:0">お届け先</label>
-          <select id="q-dest" style="max-width:150px">${prefOpts}</select>
+          <label style="margin:0">配送方法</label>
+          <div class="seg carrier" id="q-carrier">
+            <button data-v="内藤運輸">内藤運輸（市場便）</button>
+            <button data-v="西濃運輸">西濃運輸（直送）</button>
+          </div>
+          <select id="q-dest" style="max-width:150px${CARRIER==="西濃運輸"?"":";display:none"}">${prefOpts}</select>
           <span class="note" id="ship-note"></span>
         </div>
         <div class="contact-block">
           <div class="cb-title">▼ 依頼・注文される場合のご連絡先（正式見積依頼・注文で必要）</div>
           <div class="row">
             <div><label>発注元（貴社・市場名）<span class="req">*</span></label><input id="q-market" placeholder="例）○○木材市場"></div>
-            <div><label>ご担当者（任意）</label><input id="q-reqtanto" placeholder="例）山田"></div>
+            <div>${tantoFieldHTML}</div>
           </div>
           <div class="row">
             <div><label>お電話番号</label><input id="q-contact" placeholder="例）053-000-0000"></div>
@@ -697,12 +803,116 @@ function renderQuote(){
   const ackSaved = localStorage.getItem("hz_ichiba_ackvia")||"mail";
   box.querySelectorAll('input[name="ackvia"]').forEach(r=>{ r.checked=(r.value===ackSaved); r.addEventListener("change",()=>{ if(r.checked) localStorage.setItem("hz_ichiba_ackvia", r.value); }); });
   $("#q-dest").addEventListener("change",e=>{ DEST=e.target.value; updateSum(); });
+  // 配送方法セグメント
+  const cseg=$("#q-carrier");
+  if(cseg){ cseg.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",b.dataset.v===CARRIER); b.addEventListener("click",()=>setCarrier(b.dataset.v)); }); }
+  // 担当者プルダウン（プロファイルあり時）
+  const tsel=$("#q-tanto-sel");
+  if(tsel){ tsel.addEventListener("change",()=>{
+    if(tsel.value==="__add"){ const p=loadProfile(); tsel.value=String(p?Math.min(p.active||0,(p.staffs.length||1)-1):0); openSettings(); return; }
+    const idx=Number(tsel.value); const p=loadProfile(); if(p){ p.active=idx; saveProfile(p); }
+    applyStaff(idx);
+  }); }
+  // プロファイルがあれば連絡先を自動充填（ackviaの初期化より後に実行して上書き）
+  fillContactBlock();
   $("#b-print").addEventListener("click",doPrint);
   $("#b-save").addEventListener("click",doSaveDraft);
   $("#b-req").addEventListener("click",()=>doRequest("依頼"));
   $("#b-order").addEventListener("click",()=>doRequest("注文"));
   $("#b-clear").addEventListener("click",()=>{ if(confirm("見積明細をすべて消しますか？")){ lines=[]; renderQuote(); } });
   updateSum();
+}
+
+/* --- 配送方法の切替 --- */
+function setCarrier(v){
+  CARRIER = (v==="西濃運輸") ? "西濃運輸" : "内藤運輸";
+  localStorage.setItem(LS_CARRIER, CARRIER);
+  const seg=$("#q-carrier"); if(seg) seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v===CARRIER));
+  const ds=$("#q-dest"); if(ds) ds.style.display = (CARRIER==="西濃運輸") ? "" : "none";
+  updateSum();
+}
+
+/* --- プロファイル → 見積フッター自動充填 --- */
+function fillContactBlock(){
+  const prof=loadProfile(); if(!prof) return;
+  if($("#q-market") && prof.market) $("#q-market").value = prof.market;
+  if($("#q-contact")) $("#q-contact").value = prof.tel || "";
+  if($("#q-fax")) $("#q-fax").value = prof.fax || "";
+  if(prof.staffs && prof.staffs.length) applyStaff(prof.active||0);
+}
+function applyStaff(idx){
+  const prof=loadProfile(); if(!prof || !prof.staffs || !prof.staffs.length) return;
+  idx=Math.max(0, Math.min(idx, prof.staffs.length-1));
+  const s=prof.staffs[idx];
+  if($("#q-reqtanto")) $("#q-reqtanto").value = s.name || "";
+  if($("#q-email")) $("#q-email").value = s.noMail ? "" : (s.email || "");
+  const want = s.noMail ? "fax" : "mail";   // メール無し担当者はFAX受取を既定に
+  const r=document.querySelector(`input[name="ackvia"][value="${want}"]`);
+  if(r){ r.checked=true; localStorage.setItem("hz_ichiba_ackvia", want); }
+}
+
+/* --- 設定モーダル（担当者・連絡先の編集） --- */
+function closeSettings(){ const m=$("#settings-modal"); if(m) m.remove(); }
+function openSettings(){
+  closeSettings();
+  const work = JSON.parse(JSON.stringify(currentProfile()));
+  if(!Array.isArray(work.staffs)) work.staffs=[];
+  const ov=document.createElement("div"); ov.className="modal-ov"; ov.id="settings-modal";
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{ if(e.target===ov) closeSettings(); });
+  const draw=()=>{
+    ov.innerHTML=`<div class="modal-card">
+      <h3>⚙ 設定（担当者・連絡先）</h3>
+      <div class="ms-field"><label>会社名（市場名）</label><div class="ms-ro">${esc(work.market||"—")}</div></div>
+      <div class="ms-field"><label>FAX番号</label><div class="ms-ro">${esc(work.fax||"—")}</div></div>
+      <div class="ms-field"><label>電話番号</label><input id="ms-tel" value="${esc(work.tel||"")}" placeholder="例）053-000-0000"></div>
+      <div class="ms-field"><label>ご担当者</label>
+        <div id="ms-staff-list">${work.staffs.length ? work.staffs.map((s,i)=>`
+          <div class="ms-staff"><div class="info">${esc(s.name||"（無名）")}<small>${s.noMail?"メール無し・FAX受取":esc(s.email||"メール未登録")}</small></div>
+          <button data-del="${i}">削除</button></div>`).join("") : `<div class="stk-note">担当者が未登録です。下から追加してください。</div>`}</div>
+        <div class="ms-add">
+          <input id="ms-new-name" placeholder="担当者名">
+          <input id="ms-new-email" type="email" placeholder="メールアドレス" style="margin-top:6px">
+          <label class="ack-opt" style="margin-top:8px!important"><input type="checkbox" id="ms-new-nomail"> メール無し・FAXで受け取る</label>
+          <button id="ms-add-btn" style="margin-top:8px;border:none;background:#eef2f7;color:var(--accent);border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-family:inherit">＋ 担当者を追加</button>
+        </div>
+      </div>
+      <div class="ms-btns"><button class="ms-cancel" id="ms-cancel">閉じる</button><button class="ms-save" id="ms-save">保存</button></div>
+    </div>`;
+    ov.querySelector("#ms-tel").addEventListener("input",e=>{ work.tel=e.target.value; });
+    ov.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{ work.staffs.splice(Number(b.dataset.del),1); if(work.active>=work.staffs.length) work.active=0; draw(); }));
+    ov.querySelector("#ms-add-btn").addEventListener("click",()=>{
+      const nm=ov.querySelector("#ms-new-name").value.trim();
+      const em=ov.querySelector("#ms-new-email").value.trim();
+      const noMail=ov.querySelector("#ms-new-nomail").checked;
+      if(!nm){ alert("担当者名をご入力ください"); return; }
+      if(!noMail && !em){ alert("メールアドレスをご入力ください（無い場合はチェックを）"); return; }
+      work.staffs.push({name:nm, email:noMail?"":em, noMail});
+      work.tel=(ov.querySelector("#ms-tel")||{}).value||work.tel;   // 追加時に電話入力を保持
+      draw();
+    });
+    ov.querySelector("#ms-cancel").addEventListener("click",closeSettings);
+    ov.querySelector("#ms-save").addEventListener("click",()=>{
+      work.tel=(ov.querySelector("#ms-tel")||{}).value||"";
+      saveProfile(work);
+      closeSettings();
+      if($("#quote-box")) renderQuote();   // 見積フッターに即反映
+    });
+  };
+  draw();
+}
+
+/* --- 内藤運輸（市場便）の運賃 --- */
+function calcNaitoFreight(){
+  const totalQty = lines.reduce((s,x)=>s+x.qty,0);
+  if(!lines.length) return {ok:true, free:true, shipEx:0, totalQty:0, note:""};
+  if(totalQty>50) return {ok:true, free:true, shipEx:0, totalQty, note:"送料無料（50束超）"};
+  const tanka = naitoTankaFor(localStorage.getItem(LS_MARKET)||"");
+  if(!tanka) return {ok:false, free:false, shipEx:null, totalQty, note:"運賃は要確認（別途ご連絡します）"};
+  const byLen={}; lines.forEach(x=>{ byLen[x.l]=(byLen[x.l]||0)+x.qty; });
+  let sumEx=0;
+  for(const l in byLen){ const u=tanka[String(l)]; if(u==null) return {ok:false, free:false, shipEx:null, totalQty, note:"運賃は要確認（別途ご連絡します）"}; sumEx += u*byLen[l]; }
+  return {ok:true, free:false, shipEx:sumEx, totalQty, note:""};
 }
 
 /* --- 運賃（運賃ツールiframe） --- */
@@ -725,10 +935,32 @@ function calcFreight(){
 }
 const excl = incl => Math.round((incl||0)/1.1);
 
-let _lastCalc={sub:0,shipEx:null,tax:0,total:0};
+let _lastCalc={sub:0,shipEx:null,tax:0,total:0,carrier:"内藤運輸",free:false,totalQty:0};
 function updateSum(){
   const t=$("#sum-table"); if(!t) return;
-  const sub=linesSubtotal(); const fr=calcFreight();
+  const sub=linesSubtotal();
+  // --- 内藤運輸（市場便） ---
+  if(CARRIER==="内藤運輸"){
+    const nf=calcNaitoFreight();
+    if($("#ship-note")) $("#ship-note").textContent = nf.note||"";
+    let shipEx=null,total=null,tax=0;
+    if(nf.ok){
+      shipEx=nf.shipEx; tax=Math.floor((sub+shipEx)*0.1); total=sub+shipEx+tax;
+      const frLabel = nf.free ? "運賃（内藤便）" : `運賃（内藤便・50束以下 ${nf.totalQty}束）`;
+      const frVal   = nf.free ? "送料無料（50束超）" : `${fmt(shipEx)}円`;
+      t.innerHTML=`<tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr>
+        <tr><th>${frLabel}</th><td>${frVal}</td></tr>
+        <tr><th>消費税（10%）</th><td>${fmt(tax)}円</td></tr>
+        <tr class="total"><th>合計（税込）</th><td>${fmt(total)}円</td></tr>`;
+    }else{
+      t.innerHTML=`<tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr>
+        <tr><th>運賃（内藤便・50束以下 ${nf.totalQty}束）</th><td>要確認</td></tr>`;
+    }
+    _lastCalc={sub,shipEx,tax,total,carrier:"内藤運輸",free:nf.free,totalQty:nf.totalQty};
+    return;
+  }
+  // --- 西濃運輸（直送・既存の運賃ツール計算） ---
+  const fr=calcFreight();
   if($("#ship-note")) $("#ship-note").textContent=fr.note||"";
   let shipEx=null,total=null,tax=0;
   if(fr.ok&&fr.incl!=null){ shipEx=excl(fr.incl); tax=Math.floor((sub+shipEx)*0.1); total=sub+shipEx+tax;
@@ -740,7 +972,7 @@ function updateSum(){
     t.innerHTML=`<tr><th>商品計（税別）</th><td>${fmt(sub)}円</td></tr><tr><th>運賃</th><td>${fr.incl===null&&!fr.ok?"—":"計算中…"}</td></tr>`;
     if(!window._fr){ window._fr=setInterval(()=>{ if(fareReady()){ clearInterval(window._fr); window._fr=null; updateSum(); } },700); }
   }
-  _lastCalc={sub,shipEx,tax,total};
+  _lastCalc={sub,shipEx,tax,total,carrier:"西濃運輸",free:false,totalQty:lines.reduce((s,x)=>s+x.qty,0)};
 }
 
 /* --- 見積書 印刷 --- */
@@ -752,8 +984,14 @@ function doPrint(){
   const nouki=($("#q-nouki")&&$("#q-nouki").value.trim())||"";
   const rows=lines.map(x=>{ const p=priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade);
     return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${x.tDisp?esc(x.tDisp)+"×":""}${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
+  const isNaito = _lastCalc.carrier==="内藤運輸";
   let sumRows=`<tr><td>商品計（税別）</td><td class="r">${fmt(sub)}円</td></tr>`;
-  if(shipEx!=null){ sumRows+=`<tr><td>運賃（税別・${esc(DEST)}向け）</td><td class="r">${fmt(shipEx)}円</td></tr><tr><td>消費税（10%）</td><td class="r">${fmt(tax)}円</td></tr>`; }
+  if(shipEx!=null){
+    let frLabel, frVal;
+    if(isNaito){ frLabel="運賃（内藤便）"; frVal = _lastCalc.free ? "送料無料" : `${fmt(shipEx)}円`; }
+    else { frLabel=`運賃（税別・${esc(DEST)}向け）`; frVal=`${fmt(shipEx)}円`; }
+    sumRows+=`<tr><td>${frLabel}</td><td class="r">${frVal}</td></tr><tr><td>消費税（10%）</td><td class="r">${fmt(tax)}円</td></tr>`;
+  }
   const totalStr = shipEx!=null ? `${fmt(total)}円` : "（運賃 別途）";
   $("#print-area").innerHTML=`
     <h1>御 見 積 書</h1>
@@ -767,7 +1005,7 @@ function doPrint(){
       ${rows}
     </table>
     <table class="pa-sum"><tbody>${sumRows}<tr><td style="font-weight:bold">合計（税込）</td><td class="r" style="font-weight:bold;font-size:14px">${totalStr}</td></tr></tbody></table>
-    <div class="pa-note">※運賃は${esc(DEST)}向けの目安です。荷姿・お届け先により変わる場合があります。${nouki?`\n※納期目安：${esc(nouki)}`:""}\n※本見積の有効期限：発行日より2週間</div>`;
+    <div class="pa-note">${isNaito?"※内藤運輸（市場便）でのお届けです。合計50束超は送料無料、50束以下は長さ別の束単価で運賃を申し受けます。":`※運賃は${esc(DEST)}向け（西濃運輸・直送）の目安です。荷姿・お届け先により変わる場合があります。`}${nouki?`\n※納期目安：${esc(nouki)}`:""}\n※本見積の有効期限：発行日より2週間</div>`;
   window.print();
 }
 
@@ -784,8 +1022,8 @@ function buildQuoteObj(reqType){
     fax:($("#q-fax")&&$("#q-fax").value.trim())||"",
     ackVia:(document.querySelector('input[name="ackvia"]:checked')||{}).value || "mail",
     customer:($("#q-to")&&$("#q-to").value.trim())||"",
-    kubun:lines.length?lines[0].method:"", dest:DEST,
-    carrier:"", freight:shipEx||"", sub:sub||"", tax:tax||"", grand:total||"",
+    kubun:lines.length?lines[0].method:"", dest: CARRIER==="西濃運輸"?DEST:"市場便",
+    carrier:CARRIER, freight: (shipEx==null?"":shipEx), sub:sub||"", tax:tax||"", grand:total||"",
     nouki:($("#q-nouki")&&$("#q-nouki").value.trim())||"", remarks:"市場ツールより",
     items:lines.map(x=>({name:x.name,pname:x.pname,grade:x.grade,t:x.t,tDisp:x.tDisp||String(x.t),w:x.w,l:x.l,"in":NYUSU[x.l]||"",qty:x.qty,price:priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade),method:x.method}))
   };
@@ -858,9 +1096,11 @@ function recallDraft(id){
   const r=loadDrafts().find(x=>x.id===id); if(!r) return;
   const q=r.quote;
   lines=(q.items||[]).map(it=>({name:it.name,pname:it.pname||it.name,t:Number(it.t),tDisp:it.tDisp||String(it.t),w:Number(it.w),l:Number(it.l),grade:it.grade,qty:Number(it.qty),method:it.method||q.kubun||"付売",price:it.price}));
-  DEST=q.dest||"東京";
+  CARRIER = (q.carrier==="西濃運輸") ? "西濃運輸" : "内藤運輸";
+  localStorage.setItem(LS_CARRIER, CARRIER);
+  if(CARRIER==="西濃運輸" && PREFS.indexOf(q.dest)>=0) DEST=q.dest;   // 内藤/不正値のときは既定DESTを維持
   renderQuote();
-  if($("#q-dest")) $("#q-dest").value=DEST;
+  if(CARRIER==="西濃運輸" && $("#q-dest")) $("#q-dest").value=DEST;
   if(q.customer&&$("#q-to")) $("#q-to").value=q.customer;
   updateSum();
   $("#quote-box").scrollIntoView({behavior:"smooth",block:"start"});
