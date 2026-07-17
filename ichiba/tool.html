@@ -39,6 +39,9 @@
   .toolbar .lbl{ font-size:12.5px; font-weight:700; color:var(--sub); }
   .method-hint{ font-size:12px; color:var(--sub); }
   .method-hint b.ichi{ color:var(--ichi); } .method-hint b.tsuke{ color:var(--tsuke); }
+  .method-fixed{ font-size:13.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px; }
+  .method-fixed .mfx-lbl{ font-size:11px; font-weight:700; color:#fff; border-radius:20px; padding:2px 10px; }
+  .method-fixed .mfx-lbl.ichi{ background:var(--ichi); } .method-fixed .mfx-lbl.tsuke{ background:var(--tsuke); }
 
   .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:10px; }
   table.grid{ width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; min-width:600px; }
@@ -101,6 +104,9 @@
   .sumbox tr.total td{ font-size:22px; color:var(--brand); border-top:2px solid var(--line2); padding-top:10px; }
   .contact-block{ border:1px dashed var(--line2); border-radius:11px; padding:12px 12px 4px; margin-bottom:12px; background:#fbfcfe; }
   .cb-title{ font-size:11.5px; color:var(--accent); font-weight:700; margin-bottom:8px; }
+  .ack-row{ display:flex; gap:14px; flex-wrap:wrap; margin-top:4px; margin-bottom:10px; }
+  .ack-opt{ font-size:13px !important; font-weight:600 !important; color:var(--ink) !important; display:inline-flex !important; align-items:center; gap:5px; cursor:pointer; margin:0 !important; }
+  .ack-opt input{ width:auto !important; margin:0; padding:0; }
   .req{ color:#b0483a; margin-left:2px; }
   .qbtns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
   .qbtns button{ flex:1; min-width:140px; border:none; border-radius:10px; padding:13px 10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
@@ -180,14 +186,62 @@ const todayJP = ()=>{ const t=new Date(); return `${t.getFullYear()}年${t.getMo
 /* ===== ログイン（市場だけが使える・端末に保持） ===== */
 const PASS = "ichiba2026";
 const LS_AUTH = "hz_ichiba_tool_auth";
+const LS_MARKET = "hz_ichiba_market";           // ログイン時の市場名（貴社名）
 function isAuthed(){ return localStorage.getItem(LS_AUTH)==="1" || sessionStorage.getItem(LS_AUTH)==="1"; }
+
+/* 取引先マスタ（getCustomers）— 市場名から取引方法(市売/付売)を自動判定 */
+let CUSTOMERS = [];          // [{name, method}]
+let METHOD_LOCKED = false;   // マスタで方式が確定したらトグルを隠して固定
+async function fetchCustomers(){
+  try{
+    const r = await fetch(GAS_URL+"?action=getCustomers");
+    const j = await r.json();
+    CUSTOMERS = Array.isArray(j&&j.customers) ? j.customers : [];
+  }catch(e){ CUSTOMERS = []; }
+  return CUSTOMERS;
+}
+// 「御中」「様」「株式会社」等・空白を除去して比較用に正規化
+function normName(s){ return String(s==null?"":s).replace(/(御中|様|さま|㈱|㈲|\(株\)|\(有\)|株式会社|有限会社|\s|　)/g,"").trim(); }
+function matchCustomer(market){
+  const m = normName(market); if(!m || !CUSTOMERS.length) return null;
+  let hit = CUSTOMERS.find(c=>normName(c.name)===m);                                   // 完全一致
+  if(!hit) hit = CUSTOMERS.find(c=>{ const n=normName(c.name); return n && (n.indexOf(m)===0 || m.indexOf(n)===0); }); // 前方一致
+  return hit || null;
+}
+// 保存済み市場名＋CUSTOMERSから METHOD/METHOD_LOCKED を確定
+function applyMarketMethod(){
+  METHOD_LOCKED = false;
+  const market = localStorage.getItem(LS_MARKET)||"";
+  if(!market) return false;
+  const hit = matchCustomer(market);
+  if(hit && (hit.method==="市売" || hit.method==="付売")){
+    METHOD = hit.method; METHOD_LOCKED = true; return true;
+  }
+  return false;
+}
+// 取引方法トグル or 固定バッジの表示切替
+function applyMethodUI(){
+  const seg=$("#seg-method"), fixed=$("#method-fixed"); if(!seg) return;
+  if(METHOD_LOCKED){
+    seg.style.display="none";
+    if(fixed){
+      const cls = METHOD==="市売"?"ichi":"tsuke";
+      const txt = METHOD==="市売"?"市売（定価）":"付売（買取）";
+      fixed.innerHTML = `貴社のお取引: <span class="mfx-lbl ${cls}">${txt}</span>`;
+      fixed.style.display="";
+    }
+  }else{
+    seg.style.display="";
+    if(fixed) fixed.style.display="none";
+  }
+}
 
 /* ===== 商品マスタ ===== */
 const GRADES = ["丸節","小節","特上小","無節","無節特上小"];
 /* 等級カラー（加工予定表 gradeColors と同一。無節特上→無節特上小に対応付け） */
 const GRADE_COLORS = { "丸節":"#d32f2f", "小節":"#ef6c00", "特上小":"#8e24aa", "無節":"#1565c0", "無節特上小":"#6a1b9a" };
 const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小" };
-const NYUSU = { 2000:"8〜10枚", 3000:"10枚", 4000:"8枚" };
+const NYUSU = { 2000:"8枚", 3000:"10枚", 4000:"8枚" };
 const PRODUCTS = [
   { type:"桧フローリング", thicknesses:[15,12], w:120, lengths:[2000,3000,4000] },
   { type:"桧羽目板",       thicknesses:[12],    w:120, lengths:[2000,3000,4000] }
@@ -261,8 +315,8 @@ async function refreshStock(){
   }catch(e){ stockOk=false; }
   renderStock();
 }
-// 丸節2m/4m等の常時入荷品は在庫を「無限在庫」で運用しており負値で返る＝潤沢扱い。0=受注生産。
-function stockClass(q){ if(q==null) return null; if(q<0) return {c:"stk-o",m:"◎",t:"潤沢",ample:true}; if(q===0) return {c:"stk-x",m:"×",t:"受注生産"}; if(q<5) return {c:"stk-a",m:"△",t:"残少"}; return {c:"stk-o",m:"◎",t:"あり"}; }
+// 丸節2m/4m等の常時入荷品は在庫を「無限在庫」で運用しており負値で返る＝潤沢扱い。0=在庫無し。
+function stockClass(q){ if(q==null) return null; if(q<0) return {c:"stk-o",m:"◎",t:"潤沢",ample:true}; if(q===0) return {c:"stk-x",m:"×",t:"在庫無し"}; if(q<20) return {c:"stk-a",m:"△",t:"残少"}; return {c:"stk-o",m:"◎",t:"あり"}; }
 
 /* ===== 状態 ===== */
 let METHOD = "付売";    // 市売 / 付売
@@ -277,20 +331,32 @@ function renderGate(){
     <div class="gate"><div class="card">
       <h1>市場さま向けツール</h1>
       <p>桧製品の価格表・リアルタイム在庫の確認と、<br>運賃込みのお見積り作成ができます。</p>
+      <input type="text" id="g-market" placeholder="市場名（貴社名）" list="g-market-list" autocomplete="off">
+      <datalist id="g-market-list"></datalist>
       <input type="password" id="g-pass" placeholder="パスワード" autocomplete="current-password">
       <button id="g-btn">ログイン</button>
       <label class="keep"><input type="checkbox" id="g-keep" checked> この端末で次回から自動ログイン</label>
       <div class="err" id="g-err"></div>
     </div></div>`;
+  // 保存済み市場名を初期表示
+  const savedM = localStorage.getItem(LS_MARKET)||"";
+  if(savedM && $("#g-market")) $("#g-market").value = savedM;
+  // 取引先候補を datalist に（失敗しても自由入力できる）
+  fetchCustomers().then(list=>{
+    const dl=$("#g-market-list"); if(dl && list && list.length){ dl.innerHTML=list.map(c=>`<option value="${esc(c.name)}"></option>`).join(""); }
+  });
   const go=()=>{
     if($("#g-pass").value===PASS){
+      const mk=($("#g-market")&&$("#g-market").value.trim())||"";
+      if(mk) localStorage.setItem(LS_MARKET, mk); else localStorage.removeItem(LS_MARKET);
       ($("#g-keep").checked?localStorage:sessionStorage).setItem(LS_AUTH,"1");
       renderMain();
     }else $("#g-err").textContent="パスワードが違います";
   };
   $("#g-btn").addEventListener("click",go);
+  $("#g-market").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-pass").focus(); });
   $("#g-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
-  $("#g-pass").focus();
+  ($("#g-market")&&!savedM ? $("#g-market") : $("#g-pass")).focus();
 }
 
 function renderMain(){
@@ -310,6 +376,7 @@ function renderMain(){
           <button data-v="市売">市売（定価）</button>
           <button data-v="付売">付売（買取）</button>
         </div>
+        <span class="method-fixed" id="method-fixed" style="display:none"></span>
         <span class="method-hint" id="method-hint"></span>
       </div>
       <div id="price-box"></div>
@@ -323,7 +390,7 @@ function renderMain(){
       <div class="stk-meta">
         <span id="stk-updated"></span>
         <button id="stk-refresh">↻ 最新に更新</button>
-        <span class="stk-legend"><b class="stk-o">◎ あり</b><b class="stk-a">△ 残少(5束未満)</b><b class="stk-x">× 受注生産</b></span>
+        <span class="stk-legend"><b class="stk-o">◎ あり</b><b class="stk-a">△ 残少(20束未満)</b><b class="stk-x">× 在庫無し</b></span>
       </div>
     </div>
 
@@ -341,8 +408,19 @@ function renderMain(){
 
   </div>`;
 
-  $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); renderGate(); });
+  $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); localStorage.removeItem(LS_MARKET); renderGate(); });
   $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));
+
+  // 市場名から取引方法を確定（マスタ照合）。確定できればトグルを隠して固定表示、できなければ従来通り。
+  METHOD_LOCKED = false;
+  applyMethodUI();
+  (async ()=>{
+    const market = localStorage.getItem(LS_MARKET)||"";
+    if(!market) return;                       // 市場名未保存（既存ログイン端末含む）＝従来通りトグル表示
+    if(!CUSTOMERS.length) await fetchCustomers();
+    if(applyMarketMethod()) renderPriceTables();
+    applyMethodUI();
+  })();
 
   renderPriceTables(); renderStock(); renderQuote(); renderDrafts();
   refreshPricebook(); refreshStock();
@@ -488,11 +566,23 @@ function renderQuote(){
           <div class="cb-title">▼ 依頼・注文される場合のご連絡先（正式見積依頼・注文で必要）</div>
           <div class="row">
             <div><label>発注元（貴社・市場名）<span class="req">*</span></label><input id="q-market" placeholder="例）○○木材市場"></div>
-            <div><label>ご連絡先（TEL / メール）<span class="req">*</span></label><input id="q-contact" placeholder="例）053-000-0000"></div>
+            <div><label>ご担当者（任意）</label><input id="q-reqtanto" placeholder="例）山田"></div>
           </div>
           <div class="row">
-            <div><label>ご担当者（任意）</label><input id="q-reqtanto" placeholder="例）山田"></div>
+            <div><label>お電話番号</label><input id="q-contact" placeholder="例）053-000-0000"></div>
             <div><label>宛先（お客様名・任意）</label><input id="q-to" placeholder="例）○○工務店 御中"></div>
+          </div>
+          <div class="row">
+            <div><label>メールアドレス</label><input id="q-email" type="email" placeholder="例）info@example.co.jp"></div>
+            <div><label>FAX番号</label><input id="q-fax" placeholder="例）053-000-0000"></div>
+          </div>
+          <div>
+            <label>受付控えの受け取り方法<span class="req">*</span></label>
+            <div class="ack-row">
+              <label class="ack-opt"><input type="radio" name="ackvia" value="mail"> メールで受け取る</label>
+              <label class="ack-opt"><input type="radio" name="ackvia" value="fax"> FAXで受け取る</label>
+              <label class="ack-opt"><input type="radio" name="ackvia" value="both"> 両方</label>
+            </div>
           </div>
         </div>
         <div class="row">
@@ -520,7 +610,13 @@ function renderQuote(){
   box.querySelectorAll(".qy").forEach(inp=>inp.addEventListener("input",()=>{ const i=Number(inp.dataset.i); lines[i].qty=Math.max(1,Number(inp.value)||1); updateSum(); }));
   box.querySelectorAll(".del").forEach(b=>b.addEventListener("click",()=>{ lines.splice(Number(b.dataset.i),1); renderQuote(); }));
   // 連絡先は端末に記憶（毎回入力しなくて済む）
-  ["q-market","q-contact","q-reqtanto"].forEach(id=>{ const el=$("#"+id); if(el){ el.value=localStorage.getItem("hz_ichiba_"+id)||""; el.addEventListener("input",()=>localStorage.setItem("hz_ichiba_"+id,el.value)); } });
+  ["q-market","q-contact","q-reqtanto","q-email","q-fax"].forEach(id=>{ const el=$("#"+id); if(el){ el.value=localStorage.getItem("hz_ichiba_"+id)||""; el.addEventListener("input",()=>localStorage.setItem("hz_ichiba_"+id,el.value)); } });
+  // 発注元はログイン市場名を初期値に（既存の記憶より優先。書き換えれば以降はその値を記憶＝既存挙動）
+  const loginMarket = localStorage.getItem(LS_MARKET)||"";
+  if(loginMarket && $("#q-market")) $("#q-market").value = loginMarket;
+  // 受付控えの受け取り方法（既定 mail・端末に記憶）
+  const ackSaved = localStorage.getItem("hz_ichiba_ackvia")||"mail";
+  box.querySelectorAll('input[name="ackvia"]').forEach(r=>{ r.checked=(r.value===ackSaved); r.addEventListener("change",()=>{ if(r.checked) localStorage.setItem("hz_ichiba_ackvia", r.value); }); });
   $("#q-dest").addEventListener("change",e=>{ DEST=e.target.value; updateSum(); });
   $("#b-print").addEventListener("click",doPrint);
   $("#b-save").addEventListener("click",doSaveDraft);
@@ -605,6 +701,9 @@ function buildQuoteObj(reqType){
     market:($("#q-market")&&$("#q-market").value.trim())||"",
     reqTanto:($("#q-reqtanto")&&$("#q-reqtanto").value.trim())||"",
     contact:($("#q-contact")&&$("#q-contact").value.trim())||"",
+    email:($("#q-email")&&$("#q-email").value.trim())||"",
+    fax:($("#q-fax")&&$("#q-fax").value.trim())||"",
+    ackVia:(document.querySelector('input[name="ackvia"]:checked')||{}).value || "mail",
     customer:($("#q-to")&&$("#q-to").value.trim())||"",
     kubun:lines.length?lines[0].method:"", dest:DEST,
     carrier:"", freight:shipEx||"", sub:sub||"", tax:tax||"", grand:total||"",
@@ -618,16 +717,20 @@ function flash(msg,ok){ const m=$("#save-msg"); if(!m) return; m.textContent=msg
 function doRequest(reqType){
   if(!lines.length){ flash("先に商品を追加してください",false); return; }
   const market=($("#q-market")&&$("#q-market").value.trim())||"";
-  const contact=($("#q-contact")&&$("#q-contact").value.trim())||"";
-  if(!market || !contact){ flash("発注元（市場名）とご連絡先をご入力ください",false);
-    const f=$("#q-market"); if(f&&!market) f.focus(); else if($("#q-contact")&&!contact) $("#q-contact").focus(); return; }
+  const email=($("#q-email")&&$("#q-email").value.trim())||"";
+  const fax=($("#q-fax")&&$("#q-fax").value.trim())||"";
+  const ackVia=(document.querySelector('input[name="ackvia"]:checked')||{}).value || "mail";
+  if(!market){ flash("発注元（市場名）をご入力ください",false); if($("#q-market")) $("#q-market").focus(); return; }
+  if((ackVia==="mail"||ackVia==="both") && !email){ flash("控えメール用のメールアドレスをご入力ください",false); if($("#q-email")) $("#q-email").focus(); return; }
+  if((ackVia==="fax"||ackVia==="both") && !fax){ flash("控えFAX用のFAX番号をご入力ください",false); if($("#q-fax")) $("#q-fax").focus(); return; }
   const label = reqType==="注文" ? "注文" : "正式見積依頼";
   if(!confirm(`林材木店へ「${label}」を送信します。よろしいですか？\n\n発注元：${market}\n合計（税込）：${fmt(_lastCalc.total||0)}円`)) return;
   const quote=buildQuoteObj(reqType);
   try{
     fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
     saveDraftLocal(quote, reqType);   // 送信控えも端末に残す
-    flash(`✅ 林材木店へ${label}を送信しました。折り返しご連絡します。`);
+    const viaTxt = ackVia==="both" ? "メールとFAX" : ackVia==="fax" ? "FAX" : "メール";
+    flash(`✅ ${label}を送信しました。受付控えを${viaTxt}にお送りします。`);
   }catch(e){ flash("送信に失敗しました。お手数ですがお電話ください。",false); }
 }
 
