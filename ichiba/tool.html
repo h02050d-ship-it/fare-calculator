@@ -380,12 +380,16 @@ function renderPriceTables(){
   let html="";
   groups.forEach(gr=>{
     const rep=gr.members[0];                                    // 価格を引く実SKU（type＋厚みの代表）
-    const types=[...new Set(gr.members.map(m=>m.type))];
-    const thicks=[...new Set(gr.members.map(m=>m.thickness))].sort((a,b)=>b-a);
-    const dispName=types.join("・");
-    const tDisp=thicks.join("・");
+    // 種類ごとの厚みを個別表記（例: フローリング 15・12mm ／ 羽目板 12mm）
+    const typeThs={};
+    gr.members.forEach(m=>{ (typeThs[m.type]=typeThs[m.type]||[]).push(m.thickness); });
+    const parts=Object.keys(typeThs).map(ty=>({ty, ths:typeThs[ty].sort((a,b)=>b-a)}));
+    const titleHTML=parts.map(p=>`${esc(p.ty)} <span class="tag">厚み ${p.ths.join("・")}mm</span>`).join("　");
+    const merged=(parts.length>1 || parts[0].ths.length>1);
+    const dispName= merged ? parts.map(p=>`${p.ty}(${p.ths.join("・")}mm)`).join("・") : parts[0].ty;
+    const tDisp= merged ? "" : String(parts[0].ths[0]);   // 統合時は明細の厚みは品名側に含める
     const vls=gr.lengths.filter(l=>anyPrice(METHOD,rep.type,rep.thickness,gr.w,l));
-    html+=`<div class="ptype">${esc(dispName)} <span class="tag">厚み ${tDisp}mm</span></div>
+    html+=`<div class="ptype">${titleHTML}</div>
       <div class="tscroll"><table class="grid">
         <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th style="background:${GRADE_COLORS[g]||'#556'};color:#fff;border-bottom:none">${g}</th>`).join("")}</tr></thead>
         <tbody>${vls.map(l=>{
@@ -424,21 +428,21 @@ function renderStock(){
   box.innerHTML=`<div class="tscroll"><table class="grid">
     <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th style="background:${GRADE_COLORS[g]||'#556'};color:#fff;border-bottom:none">${g}</th>`).join("")}</tr></thead>
     <tbody>${lens.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
-      let q, mark="", tipTxt="";
+      let q, tipTxt="";
       if(g==="無節特上小"){            // 在庫を持たず、無節と特上小の少ない方で表示
-        q=derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]); mark="≒"; tipTxt="無節と特上小の少ない方の在庫を表示";
+        q=derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]); tipTxt="無節と特上小の少ない方の在庫を表示";
       }else if(l===2000 && g==="小節"){  // 最悪4m小節を木取り（4m1束→2m相当2束）できる分を上乗せ
         const four=STOCK[`4000|小節`];
         q=cutAugmented(STOCK[`2000|小節`], four);
-        if(four!=null && four!==0){ mark="≒"; tipTxt="4m小節を木取りできる分（1束→2m×2束）を含む"; }
+        if(four!=null && four!==0) tipTxt="4m小節を木取りできる分（1束→2m×2束）を含む";
       }else{
         q=STOCK[`${l}|${g}`];
       }
       const s=stockClass(q);
       if(!stockOk || q==null) return `<td class="stk-cell stk-none">—</td>`;
       const tip = tipTxt ? ` title="${tipTxt}"` : "";
-      if(s.ample) return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${mark}潤沢</td>`;
-      return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${mark}${q}<small>束</small></td>`;
+      if(s.ample) return `<td class="stk-cell ${s.c}"${tip}>${s.m} 潤沢</td>`;
+      return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${q}<small>束</small></td>`;
     }).join("")+`</tr>`).join("")}</tbody>
   </table></div>`;
   const meta=$("#stk-updated");
@@ -449,7 +453,7 @@ function renderStock(){
 function addLine(name,pname,t,w,l,grade,tDisp){
   const price=priceOf(METHOD,pname,t,w,l,grade); if(price==null) return;
   const ex=lines.find(x=>x.name===name&&x.pname===pname&&x.t===t&&x.l===l&&x.grade===grade&&x.method===METHOD);
-  if(ex) ex.qty+=1; else lines.push({name,pname,t,tDisp:tDisp||String(t),w,l,grade,qty:1,method:METHOD,price});
+  if(ex) ex.qty+=1; else lines.push({name,pname,t,tDisp:(tDisp!=null?tDisp:String(t)),w,l,grade,qty:1,method:METHOD,price});
   renderQuote();
 }
 function linesSubtotal(){ return lines.reduce((s,x)=>s+priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade)*x.qty,0); }
@@ -460,7 +464,7 @@ function renderQuote(){
   const rows=lines.map((x,i)=>{
     const p=priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade);
     return `<tr>
-      <td class="l"><span class="mtag ${x.method==="市売"?"ichi":"tsuke"}">${x.method}</span> ${esc(x.name)} ${esc(x.tDisp||x.t)}mm×${x.w}×${x.l}　<b style="color:${GRADE_COLORS[x.grade]||'inherit'}">${esc(x.grade)}</b></td>
+      <td class="l"><span class="mtag ${x.method==="市売"?"ichi":"tsuke"}">${x.method}</span> ${esc(x.name)} ${x.tDisp?esc(x.tDisp)+"mm×":""}${x.w}×${x.l}　<b style="color:${GRADE_COLORS[x.grade]||'inherit'}">${esc(x.grade)}</b></td>
       <td><input class="qy" type="number" min="1" value="${x.qty}" data-i="${i}"></td>
       <td>${fmt(p)}円</td>
       <td>${fmt(p*x.qty)}円</td>
@@ -572,7 +576,7 @@ function doPrint(){
   const memo=($("#q-memo")&&$("#q-memo").value.trim())||"";
   const nouki=($("#q-nouki")&&$("#q-nouki").value.trim())||"";
   const rows=lines.map(x=>{ const p=priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade);
-    return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${esc(x.tDisp||x.t)}×${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
+    return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${x.tDisp?esc(x.tDisp)+"×":""}${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
   let sumRows=`<tr><td>商品計（税別）</td><td class="r">${fmt(sub)}円</td></tr>`;
   if(shipEx!=null){ sumRows+=`<tr><td>運賃（税別・${esc(DEST)}向け）</td><td class="r">${fmt(shipEx)}円</td></tr><tr><td>消費税（10%）</td><td class="r">${fmt(tax)}円</td></tr>`; }
   const totalStr = shipEx!=null ? `${fmt(total)}円` : "（運賃 別途）";
