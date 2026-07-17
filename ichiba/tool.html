@@ -355,7 +355,7 @@ function normFax(s){
   if(d.length>=10 && d.indexOf("81")===0 && d.length>=11) d="0"+d.slice(2);
   return d;
 }
-const OWN_FAX = "0534623673";   // 自社FAX → 管理者（林材木店）ログイン
+const OWN_FAXES = ["05031467566","0534623673"];   // 自社FAX(eFax 050-3146-7566・旧番号も許容) → 管理者（林材木店）ログイン
 
 function renderGate(){
   document.getElementById("root").innerHTML = `
@@ -401,7 +401,7 @@ function renderGate(){
     if($("#g-pass").value!==PASS){ $("#g-err").textContent="パスワードが違います"; return; }
     const fax=normFax($("#g-fax").value);
     if(!fax || fax.length<9){ $("#g-err").textContent="FAX番号をご入力ください"; return; }
-    if(fax===OWN_FAX){ pendingName="林材木店"; $("#g-name").textContent="株式会社 林材木店（管理者）"; }
+    if(OWN_FAXES.includes(fax)){ pendingName="林材木店"; $("#g-name").textContent="株式会社 林材木店（管理者）"; }
     else{
       $("#g-err").textContent="照合中…"; $("#g-err").style.color="#7a869a";
       if(!CUSTOMERS.length) await fetchCustomers();
@@ -758,7 +758,7 @@ function doPrint(){
     <div class="pa-head">
       <div><div class="pa-to">${to?esc(to):"　"}</div><div style="font-size:11px;margin-top:6px">下記の通りお見積り申し上げます。</div>
         <div class="pa-total">御見積金額　${totalStr}（税込）</div></div>
-      <div class="pa-from"><b>${esc(from)}</b><br>静岡県浜松市中央区和田町439-2<br>TEL 053-461-0230　FAX 053-462-3673<br>発行日：${todayJP()}${memo?`<br>${esc(memo)}`:""}</div>
+      <div class="pa-from"><b>${esc(from)}</b><br>静岡県浜松市中央区和田町439-2<br>TEL 053-461-0230　FAX 050-3146-7566<br>発行日：${todayJP()}${memo?`<br>${esc(memo)}`:""}</div>
     </div>
     <table>
       <tr><th>品名</th><th>等級</th><th>寸法(mm)</th><th>数量</th><th>単価(税別)</th><th>金額(税別)</th></tr>
