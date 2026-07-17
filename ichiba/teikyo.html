@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>施工写真のご提供｜林材木店</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='47' font-size='62' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='47' font-size='62' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
+<style>
+  :root{ --ink:#2a3340; --sub:#7a869a; --line:#e3e8ef; --line2:#cfd8e3; --accent:#1d4e89; --green:#2f6f4f; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; background:#f4f6f9; color:var(--ink); line-height:1.65; }
+  header{ background:linear-gradient(120deg,#274b73,#1d4e89); color:#fff; padding:20px 16px; text-align:center; }
+  header h1{ font-size:19px; font-weight:800; letter-spacing:.03em; }
+  header .sub{ font-size:12px; opacity:.85; margin-top:2px; }
+  .wrap{ max-width:560px; margin:0 auto; padding:16px 14px 60px; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px 18px; margin-top:14px; box-shadow:0 1px 3px rgba(30,40,60,.08),0 3px 14px rgba(30,40,60,.05); }
+  .lead{ font-size:13.5px; color:var(--ink); }
+  .lead b{ color:var(--accent); }
+
+  .step{ margin-top:18px; }
+  .step .st{ display:flex; align-items:center; gap:9px; font-size:15px; font-weight:800; margin-bottom:8px; }
+  .step .n{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; font-size:14px; display:flex; align-items:center; justify-content:center; }
+
+  .pickbtn{ display:block; width:100%; text-align:center; border:2px dashed var(--line2); border-radius:14px; padding:22px 12px; background:#fbfcfe; cursor:pointer; font-size:15px; font-weight:700; color:var(--accent); }
+  .pickbtn small{ display:block; font-weight:500; color:var(--sub); font-size:11.5px; margin-top:4px; }
+  #files{ display:none; }
+  #picked{ font-size:13px; font-weight:700; color:var(--green); margin-top:8px; min-height:18px; }
+
+  .giga{ margin-top:10px; background:#f4faf6; border:1px solid #cfe3d6; border-radius:12px; padding:11px 13px; font-size:12px; color:var(--sub); }
+  .giga b{ color:var(--green); }
+  .giga input{ width:100%; margin-top:7px; padding:10px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; }
+
+  input.tx{ width:100%; padding:13px; border:1.5px solid var(--line2); border-radius:11px; font-size:16px; font-family:inherit; }
+  .opt{ font-size:11.5px; color:var(--sub); margin-top:6px; }
+
+  .consent{ display:flex; gap:9px; align-items:flex-start; font-size:12.5px; margin-top:16px; background:#fbfcfe; border:1px solid var(--line); border-radius:11px; padding:11px 13px; }
+  .consent input{ width:19px; height:19px; flex:none; margin-top:1px; accent-color:var(--green); }
+
+  .send{ display:block; width:100%; margin-top:16px; border:none; border-radius:13px; padding:17px; font-size:16.5px; font-weight:800; color:#fff; background:linear-gradient(180deg,#3a8a63,#2f6f4f); cursor:pointer; font-family:inherit; letter-spacing:.04em; box-shadow:0 4px 12px rgba(47,111,79,.3); }
+  .send:disabled{ opacity:.5; }
+  #msg{ font-size:13.5px; font-weight:700; margin-top:12px; text-align:center; min-height:20px; }
+
+  .done{ display:none; text-align:center; padding:26px 10px; }
+  .done .big{ font-size:44px; }
+  .done h2{ font-size:17px; margin:8px 0 6px; }
+  .done p{ font-size:13px; color:var(--sub); }
+
+  footer{ text-align:center; font-size:11.5px; color:var(--sub); padding:18px 14px 30px; line-height:1.9; }
+  footer a{ color:var(--accent); font-weight:700; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📷 施工写真のご提供にご協力ください</h1>
+  <div class="sub">株式会社 林材木店</div>
+</header>
+
+<div class="wrap">
+  <div class="card" id="form-card">
+    <div class="lead">桧フローリング・羽目板の施工写真をお持ちでしたら、こちらから送るだけでOKです。いただいた写真は<b>施工写真ギャラリーに掲載</b>し、貴社からお客様へのご提案にもお使いいただけます。</div>
+
+    <div class="step">
+      <div class="st"><span class="n">1</span>写真を選ぶ</div>
+      <label class="pickbtn" for="files">📁 タップして写真を選ぶ<small>複数選択OK（一度に10枚まで）・自動で縮小されるので大きい写真のままで大丈夫です</small></label>
+      <input type="file" id="files" accept="image/*" multiple>
+      <div id="picked"></div>
+      <div class="giga">
+        <b>枚数が多い場合（10枚超）：</b>ギガファイル便（gigafile.nu）でまとめてアップし、発行されたURLをここに貼ってください。写真選択は不要です。
+        <input id="giga" placeholder="https://xx.gigafile.nu/…（任意）">
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="st"><span class="n">2</span>会社名を入れる</div>
+      <input class="tx" id="market" placeholder="貴社名（市場名）">
+      <div class="opt">よろしければ施工場所・使用商品などを：<input class="tx" id="comment" style="margin-top:5px;font-size:14px;padding:10px" placeholder="例）○○様邸 リビング床・フローリング15mm（任意）"></div>
+    </div>
+
+    <div class="step">
+      <div class="st"><span class="n">3</span>送信する</div>
+      <label class="consent"><input type="checkbox" id="consent"> 写真を林材木店のホームページ・SNS・販促物・施工写真ギャラリーで使用することに同意します</label>
+      <button class="send" id="send">📤 送信する</button>
+      <div id="msg"></div>
+    </div>
+  </div>
+
+  <div class="card done" id="done-card">
+    <div class="big">🙌</div>
+    <h2>ありがとうございました！</h2>
+    <p>写真を受け付けました。確認のうえ施工写真ギャラリーに掲載いたします。<br>続けて送る場合は下のボタンからどうぞ。</p>
+    <button class="send" id="again" style="max-width:280px;margin:16px auto 0">もう一度送る</button>
+  </div>
+</div>
+
+<footer>
+  株式会社 林材木店　TEL 053-461-0230<br>
+  <a href="photos.html">📷 施工写真ギャラリーを見る</a>　／　<a href="tool.html">価格・在庫・見積ツールへ</a>
+</footer>
+
+<script>
+"use strict";
+const UP_URL = "https://script.google.com/macros/s/AKfycbxvPjDv81vrJMW2GaqpCJooyxxt7__gvMF4mJkmcGNbNS2xGMoXgTnn6_OEPZ3Rr0spdg/exec";
+const UP_TOKEN = "hzy-ichiba-stock-2026";
+const MAX_PHOTOS = 10;
+const $ = s => document.querySelector(s);
+
+// ツール側で記憶済みの市場名を初期値に
+(function(){ const m=localStorage.getItem("hz_ichiba_market")||localStorage.getItem("hz_ichiba_q-market"); if(m) $("#market").value=m; })();
+
+$("#files").addEventListener("change",()=>{
+  const n=$("#files").files.length;
+  $("#picked").textContent = n ? `✅ ${n}枚選択しました` : "";
+});
+
+function msg(t, ok){ $("#msg").textContent=t; $("#msg").style.color = ok===false ? "#b0483a" : "#2f6f4f"; }
+
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const MAX=1600;
+        let w=img.naturalWidth, h=img.naturalHeight;
+        if(Math.max(w,h)>MAX){ const r=MAX/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+        const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+        cv.getContext("2d").drawImage(img,0,0,w,h);
+        const dataUrl=cv.toDataURL("image/jpeg",0.85);
+        URL.revokeObjectURL(url);
+        resolve({ name:file.name, type:"image/jpeg", data:dataUrl.split(",")[1] });
+      }catch(e){ URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("読み込み失敗: "+file.name)); };
+    img.src=url;
+  });
+}
+
+$("#send").addEventListener("click", async ()=>{
+  const market=$("#market").value.trim();
+  const gigaUrl=$("#giga").value.trim();
+  const files=[...$("#files").files];
+  if(!files.length && !gigaUrl){ msg("写真を選ぶか、ギガファイル便のURLを貼ってください", false); return; }
+  if(gigaUrl && !/^https?:\/\//.test(gigaUrl)){ msg("URLは https:// から貼り付けてください", false); return; }
+  if(files.length>MAX_PHOTOS){ msg(`一度に送れるのは${MAX_PHOTOS}枚までです。多い場合はギガファイル便をご利用ください`, false); return; }
+  if(!market){ msg("貴社名（市場名）をご入力ください", false); $("#market").focus(); return; }
+  if(!$("#consent").checked){ msg("使用への同意（チェック）をお願いします", false); return; }
+
+  const btn=$("#send"); btn.disabled=true;
+  try{
+    const photos=[];
+    if(files.length){
+      msg(`写真を準備中…（${files.length}枚）`);
+      for(const f of files){ if(/^image\//.test(f.type)||/\.(jpe?g|png|heic)$/i.test(f.name)) photos.push(await compressImage(f)); }
+    }
+    msg("送信中…");
+    const body={ action:"ichibaphoto", token:UP_TOKEN, market, tanto:"", contact:"",
+      comment:$("#comment").value.trim(), gigaUrl, consent:true, photos };
+    const r=await fetch(UP_URL,{ method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(body) });
+    const j=await r.json();
+    if(j&&j.ok){
+      localStorage.setItem("hz_ichiba_market", market);
+      $("#form-card").style.display="none";
+      $("#done-card").style.display="block";
+      window.scrollTo(0,0);
+    }else throw new Error(j&&j.error||"送信エラー");
+  }catch(e){
+    msg("送信に失敗しました（"+e.message+"）。お手数ですがお電話（053-461-0230）でお知らせください。", false);
+  }finally{ btn.disabled=false; }
+});
+
+$("#again").addEventListener("click",()=>{
+  $("#files").value=""; $("#giga").value=""; $("#comment").value=""; $("#picked").textContent=""; $("#msg").textContent="";
+  $("#done-card").style.display="none"; $("#form-card").style.display="block"; window.scrollTo(0,0);
+});
+</script>
+</body>
+</html>
