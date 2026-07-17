@@ -544,8 +544,7 @@ function renderStock(){
       const s=stockClass(q);
       if(!stockOk || q==null) return `<td class="stk-cell stk-none">—</td>`;
       const tip = tipTxt ? ` title="${tipTxt}"` : "";
-      if(s.ample) return `<td class="stk-cell ${s.c}"${tip}>${s.m} 潤沢</td>`;
-      if(q>=100) return `<td class="stk-cell ${s.c}"${tip}>${s.m} 100<small>束以上</small></td>`;
+      if(s.ample || q>=100) return `<td class="stk-cell stk-o"${tip}>${s.m} 100<small>束以上</small></td>`;
       return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${q}<small>束</small></td>`;
     }).join("")+`</tr>`).join("")}</tbody>
   </table></div>`;
