@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
 <title>市場さま向け 価格・在庫・見積ツール｜林材木店</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='55' font-size='46' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='55' font-size='46' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
 <style>
   :root{
     --bg:#f4f6f9; --panel:#ffffff; --panel2:#f7f9fc; --ink:#2a3340; --sub:#7a869a;
@@ -37,10 +39,13 @@
   .seg.thick button.on{ background:#556; }
   .toolbar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
   .toolbar .lbl{ font-size:12.5px; font-weight:700; color:var(--sub); }
-  .method-hint{ font-size:12px; color:var(--sub); }
+  .method-hint{ font-size:12px; color:var(--sub); margin-left:6px; }
   .method-hint b.ichi{ color:var(--ichi); } .method-hint b.tsuke{ color:var(--tsuke); }
-  .method-fixed{ font-size:13.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px; }
-  .method-fixed .mfx-lbl{ font-size:11px; font-weight:700; color:#fff; border-radius:20px; padding:2px 10px; }
+  .hd-method{ display:flex; align-items:center; gap:8px; }
+  .hd-method .seg{ border-color:rgba(255,255,255,.5); }
+  .adm-tag{ font-size:10.5px; font-weight:700; color:#ffd77a; border:1px solid rgba(255,215,122,.6); border-radius:20px; padding:2px 9px; }
+  .method-fixed{ font-size:13.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px; color:#fff; }
+  .method-fixed .mfx-lbl{ font-size:12px; font-weight:700; color:#fff; border-radius:20px; padding:4px 14px; border:1px solid rgba(255,255,255,.5); }
   .method-fixed .mfx-lbl.ichi{ background:var(--ichi); } .method-fixed .mfx-lbl.tsuke{ background:var(--tsuke); }
 
   .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:10px; }
@@ -87,6 +92,13 @@
   table.qt input.qy{ width:60px; text-align:right; padding:6px; border:1px solid var(--line2); border-radius:7px; font-family:inherit; font-size:13.5px; }
   table.qt .del{ border:none; background:#fbeceb; color:#b0483a; border-radius:6px; padding:4px 9px; cursor:pointer; font-size:12px; font-family:inherit; }
   .q-empty{ color:var(--sub); font-size:13.5px; padding:16px; text-align:center; background:var(--panel2); border-radius:10px; }
+
+  /* 販促資料 */
+  .res-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+  .res-btn{ display:block; text-decoration:none; background:var(--panel2); border:1.5px solid var(--line2); border-radius:12px;
+    padding:14px 16px; font-size:14.5px; font-weight:700; color:var(--accent); transition:transform .1s, box-shadow .1s; }
+  .res-btn:hover{ transform:translateY(-1px); box-shadow:var(--shadow); background:#fff; }
+  .res-btn small{ display:block; font-size:11.5px; font-weight:500; color:var(--sub); margin-top:3px; }
 
   .q-foot{ display:grid; grid-template-columns:1.1fr .9fr; gap:20px; margin-top:16px; align-items:start; }
   @media(max-width:720px){ .q-foot{ grid-template-columns:1fr; } }
@@ -208,22 +220,25 @@ function matchCustomer(market){
   if(!hit) hit = CUSTOMERS.find(c=>{ const n=normName(c.name); return n && (n.indexOf(m)===0 || m.indexOf(n)===0); }); // 前方一致
   return hit || null;
 }
-// 保存済み市場名＋CUSTOMERSから METHOD/METHOD_LOCKED を確定
+// 保存済み市場名＋CUSTOMERSから METHOD/METHOD_LOCKED を確定。「林材木店」でログイン＝弊社管理者（両方表示・切替可）
+let IS_ADMIN = false;
 function applyMarketMethod(){
-  METHOD_LOCKED = false;
+  METHOD_LOCKED = false; IS_ADMIN = false;
   const market = localStorage.getItem(LS_MARKET)||"";
   if(!market) return false;
+  if(normName(market).indexOf("林材木店")>=0){ IS_ADMIN = true; return false; }   // 管理者=トグル表示のまま
   const hit = matchCustomer(market);
   if(hit && (hit.method==="市売" || hit.method==="付売")){
     METHOD = hit.method; METHOD_LOCKED = true; return true;
   }
   return false;
 }
-// 取引方法トグル or 固定バッジの表示切替
+// 取引方法トグル or 固定バッジの表示切替（ヘッダー内）
 function applyMethodUI(){
-  const seg=$("#seg-method"), fixed=$("#method-fixed"); if(!seg) return;
+  const seg=$("#seg-method"), fixed=$("#method-fixed"), adm=$("#adm-tag"); if(!seg) return;
   if(METHOD_LOCKED){
     seg.style.display="none";
+    if(adm) adm.style.display="none";
     if(fixed){
       const cls = METHOD==="市売"?"ichi":"tsuke";
       const txt = METHOD==="市売"?"市売（定価）":"付売（買取）";
@@ -232,6 +247,7 @@ function applyMethodUI(){
     }
   }else{
     seg.style.display="";
+    if(adm) adm.style.display = IS_ADMIN ? "" : "none";
     if(fixed) fixed.style.display="none";
   }
 }
@@ -363,22 +379,21 @@ function renderMain(){
   document.getElementById("root").innerHTML = `
   <header class="top"><div class="in">
     <div><h1>市場さま向け 価格・在庫・見積ツール</h1><div class="sub">株式会社 林材木店（製造元）</div></div>
+    <div class="hd-method">
+      <div class="seg method" id="seg-method">
+        <button data-v="市売">市売（定価）</button>
+        <button data-v="付売">付売（買取）</button>
+      </div>
+      <span class="adm-tag" id="adm-tag" style="display:none">管理者表示</span>
+      <span class="method-fixed" id="method-fixed" style="display:none"></span>
+    </div>
     <div class="who"><span>ようこそ</span><button id="logout">ログアウト</button></div>
   </div></header>
   <div class="wrap">
 
     <div class="card">
       <h2>① 価格表 <span class="badge" id="pm-badge"></span></h2>
-      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。</p>
-      <div class="toolbar">
-        <span class="lbl">取引方法</span>
-        <div class="seg method" id="seg-method">
-          <button data-v="市売">市売（定価）</button>
-          <button data-v="付売">付売（買取）</button>
-        </div>
-        <span class="method-fixed" id="method-fixed" style="display:none"></span>
-        <span class="method-hint" id="method-hint"></span>
-      </div>
+      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。<span class="method-hint" id="method-hint"></span></p>
       <div id="price-box"></div>
       <div class="stk-note" id="price-status"></div>
     </div>
@@ -398,6 +413,16 @@ function renderMain(){
       <h2>③ お見積り（運賃込み）</h2>
       <p class="h2sub">価格表からタップで追加 → 数量とお届け先を入れると運賃込みの見積になります。運賃は運賃ツールと完全一致。</p>
       <div id="quote-box"></div>
+    </div>
+
+    <div class="card">
+      <h2>④ 販促資料・施工写真</h2>
+      <p class="h2sub">お客様への営業・店頭掲示にご自由にお使いください。</p>
+      <div class="res-row">
+        <a class="res-btn" href="photos.html">📷 施工写真ギャラリー<small>実際の施工例を見る・見せる</small></a>
+        <a class="res-btn" href="https://hayazai.com/pdf/hayazai_flyer_market.pdf" target="_blank" rel="noopener">📄 販促チラシ（市場向け）<small>PDFを開く / ダウンロード</small></a>
+        <a class="res-btn" href="https://hayazai.com/pdf/hayazai_flyer_standard.pdf" target="_blank" rel="noopener">📄 販促チラシ（一般向け）<small>PDFを開く / ダウンロード</small></a>
+      </div>
     </div>
 
     <div class="card">
@@ -520,6 +545,7 @@ function renderStock(){
       if(!stockOk || q==null) return `<td class="stk-cell stk-none">—</td>`;
       const tip = tipTxt ? ` title="${tipTxt}"` : "";
       if(s.ample) return `<td class="stk-cell ${s.c}"${tip}>${s.m} 潤沢</td>`;
+      if(q>=100) return `<td class="stk-cell ${s.c}"${tip}>${s.m} 100<small>束以上</small></td>`;
       return `<td class="stk-cell ${s.c}"${tip}>${s.m} ${q}<small>束</small></td>`;
     }).join("")+`</tr>`).join("")}</tbody>
   </table></div>`;

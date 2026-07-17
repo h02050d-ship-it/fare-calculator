@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>施工写真ギャラリー｜林材木店</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='55' font-size='46' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='55' font-size='46' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --panel2:#f7f9fc; --ink:#2a3340; --sub:#7a869a;
+    --line:#e3e8ef; --line2:#cfd8e3; --brand:#2f6f4f; --brand2:#3a8a63; --accent:#1d4e89;
+    --ichi:#1d4e89; --tsuke:#b06a1f;
+    --ok:#2e7d4f; --warn:#c98a1e; --ng:#b0483a;
+    --shadow:0 1px 3px rgba(30,40,60,.08),0 3px 14px rgba(30,40,60,.05);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 14px 60px; }
+
+  header.top{ background:linear-gradient(120deg,#274b73,#1d4e89); color:#fff; padding:16px 16px 14px; }
+  header.top .in{ max-width:1080px; margin:0 auto; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header.top h1{ font-size:18px; margin:0; font-weight:800; letter-spacing:.02em; }
+  header.top .sub{ font-size:12px; opacity:.85; }
+  header.top .who{ margin-left:auto; font-size:12px; opacity:.9; display:flex; gap:10px; align-items:center; }
+  header.top .who a{ background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:7px; padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; }
+  header.top .who a:hover{ background:rgba(255,255,255,.28); }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; box-shadow:var(--shadow); }
+  .card h2{ font-size:16px; margin:0 0 3px; display:flex; align-items:center; gap:8px; }
+  .card .h2sub{ font-size:12px; color:var(--sub); margin:0 0 14px; }
+
+  /* フィルタチップ */
+  .filters{ display:flex; gap:9px; flex-wrap:wrap; }
+  .chip{ padding:8px 18px; border:1.5px solid var(--line2); border-radius:20px; background:#fff; color:var(--sub); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+  .chip:hover{ border-color:var(--accent); color:var(--accent); }
+  .chip.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  /* グリッド */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+  .pcard{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); cursor:pointer; transition:transform .12s, box-shadow .12s; display:flex; flex-direction:column; }
+  .pcard:hover{ transform:translateY(-3px); box-shadow:0 6px 22px rgba(30,40,60,.14); }
+  .pcard .imgwrap{ aspect-ratio:4/3; overflow:hidden; background:#e8eef6; }
+  .pcard .imgwrap img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .3s; }
+  .pcard:hover .imgwrap img{ transform:scale(1.04); }
+  .pcard .body{ padding:12px 13px 14px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  .pcard .ptitle{ font-size:14px; font-weight:800; color:var(--ink); line-height:1.4; }
+  .pcard .pprod{ font-size:11.5px; color:var(--sub); }
+  .pcard .pdesc{ font-size:12px; color:var(--sub); line-height:1.6; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .pcard .ptags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:auto; }
+  .ptag{ font-size:10.5px; font-weight:700; background:var(--panel2); border:1px solid var(--line); color:var(--sub); border-radius:20px; padding:2px 9px; }
+
+  .empty{ color:var(--sub); font-size:13.5px; padding:30px; text-align:center; background:var(--panel2); border-radius:10px; }
+
+  footer.foot{ max-width:1080px; margin:26px auto 0; padding:22px 16px 40px; text-align:center; color:var(--sub); font-size:12px; line-height:1.9; }
+  footer.foot .lead{ font-size:13px; font-weight:700; color:var(--ink); }
+  footer.foot .cp{ margin-top:8px; font-size:11px; opacity:.8; }
+
+  /* ライトボックス */
+  .lb{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:2000; align-items:center; justify-content:center; padding:20px; }
+  .lb.open{ display:flex; }
+  .lb-box{ background:#fff; border-radius:14px; max-width:820px; width:100%; max-height:92vh; overflow:auto; position:relative; animation:lbIn .2s ease; }
+  @keyframes lbIn{ from{ opacity:0; transform:scale(.96);} to{ opacity:1; transform:scale(1);} }
+  .lb-img{ width:100%; max-height:56vh; object-fit:contain; background:#0d1520; display:block; }
+  .lb-info{ padding:18px 22px 24px; }
+  .lb-info h3{ font-size:17px; margin:0 0 10px; color:var(--ink); }
+  .lb-info .meta{ font-size:13px; color:var(--ink); line-height:1.9; }
+  .lb-info .meta b{ color:var(--accent); }
+  .lb-info .desc{ font-size:13px; color:var(--sub); line-height:1.9; margin-top:10px; }
+  .lb-info .tags{ display:flex; gap:7px; flex-wrap:wrap; margin-top:14px; }
+  .lb-info .tags .ptag{ font-size:11px; }
+  .lb-close{ position:absolute; top:12px; right:14px; width:38px; height:38px; border-radius:50%; border:none; background:rgba(0,0,0,.5); color:#fff; font-size:20px; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center; }
+  .lb-nav{ position:absolute; top:calc(28vh); transform:translateY(-50%); width:46px; height:46px; border-radius:50%; border:none; background:rgba(0,0,0,.45); color:#fff; font-size:24px; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center; }
+  .lb-prev{ left:12px; } .lb-next{ right:12px; }
+  @media(max-width:560px){ .lb-nav{ width:40px; height:40px; font-size:20px; } .lb-img{ max-height:48vh; } }
+</style>
+</head>
+<body>
+
+<header class="top"><div class="in">
+  <div><h1>施工写真ギャラリー</h1><div class="sub">株式会社 林材木店</div></div>
+  <div class="who"><a href="tool.html">← 価格・在庫・見積ツールへ</a></div>
+</div></header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>桧フローリング・羽目板の施工写真</h2>
+    <p class="h2sub">実際の納入・施工事例の写真です。カテゴリで絞り込み、写真をタップすると拡大表示します。</p>
+    <div class="filters" id="filters"></div>
+  </div>
+
+  <div class="grid" id="grid" style="margin-top:16px"></div>
+</div>
+
+<footer class="foot">
+  <div class="lead">株式会社 林材木店　施工写真のご提供もお待ちしております（Amazonギフト券進呈キャンペーン実施中）</div>
+  <div>お客様の施工写真をお寄せいただけましたら、ギャラリーへの掲載とあわせてお礼をお送りします。</div>
+  <div class="cp">© 株式会社 林材木店</div>
+</footer>
+
+<!-- ライトボックス -->
+<div class="lb" id="lb">
+  <div class="lb-box">
+    <button class="lb-close" id="lb-close" aria-label="閉じる">✕</button>
+    <button class="lb-nav lb-prev" id="lb-prev" aria-label="前へ">‹</button>
+    <button class="lb-nav lb-next" id="lb-next" aria-label="次へ">›</button>
+    <img class="lb-img" id="lb-img" alt="">
+    <div class="lb-info">
+      <h3 id="lb-title"></h3>
+      <div class="meta" id="lb-meta"></div>
+      <div class="desc" id="lb-desc"></div>
+      <div class="tags" id="lb-tags"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const IMG_BASE = "https://hayazai.com/";
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const imgURL = src => IMG_BASE + String(src).replace(/^\//,"");
+
+/* ===== データ（gallery.html の GALLERY_ITEMS を全件そのまま） ===== */
+const GALLERY_ITEMS = [
+  // ===== 炉裏部屋（完成） =====
+  {id:1, title:'炉裏部屋・羽目板腰板施工（完成）', cat:['panel'],
+   img:'images/gallery/IMG00584_HDR.jpg', product:'羽目板 12mm',
+   location:'個人宅 炉裏部屋',
+   desc:'炉裏のある特注和室に桧羽目板を腰板として全面施工。段付き構造の腰掛け・床面にも桧フローリングを使用し、統一感のある上質な空間に仕上がりました。',
+   tags:['羽目板', '腰板', '炉裏', '和室']},
+  {id:2, title:'炉裏部屋・天井・壁羽目板施工（完成）', cat:['panel'],
+   img:'images/gallery/IMG00607_HDR.jpg', product:'羽目板 12mm',
+   location:'個人宅 炉裏部屋',
+   desc:'天井と壁の腰板部分に桧羽目板を施工。桧の淡い黄白色と緑の左官壁が見事なコントラストを生み出しています。炉裏の鉤（かぎ）も印象的です。',
+   tags:['羽目板', '天井', '壁面', '炉裏']},
+  {id:3, title:'炉裏部屋・天井羽目板クローズアップ', cat:['panel'],
+   img:'images/gallery/IMG00608_HDR.jpg', product:'羽目板 12mm',
+   location:'個人宅 炉裏部屋 天井',
+   desc:'天井面の桧羽目板施工アップ。柾目・板目が混在した自然な木目が美しく、経年とともに飴色に変化していきます。',
+   tags:['羽目板', '天井', 'クローズアップ']},
+
+  // ===== ウッドデッキ =====
+  {id:4, title:'ウッドデッキ張り替え（施工前後）', cat:['flooring', 'outdoor'],
+   img:'images/gallery/f_FA1.jpg', product:'フローリング 15×108×4000mm 節有 A級品',
+   location:'個人宅 ウッドデッキ',
+   desc:'劣化した既存デッキを桧フローリングで全面張り替え。施工前後の変貌が一目瞭然です。節有A級品の素朴な木目がデッキの雰囲気によく馴染みます。',
+   tags:['フローリング', 'ウッドデッキ', '節有', '屋外']},
+  {id:5, title:'ウッドデッキ・キシラデコール塗装（施工前後）', cat:['flooring', 'outdoor'],
+   img:'images/gallery/f_FA2.jpg', product:'フローリング 15×108×4000mm 節有 A級品',
+   location:'個人宅 ウッドデッキ',
+   desc:'桧フローリングデッキにキシラデコール塗装を施した施工前後の比較写真。塗装後は深みのある色合いになり、耐久性も格段に向上します。',
+   tags:['フローリング', 'ウッドデッキ', '塗装', '屋外']},
+
+  // ===== フローリング（屋内） =====
+  {id:6, title:'廊下・洋室フローリング張り替え（施工前後）', cat:['flooring'],
+   img:'images/gallery/f_FA5.jpg', product:'フローリング 12×108×3000mm 小節 A級品',
+   location:'個人宅 廊下・洋室',
+   desc:'既存の暗い床材から桧フローリングへの張り替え。小節A級品で上品な木目が揃い、廊下が明るく生まれ変わりました。薄型12mmでリフォームにも対応。',
+   tags:['フローリング', '廊下', '小節', 'リフォーム']},
+  {id:7, title:'和室・縁側フローリング（猫も大満足）', cat:['flooring'],
+   img:'images/gallery/f_FA6.jpg', product:'フローリング 15×108×2000mm 節有 A級品',
+   location:'個人宅 和室・縁側',
+   desc:'縁側と和室に桧フローリングを施工。無垢材特有の柔らかさと温もりに猫も大満足。節有A級品の素朴な木目が和の空間に溶け込みます。',
+   tags:['フローリング', '和室', '縁側', '節有']},
+  {id:8, title:'リビング・桧フローリング（ピアノのある空間）', cat:['flooring'],
+   img:'images/gallery/fl_A8_1.jpg', product:'フローリング 15mm 小節 A級品',
+   location:'個人宅 リビング',
+   desc:'広々としたリビングに桧フローリングを施工。小節A級品の均一な木目が空間に品格をもたらし、アップライトピアノとの相性も抜群です。',
+   tags:['フローリング', 'リビング', '小節', '個人宅']},
+  {id:9, title:'フローリング施工事例（節有 A）', cat:['flooring'],
+   img:'images/gallery/f_FA3.jpg', product:'フローリング 15×108×4000mm 節有 A級品',
+   location:'個人宅',
+   desc:'節有A級品フローリングの施工事例。自然の節模様が空間に豊かな表情をもたらします。節の大きさや位置はひとつひとつ異なり、個性的な仕上がりに。',
+   tags:['フローリング', '節有', 'A級品']},
+  {id:10, title:'フローリング施工事例（節有 B）', cat:['flooring'],
+   img:'images/gallery/fl_B1_1.jpg', product:'フローリング 15×108×2000mm 節有 B級品',
+   location:'個人宅',
+   desc:'節有B級品フローリングの施工事例。豊富な節のある素朴な仕上がりで、コストを抑えながらも本物の桧の質感が楽しめます。',
+   tags:['フローリング', '節有', 'B級品']},
+  // ===== サウナ =====
+  {id:12, title:'プライベートサウナ・桧羽目板全面施工（完成）', cat:['panel', 'sauna'],
+   img:'images/gallery/pa_A8_sauna_1.jpg', product:'羽目板 12mm 節有 A級品',
+   location:'個人宅 プライベートサウナ',
+   desc:'自宅サウナの内装を桧羽目板で全面仕上げ。壁・天井・床材すべてに桧を使用。熱でほのかに桧の香りが漂い、最高のサウナ体験ができます。',
+   tags:['羽目板', 'サウナ', '壁・天井', '節有']},
+  {id:13, title:'サウナ内装・薪ストーブタイプ（完成）', cat:['panel', 'sauna'],
+   img:'images/gallery/pa_A7_1.jpg', product:'羽目板 12mm 節有 A級品',
+   location:'個人宅 サウナ',
+   desc:'薪ストーブ式サウナの内装を桧羽目板で施工。段付きベンチ・壁・天井すべてが桧材。熱に強く、抗菌・調湿効果で清潔に保てます。',
+   tags:['羽目板', 'サウナ', '薪ストーブ', '節有']},
+  {id:14, title:'サウナ第二弾・天井・壁羽目板（完成）', cat:['panel', 'sauna'],
+   img:'images/gallery/pa_A8_sauna_2.jpg', product:'羽目板 12mm 節有 A級品',
+   location:'個人宅 サウナ',
+   desc:'別のプライベートサウナの施工事例。天井の羽目板が圧倒的な存在感。電気ストーブ式で温度管理もしやすく、日常的に使えるサウナです。',
+   tags:['羽目板', 'サウナ', '天井', '節有']},
+
+  // ===== 浴室・水回り =====
+  {id:15, title:'浴室・壁と天井に桧羽目板（完成）', cat:['panel'],
+   img:'images/gallery/p_PA5.jpg', product:'羽目板 12×103×2000mm 節有 A級品',
+   location:'個人宅 浴室',
+   desc:'浴室の壁と天井を桧羽目板で全面仕上げ。温泉旅館のような雰囲気が自宅で楽しめます。桧は水に強く、防カビ・抗菌効果で浴室にも最適。',
+   tags:['羽目板', '浴室', '壁・天井', '節有']},
+
+  // ===== リビング・壁面 =====
+  {id:16, title:'リビング・天井と壁に桧羽目板（完成）', cat:['panel'],
+   img:'images/gallery/p_PA3.jpg', product:'羽目板 12×103×2000mm 節有 A級品',
+   location:'個人宅 リビング・キッチン',
+   desc:'リビングの天井と壁面全体に桧羽目板を施工。キッチンとの一体感もあり、木の香り漂う温かみのある空間に。桧の調湿効果で一年中快適です。',
+   tags:['羽目板', 'リビング', '天井', '節有']},
+  {id:17, title:'室内壁面・桧羽目板腰板施工（完成）', cat:['panel'],
+   img:'images/gallery/p_PA2.jpg', product:'羽目板 12×103×950mm 節有 A級品',
+   location:'個人宅 室内',
+   desc:'950mm（3尺）の短尺タイプを使った腰板施工。コンパクトなサイズ感で扱いやすく、DIYにも対応しやすい規格です。壁の雰囲気が大きく変わります。',
+   tags:['羽目板', '腰板', '節有', '室内']},
+  {id:18, title:'和室に桧羽目板腰板（猫も快適）', cat:['panel'],
+   img:'images/gallery/pa_A10_reform_1.jpg', product:'羽目板 12mm 節有 A級品',
+   location:'個人宅 和室',
+   desc:'和室の壁に桧羽目板を腰板として施工。畳との相性も抜群で、和の空間が上質に変わります。桧の調湿効果でカビの発生も抑えられます。',
+   tags:['羽目板', '和室', '腰板', '節有']},
+
+  // ===== 引き戸・建具 =====
+  {id:19, title:'桧羽目板の壁と桧引き戸（完成）', cat:['panel'],
+   img:'images/gallery/door_1245.jpg', product:'羽目板 節有 + 桧材 建具',
+   location:'個人宅',
+   desc:'壁面の桧羽目板と桧材の引き戸が統一感を生み出した完成事例。自然素材で揃えた空間は、温もりと高級感を両立させています。',
+   tags:['羽目板', '引き戸', '建具', '壁面']},
+  {id:20, title:'桧壁と引き戸・廊下仕上げ（完成）', cat:['panel'],
+   img:'images/gallery/door_1247.jpg', product:'羽目板 節有 A級品',
+   location:'個人宅 廊下',
+   desc:'廊下の壁面を桧羽目板で仕上げ、引き戸も桧材に統一。無垢の木材が廊下全体を包み込み、歩くたびに木のぬくもりを感じられる空間になりました。',
+   tags:['羽目板', '廊下', '引き戸', '節有']},
+  {id:21, title:'桧材の引き戸と壁面（完成）', cat:['panel'],
+   img:'images/gallery/door_1249.jpg', product:'羽目板 節有 A級品',
+   location:'個人宅',
+   desc:'桧羽目板の壁面と桧材引き戸の組み合わせ。節のある自然な表情が温かみをプラスし、和モダンな雰囲気を演出しています。',
+   tags:['羽目板', '引き戸', '壁面', '節有']},
+
+  // ===== 屋外・軒下 =====
+  {id:22, title:'屋外軒下・桧羽目板施工（完成）', cat:['panel', 'outdoor'],
+   img:'images/gallery/pa_A9_buna_1.jpg', product:'羽目板 12mm 節有 A級品',
+   location:'屋外 軒下（ブナの森）',
+   desc:'屋外の軒下に桧羽目板を施工。軒下に桧を使うことで、外観に温かみと個性が生まれます。適切な処理を施せば屋外でも長く使えます。',
+   tags:['羽目板', '軒下', '屋外', '節有']},
+
+  // ===== DIY・個性派 =====
+  {id:23, title:'キャンピングカー内装DIY・桧羽目板（荷台）', cat:['panel', 'diy'],
+   img:'images/gallery/p_PA8.jpg', product:'羽目板 12×103×2000mm 節有 A級品',
+   location:'キャンピングカー（ハイエース）',
+   desc:'ハイエースの荷台に桧羽目板でDIYカスタム。木の香り漂う車内は、まるでキャビンのような雰囲気。夜景と桧の組み合わせが絶品です。',
+   tags:['羽目板', 'キャンピングカー', 'DIY', '節有']},
+  {id:24, title:'キャンピングバン内装・壁と天井（完成）', cat:['panel', 'diy'],
+   img:'images/gallery/pa_A3_1.jpg', product:'羽目板 12mm 節有 A級品',
+   location:'キャンピングバン',
+   desc:'バンの内装を桧羽目板で壁・天井をフルカバー。照明と組み合わせることで、コンパクトながら温かみのある居住空間が完成しています。',
+   tags:['羽目板', 'キャンピングカー', 'DIY', '天井']},
+
+  // ===== 施工中 =====
+  {id:25, title:'炉裏部屋・壁造作の施工中', cat:['process'],
+   img:'images/gallery/hinoki-board-1.jpg', product:'羽目板 12mm',
+   location:'施工中 炉裏部屋',
+   desc:'丸窓の障子飾りと壁造作の施工中。羽目板張りの前段階として、下地の骨組みが整えられています。完成後の変貌ぶりが楽しみな段階です。',
+   tags:['施工中', '造作', '壁面', '炉裏']},
+  {id:26, title:'フローリング施工中・床張り作業', cat:['flooring', 'process'],
+   img:'images/gallery/hinoki-board-2.jpg', product:'フローリング 15mm',
+   location:'施工中',
+   desc:'桧フローリングを均等に並べながら施工している様子。本実加工により板同士がしっかりと噛み合い、施工のしやすさも魅力の一つです。',
+   tags:['フローリング', '施工中', '本実加工']},
+  {id:27, title:'炉裏・段付き構造の施工中', cat:['flooring', 'process'],
+   img:'images/gallery/hinoki-board-6.jpg', product:'フローリング 15mm',
+   location:'施工中 炉裏部屋',
+   desc:'炉裏部屋の段付き腰掛け部分の施工中。床面・立ち上がり・腰掛け面すべてに桧フローリングを使用。複雑な形状にも対応できます。',
+   tags:['フローリング', '施工中', '炉裏', '造作']},
+  {id:28, title:'炉裏・収納付き造作の施工中', cat:['flooring', 'process'],
+   img:'images/gallery/hinoki-board-4.jpg', product:'フローリング 15mm',
+   location:'施工中 炉裏部屋',
+   desc:'炉裏の収納スペースを内包した造作の施工中。床面から立ち上がりまで同じ桧材で仕上げることで、完成後の統一感が生まれます。',
+   tags:['フローリング', '施工中', '炉裏', '収納']},
+  {id:29, title:'炉裏・床下収納の施工中', cat:['process'],
+   img:'images/gallery/hinoki-board-10.jpg', product:'フローリング 15mm',
+   location:'施工中 炉裏部屋',
+   desc:'炉のくぼみ部分の骨組みと床張りの施工中。桧フローリングは床下構造から仕上げ面まで一貫して使用でき、職人技が光る場面です。',
+   tags:['施工中', '炉裏', '床下', '造作']},
+  {id:30, title:'炉裏・収納蓋の施工中', cat:['process'],
+   img:'images/gallery/hinoki-board-9.jpg', product:'フローリング 15mm',
+   location:'施工中 炉裏部屋',
+   desc:'収納スペースの蓋部分も同じ桧フローリング材で作成。開閉できる収納蓋も木材で統一することで、完成時の見た目が美しくなります。',
+   tags:['施工中', '炉裏', '収納', '造作']},
+];
+
+/* カテゴリ英語キー → 日本語ラベル（未知キーはそのまま） */
+const CAT_LABELS = { flooring:'フローリング', panel:'羽目板', outdoor:'屋外・デッキ', sauna:'サウナ', diy:'DIY・個性派', process:'施工中' };
+function catLabel(k){ return CAT_LABELS[k] || k; }
+
+let currentFilter = 'all';
+let viewList = GALLERY_ITEMS.slice();   // 現在フィルタ後に表示中のリスト（ライトボックスの前後移動用）
+let lbIndex = -1;
+
+/* ===== フィルタチップ生成 ===== */
+function buildFilters(){
+  const seen = [];
+  GALLERY_ITEMS.forEach(it => (it.cat||[]).forEach(c => { if(!seen.includes(c)) seen.push(c); }));
+  const chips = [{k:'all', label:'すべて'}].concat(seen.map(k => ({k, label:catLabel(k)})));
+  const box = document.getElementById('filters');
+  box.innerHTML = chips.map(c => `<button class="chip${c.k===currentFilter?' on':''}" data-k="${esc(c.k)}">${esc(c.label)}</button>`).join('');
+  box.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+    currentFilter = b.dataset.k;
+    box.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.k===currentFilter));
+    renderGrid();
+  }));
+}
+
+/* ===== グリッド描画 ===== */
+function renderGrid(){
+  viewList = currentFilter === 'all'
+    ? GALLERY_ITEMS.slice()
+    : GALLERY_ITEMS.filter(it => (it.cat||[]).includes(currentFilter));
+  const grid = document.getElementById('grid');
+  if(!viewList.length){ grid.innerHTML = `<div class="empty">該当する写真がありません。</div>`; return; }
+  grid.innerHTML = viewList.map((it, idx) => `
+    <div class="pcard" data-idx="${idx}">
+      <div class="imgwrap"><img src="${esc(imgURL(it.img))}" alt="${esc(it.title)}" loading="lazy" decoding="async"></div>
+      <div class="body">
+        <div class="ptitle">${esc(it.title)}</div>
+        ${it.product?`<div class="pprod">${esc(it.product)}</div>`:""}
+        <div class="pdesc">${esc(it.desc||"")}</div>
+        <div class="ptags">${(it.tags||[]).slice(0,3).map(t=>`<span class="ptag">${esc(t)}</span>`).join("")}</div>
+      </div>
+    </div>`).join("");
+  grid.querySelectorAll('.pcard').forEach(c => c.addEventListener('click', () => openLightbox(Number(c.dataset.idx))));
+}
+
+/* ===== ライトボックス ===== */
+function openLightbox(idx){
+  if(idx < 0 || idx >= viewList.length) return;
+  lbIndex = idx;
+  const it = viewList[idx];
+  document.getElementById('lb-img').src = imgURL(it.img);
+  document.getElementById('lb-img').alt = it.title;
+  document.getElementById('lb-title').textContent = it.title;
+  document.getElementById('lb-meta').innerHTML =
+    (it.product?`<b>使用商品：</b>${esc(it.product)}<br>`:"") +
+    (it.location?`<b>施工場所：</b>${esc(it.location)}`:"");
+  document.getElementById('lb-desc').textContent = it.desc || "";
+  document.getElementById('lb-tags').innerHTML = (it.tags||[]).map(t=>`<span class="ptag">${esc(t)}</span>`).join("");
+  document.getElementById('lb').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(){
+  document.getElementById('lb').classList.remove('open');
+  document.body.style.overflow = '';
+  lbIndex = -1;
+}
+function stepLightbox(d){
+  if(lbIndex < 0 || !viewList.length) return;
+  let n = (lbIndex + d + viewList.length) % viewList.length;
+  openLightbox(n);
+}
+
+document.getElementById('lb-close').addEventListener('click', closeLightbox);
+document.getElementById('lb-prev').addEventListener('click', e => { e.stopPropagation(); stepLightbox(-1); });
+document.getElementById('lb-next').addEventListener('click', e => { e.stopPropagation(); stepLightbox(1); });
+document.getElementById('lb').addEventListener('click', e => { if(e.target === document.getElementById('lb')) closeLightbox(); });
+document.addEventListener('keydown', e => {
+  if(!document.getElementById('lb').classList.contains('open')) return;
+  if(e.key === 'Escape') closeLightbox();
+  else if(e.key === 'ArrowLeft') stepLightbox(-1);
+  else if(e.key === 'ArrowRight') stepLightbox(1);
+});
+
+/* ===== 起動 ===== */
+buildFilters();
+renderGrid();
+</script>
+</body>
+</html>
