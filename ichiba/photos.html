@@ -112,40 +112,12 @@
     <div class="filters" id="filters"></div>
   </div>
 
-  <div class="card up-card" style="margin-top:16px">
-    <h2>📤 貴社の施工写真をご提供ください</h2>
-    <p class="h2sub">お客様の施工現場・納品時の写真をお持ちでしたら、ぜひご共有ください。本ギャラリーに統合し、貴社からのお客様へのご提案にもお使いいただけます。<b>ご提供いただいた写真は、当社ホームページ・各種SNS・販促物で使用させていただきます。</b></p>
-
-    <div class="up-ways">
-      <div class="up-way rec">
-        <div class="uw-t">① ギガファイル便でまとめて送る<span class="uw-rec">おすすめ・枚数無制限</span></div>
-        <div class="uw-d">枚数が多い場合はこちらが手間なしです。<a href="https://gigafile.nu/" target="_blank" rel="noopener">gigafile.nu</a> に写真をまとめてアップ → 発行された<b>ダウンロードURL</b>を下の欄に貼って送信してください。</div>
-        <div class="up-row1" style="margin-top:8px"><label>ギガファイル便のURL</label><input id="up-giga" placeholder="例）https://xx.gigafile.nu/xxxx-xxxxxxxxxxxx"></div>
-      </div>
-      <div class="up-way">
-        <div class="uw-t">② その場でアップロード（数枚のとき）</div>
-        <div class="uw-d">少量ならこちらから直接送れます（一度に10枚まで・自動で縮小されます）。</div>
-        <div class="up-file" style="margin-top:8px">
-          <input type="file" id="up-files" accept="image/*" multiple>
-        </div>
-      </div>
-      <div class="up-way">
-        <div class="uw-t">③ 専用の共有フォルダをご希望の場合</div>
-        <div class="uw-d">継続的にご提供いただける場合は、貴社専用のクラウド共有フォルダ（Googleドライブ）をお作りします。下のコメント欄に<b>「共有フォルダ希望」</b>と書いて送信いただくか、お電話（053-461-0230）でお知らせください。</div>
-      </div>
+  <div class="card" style="margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px">
+      <h2 style="margin-bottom:2px">📤 貴社の施工写真もぜひご共有ください</h2>
+      <p class="h2sub" style="margin:0">専用ページから簡単に送れます（その場アップ／ギガファイル便／共有フォルダ）。</p>
     </div>
-
-    <div class="up-form" style="margin-top:12px">
-      <div class="up-row3">
-        <div><label>貴社名（市場名）<span class="req">*</span></label><input id="up-market" placeholder="例）○○木材市場"></div>
-        <div><label>ご担当者（任意）</label><input id="up-tanto" placeholder="例）山田"></div>
-        <div><label>ご連絡先（任意）</label><input id="up-contact" placeholder="TEL / メール"></div>
-      </div>
-      <div class="up-row1"><label>コメント（任意・施工場所や使用商品・「共有フォルダ希望」など）</label><input id="up-comment" placeholder="例）○○様邸 リビング床・フローリング15mm 小節"></div>
-      <label class="up-consent"><input type="checkbox" id="up-consent"> ご提供写真を林材木店のホームページ・SNS・販促物・本ギャラリーで使用することに同意します<span class="req">*</span></label>
-      <button id="up-send" class="up-btn">📤 送信する</button>
-      <div id="up-msg"></div>
-    </div>
+    <a class="up-btn" style="text-decoration:none;text-align:center" href="teikyo.html">📤 写真のご提供はこちら</a>
   </div>
 
   <div class="grid" id="grid" style="margin-top:16px"></div>
@@ -424,94 +396,6 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape') closeLightbox();
   else if(e.key === 'ArrowLeft') stepLightbox(-1);
   else if(e.key === 'ArrowRight') stepLightbox(1);
-});
-
-/* ===== 施工写真アップロード（webboard GAS ichibaphoto・Drive保存＋通知） ===== */
-const UP_URL = "https://script.google.com/macros/s/AKfycbxvPjDv81vrJMW2GaqpCJooyxxt7__gvMF4mJkmcGNbNS2xGMoXgTnn6_OEPZ3Rr0spdg/exec";
-const UP_TOKEN = "hzy-ichiba-stock-2026";
-const MAX_PHOTOS = 10;
-
-// ツール側で記憶済みの市場名・連絡先を初期値に
-(function prefill(){
-  const g = k => localStorage.getItem(k) || "";
-  const m = g("hz_ichiba_market") || g("hz_ichiba_q-market");
-  if(m) document.getElementById("up-market").value = m;
-  const t = g("hz_ichiba_q-reqtanto"); if(t) document.getElementById("up-tanto").value = t;
-  const c = g("hz_ichiba_q-contact") || g("hz_ichiba_q-email"); if(c) document.getElementById("up-contact").value = c;
-})();
-
-function upMsg(text, ok){ const m=document.getElementById("up-msg"); m.textContent=text; m.style.color = ok===false ? "#b0483a" : "#2f6f4f"; }
-
-// 画像を最大1600pxに縮小してJPEG(base64)化
-function compressImage(file){
-  return new Promise((resolve,reject)=>{
-    const url=URL.createObjectURL(file);
-    const img=new Image();
-    img.onload=()=>{
-      try{
-        const MAX=1600;
-        let w=img.naturalWidth, h=img.naturalHeight;
-        if(Math.max(w,h)>MAX){ const r=MAX/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
-        const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
-        cv.getContext("2d").drawImage(img,0,0,w,h);
-        const dataUrl=cv.toDataURL("image/jpeg",0.85);
-        URL.revokeObjectURL(url);
-        resolve({ name:file.name, type:"image/jpeg", data:dataUrl.split(",")[1] });
-      }catch(e){ URL.revokeObjectURL(url); reject(e); }
-    };
-    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("読み込み失敗: "+file.name)); };
-    img.src=url;
-  });
-}
-
-document.getElementById("up-send").addEventListener("click", async ()=>{
-  const market=document.getElementById("up-market").value.trim();
-  const gigaUrl=document.getElementById("up-giga").value.trim();
-  const files=[...document.getElementById("up-files").files];
-  const comment=document.getElementById("up-comment").value.trim();
-  const consent=document.getElementById("up-consent").checked;
-  const folderReq=/共有フォルダ/.test(comment);
-  if(!market){ upMsg("貴社名（市場名）をご入力ください", false); return; }
-  if(!gigaUrl && !files.length && !folderReq){ upMsg("ギガファイル便のURLを貼るか、写真を選択してください（共有フォルダ希望の場合はコメント欄にご記入ください）", false); return; }
-  if(gigaUrl && !/^https?:\/\//.test(gigaUrl)){ upMsg("ギガファイル便のURLの形式が正しくないようです（https:// から貼り付けてください）", false); return; }
-  if(files.length>MAX_PHOTOS){ upMsg(`直接アップロードは一度に${MAX_PHOTOS}枚までです。枚数が多い場合はギガファイル便をご利用ください`, false); return; }
-  if(!consent){ upMsg("使用への同意（チェック）をお願いします", false); return; }
-
-  const btn=document.getElementById("up-send");
-  btn.disabled=true;
-  try{
-    const photos=[];
-    if(files.length){
-      upMsg(`写真を準備中…（${files.length}枚を縮小しています）`);
-      for(const f of files){
-        if(!/^image\//.test(f.type) && !/\.(jpe?g|png|heic)$/i.test(f.name)){ continue; }
-        photos.push(await compressImage(f));
-      }
-    }
-    upMsg("送信中…");
-    const body={ action:"ichibaphoto", token:UP_TOKEN, market,
-      tanto:document.getElementById("up-tanto").value.trim(),
-      contact:document.getElementById("up-contact").value.trim(),
-      comment, gigaUrl, consent:true, photos };
-    const r=await fetch(UP_URL,{ method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(body) });
-    const j=await r.json();
-    if(j&&j.ok){
-      const parts=[];
-      if(j.giga) parts.push("ギガファイル便のURL");
-      if(j.saved) parts.push(`写真${j.saved}枚`);
-      if(!parts.length) parts.push("ご連絡");
-      upMsg(`✅ ${parts.join("と")}をお送りいただきました。ありがとうございます！確認のうえギャラリーに掲載いたします。`);
-      document.getElementById("up-files").value="";
-      document.getElementById("up-giga").value="";
-      document.getElementById("up-comment").value="";
-    }else{
-      throw new Error(j&&j.error||"送信エラー");
-    }
-  }catch(e){
-    upMsg("送信に失敗しました（"+e.message+"）。お手数ですがお電話（053-461-0230）またはメールでお知らせください。", false);
-  }finally{
-    btn.disabled=false;
-  }
 });
 
 /* ===== 起動 ===== */

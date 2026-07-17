@@ -23,6 +23,13 @@
   .step .st{ display:flex; align-items:center; gap:9px; font-size:15px; font-weight:800; margin-bottom:8px; }
   .step .n{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; font-size:14px; display:flex; align-items:center; justify-content:center; }
 
+  .ways{ display:grid; gap:8px; margin-bottom:10px; }
+  .way{ display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto; column-gap:10px; align-items:center;
+    border:1.5px solid var(--line2); border-radius:12px; padding:11px 13px; cursor:pointer; background:#fff; }
+  .way:has(input:checked){ border-color:var(--green); background:#f4faf6; }
+  .way input{ grid-row:1/3; width:19px; height:19px; accent-color:var(--green); }
+  .way .w-t{ font-size:14.5px; font-weight:800; }
+  .way .w-d{ grid-column:2; font-size:11.5px; color:var(--sub); }
   .pickbtn{ display:block; width:100%; text-align:center; border:2px dashed var(--line2); border-radius:14px; padding:22px 12px; background:#fbfcfe; cursor:pointer; font-size:15px; font-weight:700; color:var(--accent); }
   .pickbtn small{ display:block; font-weight:500; color:var(--sub); font-size:11.5px; margin-top:4px; }
   #files{ display:none; }
@@ -63,13 +70,28 @@
     <div class="lead">桧フローリング・羽目板の施工写真をお持ちでしたら、こちらから送るだけでOKです。いただいた写真は<b>施工写真ギャラリーに掲載</b>し、貴社からお客様へのご提案にもお使いいただけます。</div>
 
     <div class="step">
-      <div class="st"><span class="n">1</span>写真を選ぶ</div>
-      <label class="pickbtn" for="files">📁 タップして写真を選ぶ<small>複数選択OK（一度に10枚まで）・自動で縮小されるので大きい写真のままで大丈夫です</small></label>
-      <input type="file" id="files" accept="image/*" multiple>
-      <div id="picked"></div>
-      <div class="giga">
-        <b>枚数が多い場合（10枚超）：</b>ギガファイル便（gigafile.nu）でまとめてアップし、発行されたURLをここに貼ってください。写真選択は不要です。
-        <input id="giga" placeholder="https://xx.gigafile.nu/…（任意）">
+      <div class="st"><span class="n">1</span>送り方を選ぶ</div>
+      <div class="ways">
+        <label class="way" data-w="upload"><input type="radio" name="way" value="upload" checked>
+          <span class="w-t">📁 その場でアップロード</span><span class="w-d">数枚のとき（一度に10枚まで）</span></label>
+        <label class="way" data-w="giga"><input type="radio" name="way" value="giga">
+          <span class="w-t">📦 ギガファイル便のURLを送る</span><span class="w-d">枚数が多いとき（無制限）</span></label>
+        <label class="way" data-w="folder"><input type="radio" name="way" value="folder">
+          <span class="w-t">☁ 専用の共有フォルダを希望</span><span class="w-d">継続的にご提供いただけるとき</span></label>
+      </div>
+      <div class="waybody" id="wb-upload">
+        <label class="pickbtn" for="files">📁 タップして写真を選ぶ<small>複数選択OK（一度に10枚まで）・自動で縮小されるので大きい写真のままで大丈夫です</small></label>
+        <input type="file" id="files" accept="image/*" multiple>
+        <div id="picked"></div>
+      </div>
+      <div class="waybody" id="wb-giga" style="display:none">
+        <div class="giga">
+          <a href="https://gigafile.nu/" target="_blank" rel="noopener"><b>gigafile.nu</b></a> に写真をまとめてアップし、発行された<b>ダウンロードURL</b>をここに貼ってください。
+          <input id="giga" placeholder="https://xx.gigafile.nu/…">
+        </div>
+      </div>
+      <div class="waybody" id="wb-folder" style="display:none">
+        <div class="giga">貴社専用のクラウド共有フォルダ（Googleドライブ）をお作りします。このまま送信いただければ、こちらからフォルダのご案内をご連絡します。</div>
       </div>
     </div>
 
@@ -96,7 +118,7 @@
 </div>
 
 <footer>
-  株式会社 林材木店　TEL 053-461-0230<br>
+  株式会社 林材木店　TEL 0538-58-2395<br>
   <a href="photos.html">📷 施工写真ギャラリーを見る</a>　／　<a href="tool.html">価格・在庫・見積ツールへ</a>
 </footer>
 
@@ -114,6 +136,14 @@ $("#files").addEventListener("change",()=>{
   const n=$("#files").files.length;
   $("#picked").textContent = n ? `✅ ${n}枚選択しました` : "";
 });
+
+// 送り方の切替（選んだ方式の入力だけ表示）
+function curWay(){ return (document.querySelector('input[name="way"]:checked')||{}).value || "upload"; }
+document.querySelectorAll('input[name="way"]').forEach(r=>r.addEventListener("change",()=>{
+  const w=curWay();
+  ["upload","giga","folder"].forEach(k=>{ document.getElementById("wb-"+k).style.display = (k===w) ? "" : "none"; });
+  $("#msg").textContent="";
+}));
 
 function msg(t, ok){ $("#msg").textContent=t; $("#msg").style.color = ok===false ? "#b0483a" : "#2f6f4f"; }
 
@@ -139,12 +169,14 @@ function compressImage(file){
 }
 
 $("#send").addEventListener("click", async ()=>{
+  const way=curWay();
   const market=$("#market").value.trim();
-  const gigaUrl=$("#giga").value.trim();
-  const files=[...$("#files").files];
-  if(!files.length && !gigaUrl){ msg("写真を選ぶか、ギガファイル便のURLを貼ってください", false); return; }
-  if(gigaUrl && !/^https?:\/\//.test(gigaUrl)){ msg("URLは https:// から貼り付けてください", false); return; }
-  if(files.length>MAX_PHOTOS){ msg(`一度に送れるのは${MAX_PHOTOS}枚までです。多い場合はギガファイル便をご利用ください`, false); return; }
+  const gigaUrl = way==="giga" ? $("#giga").value.trim() : "";
+  const files = way==="upload" ? [...$("#files").files] : [];
+  if(way==="upload" && !files.length){ msg("写真を選んでください", false); return; }
+  if(way==="upload" && files.length>MAX_PHOTOS){ msg(`一度に送れるのは${MAX_PHOTOS}枚までです。多い場合は「ギガファイル便」をお選びください`, false); return; }
+  if(way==="giga" && !gigaUrl){ msg("ギガファイル便のURLを貼り付けてください", false); return; }
+  if(way==="giga" && !/^https?:\/\//.test(gigaUrl)){ msg("URLは https:// から貼り付けてください", false); return; }
   if(!market){ msg("貴社名（市場名）をご入力ください", false); $("#market").focus(); return; }
   if(!$("#consent").checked){ msg("使用への同意（チェック）をお願いします", false); return; }
 
@@ -156,18 +188,22 @@ $("#send").addEventListener("click", async ()=>{
       for(const f of files){ if(/^image\//.test(f.type)||/\.(jpe?g|png|heic)$/i.test(f.name)) photos.push(await compressImage(f)); }
     }
     msg("送信中…");
+    let comment=$("#comment").value.trim();
+    if(way==="folder") comment=("【共有フォルダ希望】"+(comment?" "+comment:""));
     const body={ action:"ichibaphoto", token:UP_TOKEN, market, tanto:"", contact:"",
-      comment:$("#comment").value.trim(), gigaUrl, consent:true, photos };
+      comment, gigaUrl, consent:true, photos };
     const r=await fetch(UP_URL,{ method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(body) });
     const j=await r.json();
     if(j&&j.ok){
       localStorage.setItem("hz_ichiba_market", market);
+      const p=$("#done-card p");
+      if(p && way==="folder") p.innerHTML="共有フォルダのご希望を受け付けました。<br>こちらからフォルダのご案内をご連絡いたします。";
       $("#form-card").style.display="none";
       $("#done-card").style.display="block";
       window.scrollTo(0,0);
     }else throw new Error(j&&j.error||"送信エラー");
   }catch(e){
-    msg("送信に失敗しました（"+e.message+"）。お手数ですがお電話（053-461-0230）でお知らせください。", false);
+    msg("送信に失敗しました（"+e.message+"）。お手数ですがお電話（0538-58-2395）でお知らせください。", false);
   }finally{ btn.disabled=false; }
 });
 
