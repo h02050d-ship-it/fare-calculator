@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
 <title>市場さま向け 価格・在庫・見積ツール｜林材木店</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='55' font-size='46' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='55' font-size='46' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='47' font-size='62' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231d4e89'/><text x='50' y='47' font-size='62' text-anchor='middle' dominant-baseline='central' fill='%23ffffff' font-family='sans-serif' font-weight='bold'>市</text></svg>">
 <style>
   :root{
     --bg:#f4f6f9; --panel:#ffffff; --panel2:#f7f9fc; --ink:#2a3340; --sub:#7a869a;
@@ -158,6 +158,8 @@
   .gate button{ width:100%; padding:13px; border:none; border-radius:11px; background:var(--accent); color:#fff; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
   .gate .keep{ font-size:12px; color:var(--sub); margin-top:12px; display:flex; align-items:center; justify-content:center; gap:6px; }
   .gate .err{ color:#b0483a; font-size:12.5px; font-weight:700; margin-top:8px; min-height:16px; }
+  .gate .g-name{ font-size:17px; font-weight:800; color:var(--accent); background:#eef3fa; border:1.5px solid #9db2cc; border-radius:11px; padding:13px; margin-bottom:12px; }
+  .gate .sub-btn{ background:#f4f6f9 !important; color:var(--sub) !important; border:1px solid var(--line2) !important; margin-top:8px; font-size:13px !important; padding:10px !important; }
 
   /* 印刷 見積書 */
   #print-area{ display:none; }
@@ -347,37 +349,83 @@ let DEST = "東京";
 const PREFS = ["北海道","青森","岩手","宮城","秋田","山形","福島","茨城","栃木","群馬","埼玉","千葉","東京","神奈川","新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重","滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島"];
 
 /* ===== 画面 ===== */
+/* FAX番号の正規化（記号除去・国際表記81→0） */
+function normFax(s){
+  let d=String(s==null?"":s).replace(/[^0-9]/g,"");
+  if(d.length>=10 && d.indexOf("81")===0 && d.length>=11) d="0"+d.slice(2);
+  return d;
+}
+const OWN_FAX = "0534623673";   // 自社FAX → 管理者（林材木店）ログイン
+
 function renderGate(){
   document.getElementById("root").innerHTML = `
     <div class="gate"><div class="card">
       <h1>市場さま向けツール</h1>
       <p>桧製品の価格表・リアルタイム在庫の確認と、<br>運賃込みのお見積り作成ができます。</p>
-      <input type="text" id="g-market" placeholder="市場名（貴社名）" list="g-market-list" autocomplete="off">
-      <datalist id="g-market-list"></datalist>
-      <input type="password" id="g-pass" placeholder="パスワード" autocomplete="current-password">
-      <button id="g-btn">ログイン</button>
-      <label class="keep"><input type="checkbox" id="g-keep" checked> この端末で次回から自動ログイン</label>
+      <div id="g-step1">
+        <input type="tel" id="g-fax" placeholder="貴社のFAX番号（例 053-000-0000）" autocomplete="off">
+        <input type="password" id="g-pass" placeholder="パスワード" autocomplete="current-password">
+        <button id="g-btn">ログイン</button>
+        <label class="keep"><input type="checkbox" id="g-keep" checked> この端末で次回から自動ログイン</label>
+      </div>
+      <div id="g-confirm" style="display:none">
+        <p style="margin-bottom:6px">こちらの会社名でよろしいですか？</p>
+        <div class="g-name" id="g-name"></div>
+        <button id="g-yes">はい、ログインする</button>
+        <button id="g-no" class="sub-btn">いいえ（会社名を直接入力する）</button>
+      </div>
+      <div id="g-manual" style="display:none">
+        <p style="margin-bottom:6px">FAX番号が見つかりませんでした。<br>会社名（市場名）を直接入力してください。</p>
+        <input type="text" id="g-market" placeholder="市場名（貴社名）" list="g-market-list" autocomplete="off">
+        <datalist id="g-market-list"></datalist>
+        <button id="g-manual-btn">この会社名でログイン</button>
+      </div>
       <div class="err" id="g-err"></div>
     </div></div>`;
-  // 保存済み市場名を初期表示
-  const savedM = localStorage.getItem(LS_MARKET)||"";
-  if(savedM && $("#g-market")) $("#g-market").value = savedM;
-  // 取引先候補を datalist に（失敗しても自由入力できる）
+
+  const savedFax = localStorage.getItem("hz_ichiba_fax")||"";
+  if(savedFax) $("#g-fax").value = savedFax;
   fetchCustomers().then(list=>{
     const dl=$("#g-market-list"); if(dl && list && list.length){ dl.innerHTML=list.map(c=>`<option value="${esc(c.name)}"></option>`).join(""); }
   });
-  const go=()=>{
-    if($("#g-pass").value===PASS){
-      const mk=($("#g-market")&&$("#g-market").value.trim())||"";
-      if(mk) localStorage.setItem(LS_MARKET, mk); else localStorage.removeItem(LS_MARKET);
-      ($("#g-keep").checked?localStorage:sessionStorage).setItem(LS_AUTH,"1");
-      renderMain();
-    }else $("#g-err").textContent="パスワードが違います";
+
+  let pendingName = "";
+  const finish = (marketName)=>{
+    if(marketName) localStorage.setItem(LS_MARKET, marketName); else localStorage.removeItem(LS_MARKET);
+    localStorage.setItem("hz_ichiba_fax", $("#g-fax").value.trim());
+    ($("#g-keep").checked?localStorage:sessionStorage).setItem(LS_AUTH,"1");
+    renderMain();
+  };
+  const go=async ()=>{
+    $("#g-err").textContent="";
+    if($("#g-pass").value!==PASS){ $("#g-err").textContent="パスワードが違います"; return; }
+    const fax=normFax($("#g-fax").value);
+    if(!fax || fax.length<9){ $("#g-err").textContent="FAX番号をご入力ください"; return; }
+    if(fax===OWN_FAX){ pendingName="林材木店"; $("#g-name").textContent="株式会社 林材木店（管理者）"; }
+    else{
+      $("#g-err").textContent="照合中…"; $("#g-err").style.color="#7a869a";
+      if(!CUSTOMERS.length) await fetchCustomers();
+      $("#g-err").textContent=""; $("#g-err").style.color="";
+      const hit = CUSTOMERS.find(c=>c.faxNum && normFax(c.faxNum)===fax);
+      if(!hit){ $("#g-step1").style.display="none"; $("#g-manual").style.display=""; $("#g-market").focus(); return; }
+      pendingName = hit.name;
+      $("#g-name").textContent = hit.name;
+    }
+    $("#g-step1").style.display="none";
+    $("#g-confirm").style.display="";
   };
   $("#g-btn").addEventListener("click",go);
-  $("#g-market").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-pass").focus(); });
+  $("#g-fax").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-pass").focus(); });
   $("#g-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
-  ($("#g-market")&&!savedM ? $("#g-market") : $("#g-pass")).focus();
+  $("#g-yes").addEventListener("click",()=>finish(pendingName));
+  $("#g-no").addEventListener("click",()=>{ $("#g-confirm").style.display="none"; $("#g-manual").style.display=""; $("#g-market").focus(); });
+  $("#g-manual-btn").addEventListener("click",()=>{
+    const mk=$("#g-market").value.trim();
+    if(!mk){ $("#g-err").textContent="会社名（市場名）をご入力ください"; return; }
+    finish(mk);
+  });
+  $("#g-market").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-manual-btn").click(); });
+  (savedFax ? $("#g-pass") : $("#g-fax")).focus();
 }
 
 function renderMain(){
