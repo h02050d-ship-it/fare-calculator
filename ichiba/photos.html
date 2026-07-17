@@ -32,7 +32,13 @@
   .card .h2sub{ font-size:12px; color:var(--sub); margin:0 0 14px; }
 
   /* 写真提供フォーム */
-  .up-badge{ font-size:11px; font-weight:700; color:#fff; background:#c26a12; border-radius:20px; padding:2px 10px; }
+  .up-ways{ display:grid; gap:8px; }
+  .up-way{ border:1px solid var(--line); border-radius:10px; padding:10px 14px; background:#fbfcfe; }
+  .up-way.rec{ border:1.5px solid #2f6f4f; background:#f4faf6; }
+  .uw-t{ font-size:13.5px; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .uw-rec{ font-size:10.5px; font-weight:700; color:#fff; background:#2f6f4f; border-radius:20px; padding:2px 10px; }
+  .uw-d{ font-size:12px; color:var(--sub); margin-top:3px; line-height:1.7; }
+  .uw-d a{ color:var(--accent); font-weight:700; }
   .up-form label{ font-size:12px; font-weight:700; color:var(--sub); display:block; margin:0 0 3px; }
   .up-form input[type=text], .up-form input:not([type]){ width:100%; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; background:#fff; }
   .up-row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px; }
@@ -107,21 +113,37 @@
   </div>
 
   <div class="card up-card" style="margin-top:16px">
-    <h2>📤 貴社の施工写真をご提供ください <span class="up-badge">Amazonギフト券進呈</span></h2>
+    <h2>📤 貴社の施工写真をご提供ください</h2>
     <p class="h2sub">お客様の施工現場・納品時の写真をお持ちでしたら、ぜひご共有ください。本ギャラリーに統合し、貴社からのお客様へのご提案にもお使いいただけます。<b>ご提供いただいた写真は、当社ホームページ・各種SNS・販促物で使用させていただきます。</b></p>
-    <div class="up-form">
+
+    <div class="up-ways">
+      <div class="up-way rec">
+        <div class="uw-t">① ギガファイル便でまとめて送る<span class="uw-rec">おすすめ・枚数無制限</span></div>
+        <div class="uw-d">枚数が多い場合はこちらが手間なしです。<a href="https://gigafile.nu/" target="_blank" rel="noopener">gigafile.nu</a> に写真をまとめてアップ → 発行された<b>ダウンロードURL</b>を下の欄に貼って送信してください。</div>
+        <div class="up-row1" style="margin-top:8px"><label>ギガファイル便のURL</label><input id="up-giga" placeholder="例）https://xx.gigafile.nu/xxxx-xxxxxxxxxxxx"></div>
+      </div>
+      <div class="up-way">
+        <div class="uw-t">② その場でアップロード（数枚のとき）</div>
+        <div class="uw-d">少量ならこちらから直接送れます（一度に10枚まで・自動で縮小されます）。</div>
+        <div class="up-file" style="margin-top:8px">
+          <input type="file" id="up-files" accept="image/*" multiple>
+        </div>
+      </div>
+      <div class="up-way">
+        <div class="uw-t">③ 専用の共有フォルダをご希望の場合</div>
+        <div class="uw-d">継続的にご提供いただける場合は、貴社専用のクラウド共有フォルダ（Googleドライブ）をお作りします。下のコメント欄に<b>「共有フォルダ希望」</b>と書いて送信いただくか、お電話（053-461-0230）でお知らせください。</div>
+      </div>
+    </div>
+
+    <div class="up-form" style="margin-top:12px">
       <div class="up-row3">
         <div><label>貴社名（市場名）<span class="req">*</span></label><input id="up-market" placeholder="例）○○木材市場"></div>
         <div><label>ご担当者（任意）</label><input id="up-tanto" placeholder="例）山田"></div>
         <div><label>ご連絡先（任意）</label><input id="up-contact" placeholder="TEL / メール"></div>
       </div>
-      <div class="up-row1"><label>コメント（任意・施工場所や使用商品など）</label><input id="up-comment" placeholder="例）○○様邸 リビング床・フローリング15mm 小節"></div>
-      <div class="up-file">
-        <input type="file" id="up-files" accept="image/*" multiple>
-        <span class="note">最大10枚。大きい写真は自動で縮小して送信されます。</span>
-      </div>
+      <div class="up-row1"><label>コメント（任意・施工場所や使用商品・「共有フォルダ希望」など）</label><input id="up-comment" placeholder="例）○○様邸 リビング床・フローリング15mm 小節"></div>
       <label class="up-consent"><input type="checkbox" id="up-consent"> ご提供写真を林材木店のホームページ・SNS・販促物・本ギャラリーで使用することに同意します<span class="req">*</span></label>
-      <button id="up-send" class="up-btn">📤 写真を送信する</button>
+      <button id="up-send" class="up-btn">📤 送信する</button>
       <div id="up-msg"></div>
     </div>
   </div>
@@ -130,8 +152,8 @@
 </div>
 
 <footer class="foot">
-  <div class="lead">株式会社 林材木店　施工写真のご提供もお待ちしております（Amazonギフト券進呈キャンペーン実施中）</div>
-  <div>お客様の施工写真をお寄せいただけましたら、ギャラリーへの掲載とあわせてお礼をお送りします。</div>
+  <div class="lead">株式会社 林材木店　施工写真のご提供もお待ちしております</div>
+  <div>お寄せいただいた写真は本ギャラリーに掲載し、当社ホームページ・各種SNS・販促物でも使用させていただきます。</div>
   <div class="cp">© 株式会社 林材木店</div>
 </footer>
 
@@ -444,40 +466,49 @@ function compressImage(file){
 
 document.getElementById("up-send").addEventListener("click", async ()=>{
   const market=document.getElementById("up-market").value.trim();
+  const gigaUrl=document.getElementById("up-giga").value.trim();
   const files=[...document.getElementById("up-files").files];
+  const comment=document.getElementById("up-comment").value.trim();
   const consent=document.getElementById("up-consent").checked;
+  const folderReq=/共有フォルダ/.test(comment);
   if(!market){ upMsg("貴社名（市場名）をご入力ください", false); return; }
-  if(!files.length){ upMsg("写真を選択してください", false); return; }
-  if(files.length>MAX_PHOTOS){ upMsg(`一度に送れるのは${MAX_PHOTOS}枚までです（複数回に分けてお送りください）`, false); return; }
+  if(!gigaUrl && !files.length && !folderReq){ upMsg("ギガファイル便のURLを貼るか、写真を選択してください（共有フォルダ希望の場合はコメント欄にご記入ください）", false); return; }
+  if(gigaUrl && !/^https?:\/\//.test(gigaUrl)){ upMsg("ギガファイル便のURLの形式が正しくないようです（https:// から貼り付けてください）", false); return; }
+  if(files.length>MAX_PHOTOS){ upMsg(`直接アップロードは一度に${MAX_PHOTOS}枚までです。枚数が多い場合はギガファイル便をご利用ください`, false); return; }
   if(!consent){ upMsg("使用への同意（チェック）をお願いします", false); return; }
 
   const btn=document.getElementById("up-send");
   btn.disabled=true;
   try{
-    upMsg(`写真を準備中…（${files.length}枚を縮小しています）`);
     const photos=[];
-    for(const f of files){
-      if(!/^image\//.test(f.type) && !/\.(jpe?g|png|heic)$/i.test(f.name)){ continue; }
-      photos.push(await compressImage(f));
+    if(files.length){
+      upMsg(`写真を準備中…（${files.length}枚を縮小しています）`);
+      for(const f of files){
+        if(!/^image\//.test(f.type) && !/\.(jpe?g|png|heic)$/i.test(f.name)){ continue; }
+        photos.push(await compressImage(f));
+      }
     }
-    if(!photos.length) throw new Error("送信できる画像がありません");
-    upMsg(`送信中…（${photos.length}枚）`);
+    upMsg("送信中…");
     const body={ action:"ichibaphoto", token:UP_TOKEN, market,
       tanto:document.getElementById("up-tanto").value.trim(),
       contact:document.getElementById("up-contact").value.trim(),
-      comment:document.getElementById("up-comment").value.trim(),
-      consent:true, photos };
+      comment, gigaUrl, consent:true, photos };
     const r=await fetch(UP_URL,{ method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(body) });
     const j=await r.json();
     if(j&&j.ok){
-      upMsg(`✅ ${j.saved}枚お送りいただきました。ありがとうございます！確認のうえギャラリーに掲載し、Amazonギフト券をお送りします。`);
+      const parts=[];
+      if(j.giga) parts.push("ギガファイル便のURL");
+      if(j.saved) parts.push(`写真${j.saved}枚`);
+      if(!parts.length) parts.push("ご連絡");
+      upMsg(`✅ ${parts.join("と")}をお送りいただきました。ありがとうございます！確認のうえギャラリーに掲載いたします。`);
       document.getElementById("up-files").value="";
+      document.getElementById("up-giga").value="";
       document.getElementById("up-comment").value="";
     }else{
       throw new Error(j&&j.error||"送信エラー");
     }
   }catch(e){
-    upMsg("送信に失敗しました（"+e.message+"）。お手数ですがメール添付でも受け付けています。", false);
+    upMsg("送信に失敗しました（"+e.message+"）。お手数ですがお電話（053-461-0230）またはメールでお知らせください。", false);
   }finally{
     btn.disabled=false;
   }
