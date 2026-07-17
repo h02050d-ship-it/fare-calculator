@@ -726,8 +726,11 @@ function doRequest(reqType){
   const label = reqType==="注文" ? "注文" : "正式見積依頼";
   if(!confirm(`林材木店へ「${label}」を送信します。よろしいですか？\n\n発注元：${market}\n合計（税込）：${fmt(_lastCalc.total||0)}円`)) return;
   const quote=buildQuoteObj(reqType);
+  quote.denpyo="Q"+Date.now();   // 記録とメールで同じ受付番号を使う
   try{
     fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"saveQuote",quote})}).catch(()=>{});
+    // メール（社内通知＋受付控え）はメール権限承認済みのwebboard GAS経由で送信
+    fetch(STOCK_URL+"?api=ichibaack&token="+encodeURIComponent(STOCK_TOKEN)+"&data="+encodeURIComponent(JSON.stringify(quote))).catch(()=>{});
     saveDraftLocal(quote, reqType);   // 送信控えも端末に残す
     const viaTxt = ackVia==="both" ? "メールとFAX" : ackVia==="fax" ? "FAX" : "メール";
     flash(`✅ ${label}を送信しました。受付控えを${viaTxt}にお送りします。`);
