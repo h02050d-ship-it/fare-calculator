@@ -100,6 +100,22 @@
     border-radius:999px; padding:9px 18px; font-size:13.5px; font-weight:700; color:var(--accent); box-shadow:var(--shadow); transition:transform .1s; }
   .quicknav a:hover{ transform:translateY(-1px); }
   .quicknav a.qn-rec{ border-color:#2f6f4f; background:#f4faf6; color:#2f6f4f; }
+  .quicknav a.qn-grade{ border-color:#2f6f4f; background:#f4faf6; color:#2f6f4f; }
+  .quicknav a.qn-sample{ border-color:#b06a1f; background:#fdf6ee; color:#b06a1f; cursor:pointer; }
+
+  /* お客様向け表示（売値モード） */
+  header.top .who button.custmode-btn{ background:rgba(255,255,255,.28); border-color:rgba(255,255,255,.6); font-weight:700; }
+  .cust-banner{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:linear-gradient(120deg,#1d6fd8,#2f8fe6); color:#fff;
+    border-radius:12px; padding:12px 16px; margin-top:16px; box-shadow:var(--shadow); font-weight:700; font-size:14px; }
+  .cust-banner .cb-ico{ font-size:18px; }
+  .cust-banner .cb-txt{ flex:1; min-width:0; }
+  .cust-banner button{ background:#fff; color:#1d4e89; border:none; border-radius:9px; padding:9px 16px; font-size:13.5px; font-weight:800; cursor:pointer; font-family:inherit; }
+  .sample-check{ display:flex; flex-wrap:wrap; gap:8px 14px; margin:4px 0 4px; }
+  .sample-check label{ font-size:13.5px; font-weight:600; color:var(--ink); display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+  .sample-check.dim label{ opacity:.4; }
+  .sample-msg{ font-size:13px; font-weight:700; margin-top:8px; }
+  .ms-select{ width:100%; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; background:#fff; }
+  .ms-field textarea{ width:100%; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; resize:vertical; }
 
   .q-foot{ display:grid; grid-template-columns:1.1fr .9fr; gap:20px; margin-top:16px; align-items:start; }
   @media(max-width:720px){ .q-foot{ grid-template-columns:1fr; } }
@@ -361,6 +377,19 @@ async function refreshStock(){
 // 丸節2m/4m等の常時入荷品は在庫を「無限在庫」で運用しており負値で返る＝潤沢扱い。0=在庫無し。
 function stockClass(q){ if(q==null) return null; if(q<0) return {c:"stk-o",m:"◎",t:"潤沢",ample:true}; if(q===0) return {c:"stk-x",m:"×",t:"在庫無し"}; if(q<20) return {c:"stk-a",m:"△",t:"残少"}; return {c:"stk-o",m:"◎",t:"あり"}; }
 
+/* ===== お客様向け表示モード（売値モード） ===== */
+const LS_CUSTMODE = "hz_ichiba_custmode";
+const LS_MARKUP   = "hz_ichiba_markup";
+const LS_MARKUP_R = "hz_ichiba_round";
+let CUST_MODE   = localStorage.getItem(LS_CUSTMODE)==="1";
+let MARKUP_SET  = localStorage.getItem(LS_MARKUP)!=null;               // 一度でも掛け率を設定したか
+let MARKUP      = MARKUP_SET ? (Number(localStorage.getItem(LS_MARKUP))||0) : 15;   // %上乗せ（既定15）
+let MARKUP_ROUND= localStorage.getItem(LS_MARKUP_R)!=null ? (Number(localStorage.getItem(LS_MARKUP_R))||10) : 10;  // 1/10/100円 切上
+// 売値化：仕入値×(1+掛け率) を丸め単位で切り上げ
+function sellPrice(p){ if(p==null) return p; const r=MARKUP_ROUND||1; return Math.ceil(p*(1+(MARKUP||0)/100)/r)*r; }
+// 表示価格：お客様向け表示中は売値、通常は仕入値そのまま（内部priceOfは不変）
+function dp(p){ return (CUST_MODE && p!=null) ? sellPrice(p) : p; }
+
 /* ===== 状態 ===== */
 let METHOD = "付売";    // 市売 / 付売
 let lines = [];         // 見積 {name(表示名),pname(価格引き用の実type),t,w,l,grade,qty,method,price}
@@ -532,14 +561,22 @@ function renderMain(){
       <span class="adm-tag" id="adm-tag" style="display:none">管理者表示</span>
       <span class="method-fixed" id="method-fixed" style="display:none"></span>
     </div>
-    <div class="who"><span>ようこそ</span><button id="open-settings">⚙ 設定</button><button id="logout">ログアウト</button></div>
+    <div class="who"><span>ようこそ</span><button id="open-custmode" class="custmode-btn">👥 お客様向け表示</button><button id="open-settings">⚙ 設定</button><button id="logout">ログアウト</button></div>
   </div></header>
   <div class="wrap">
 
+    <div id="cust-banner" class="cust-banner" style="display:none">
+      <span class="cb-ico">👥</span>
+      <span class="cb-txt">お客様向け表示中（売値表示・仕入値は表示していません）</span>
+      <button id="cust-exit">元に戻す</button>
+    </div>
+
     <nav class="quicknav">
-      <a href="photos.html">📷 施工写真ギャラリー</a>
-      <a href="teikyo.html" class="qn-rec">📤 施工写真のご提供</a>
-      <a href="https://hayazai.com/pdf/hayazai_flyer_market.pdf" target="_blank" rel="noopener">📄 販促チラシ（PDF）</a>
+      <a href="photos.html" data-qn="photos">📷 施工写真ギャラリー</a>
+      <a href="grade.html" class="qn-grade" data-qn="grade">🌲 等級の選び方</a>
+      <a href="teikyo.html" class="qn-rec" data-qn="teikyo">📤 施工写真のご提供</a>
+      <a href="https://hayazai.com/pdf/hayazai_flyer_market.pdf" target="_blank" rel="noopener" data-qn="flyer">📄 販促チラシ（PDF）</a>
+      <a href="#" id="qn-sample" class="qn-sample" data-qn="sample">📦 サンプル請求</a>
     </nav>
 
     <div class="card">
@@ -566,7 +603,7 @@ function renderMain(){
       <div id="quote-box"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="card-drafts">
       <h2>📂 保存した控え（この端末）<span id="draft-n" style="font-size:12px;color:var(--sub);font-weight:600;margin-left:4px"></span></h2>
       <p class="h2sub">この端末に保存された見積の控えです。「再表示」で見積に戻せます。控えは見積フッターの「💾 控えを保存」で残せます。</p>
       <div id="drafts-panel"></div>
@@ -576,6 +613,9 @@ function renderMain(){
 
   $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); localStorage.removeItem(LS_MARKET); renderGate(); });
   $("#open-settings").addEventListener("click",openSettings);
+  $("#open-custmode").addEventListener("click",enterCustMode);
+  $("#cust-exit").addEventListener("click",exitCustMode);
+  $("#qn-sample").addEventListener("click",e=>{ e.preventDefault(); openSampleModal(); });
   $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));
 
   // 市場名から取引方法を確定（マスタ照合）。確定できればトグルを隠して固定表示、できなければ従来通り。
@@ -586,7 +626,7 @@ function renderMain(){
     if(!market) return;                       // 市場名未保存（既存ログイン端末含む）＝従来通りトグル表示
     if(!CUSTOMERS.length) await fetchCustomers();
     if(applyMarketMethod()) renderPriceTables();
-    applyMethodUI();
+    applyCustMode();   // 取引方法UIの復元(通常)またはお客様向け表示の再適用(ON時)を一括
   })();
 
   renderPriceTables(); renderStock(); renderQuote(); renderDrafts();
@@ -594,6 +634,134 @@ function renderMain(){
   fetchNaitoTanka().then(()=>{ if(lines.length) updateSum(); });   // 内藤単価表を先読み
   $("#stk-refresh").addEventListener("click",refreshStock);
   updateDraftCount();
+  applyCustMode();
+}
+
+/* ===== お客様向け表示モードの制御 ===== */
+// ON中に隠す要素の表示切替＋バナー。OFF時は取引方法UIをapplyMethodUIで正しく復元。
+function applyCustMode(){
+  const on=CUST_MODE;
+  const bn=$("#cust-banner"); if(bn) bn.style.display = on?"":"none";
+  const eb=$("#open-custmode"); if(eb) eb.style.display = on?"none":"";
+  // ヘッダーの取引方法UI
+  if(on){ ["#seg-method","#method-fixed","#adm-tag"].forEach(s=>{ const el=$(s); if(el) el.style.display="none"; }); }
+  else{ applyMethodUI(); }
+  // ①価格表カードの取引方法バッジ・ヒント
+  const pmb=$("#pm-badge"); if(pmb) pmb.style.display = on?"none":"";
+  const mh=$("#method-hint"); if(mh) mh.style.display = on?"none":"";
+  // 見積フッター：連絡先・依頼/注文・控え保存・発行者行
+  [".contact-block","#q-primary-btns","#b-save","#q-issuer-row"].forEach(s=>{ const el=$(s); if(el) el.style.display = on?"none":""; });
+  // 控えカード
+  const dc=$("#card-drafts"); if(dc) dc.style.display = on?"none":"";
+  // クイックメニュー（写真提供・チラシ・サンプルは非表示。ギャラリー・等級は表示のまま）
+  ["teikyo","flyer","sample"].forEach(k=>{ const el=document.querySelector(`[data-qn="${k}"]`); if(el) el.style.display = on?"none":""; });
+}
+function enterCustMode(){
+  if(!MARKUP_SET){ openMarkupModal(true); return; }   // 初回は掛け率入力を促す
+  CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1");
+  renderPriceTables(); renderQuote(); applyCustMode();
+}
+function exitCustMode(){
+  const p=prompt("お客様向け表示を解除します。\nログインパスワードを入力してください。");
+  if(p==null) return;
+  if(p!==PASS){ alert("パスワードが違います。"); return; }
+  CUST_MODE=false; localStorage.setItem(LS_CUSTMODE,"0");
+  renderPriceTables(); renderQuote(); applyCustMode();
+}
+// 掛け率入力モーダル（thenEnter=trueなら保存後そのままON）
+function openMarkupModal(thenEnter){
+  const ov=document.createElement("div"); ov.className="modal-ov"; ov.id="markup-modal";
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{ if(e.target===ov) ov.remove(); });
+  ov.innerHTML=`<div class="modal-card">
+    <h3>👥 お客様向け表示（売値）の設定</h3>
+    <p class="stk-note" style="margin-bottom:14px">仕入値に掛け率を上乗せした「売値」で全体を表示します。お客様の前で画面をお見せする際にお使いください。仕入値は表示されません。</p>
+    <div class="ms-field"><label>掛け率（％の上乗せ）</label><input id="mk-pct" type="number" min="0" step="1" value="${MARKUP}"></div>
+    <div class="ms-field"><label>売値の丸め（切上）</label>
+      <select id="mk-round" class="ms-select">
+        <option value="1">1円単位</option><option value="10">10円単位</option><option value="100">100円単位</option>
+      </select></div>
+    <div class="ms-btns"><button class="ms-cancel" id="mk-cancel">キャンセル</button><button class="ms-save" id="mk-ok">${thenEnter?"この掛け率で表示":"保存"}</button></div>
+  </div>`;
+  ov.querySelector("#mk-round").value=String(MARKUP_ROUND);
+  ov.querySelector("#mk-cancel").addEventListener("click",()=>ov.remove());
+  ov.querySelector("#mk-ok").addEventListener("click",()=>{
+    const pct=Math.max(0,Number(ov.querySelector("#mk-pct").value)||0);
+    const rnd=Number(ov.querySelector("#mk-round").value)||10;
+    MARKUP=pct; MARKUP_ROUND=rnd; MARKUP_SET=true;
+    localStorage.setItem(LS_MARKUP,String(pct)); localStorage.setItem(LS_MARKUP_R,String(rnd));
+    ov.remove();
+    if(thenEnter){ CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1"); }
+    renderPriceTables(); renderQuote(); applyCustMode();
+  });
+}
+
+/* ===== サンプル請求 ===== */
+function openSampleModal(){
+  const prof=currentProfile();
+  const staff=(prof.staffs&&prof.staffs.length)?prof.staffs[Math.min(prof.active||0,prof.staffs.length-1)]:null;
+  const market=prof.market||localStorage.getItem(LS_MARKET)||"";
+  const defDest=(market?market+" ":"")+"御中（市場止め）";
+  const TYPES=["桧フローリング 15mm","桧フローリング 12mm","桧羽目板 12mm"];
+  const ov=document.createElement("div"); ov.className="modal-ov"; ov.id="sample-modal";
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{ if(e.target===ov) ov.remove(); });
+  ov.innerHTML=`<div class="modal-card">
+    <h3>📦 サンプル請求</h3>
+    <p class="stk-note" style="margin-bottom:14px">ご希望のサンプルを選んで送信してください。準備でき次第、市場止めでお送りします。</p>
+    <div class="ms-field"><label>サンプルの種類</label>
+      <div class="sample-check" id="smp-types">
+        ${TYPES.map((t,i)=>`<label><input type="checkbox" class="smp-type" value="${esc(t)}">${esc(t)}</label>`).join("")}
+        <label><input type="checkbox" id="smp-omakase">おまかせ一式（全等級カットサンプル）</label>
+      </div>
+    </div>
+    <div class="ms-field"><label>等級（複数可）</label>
+      <div class="sample-check" id="smp-grades">
+        ${GRADES.map(g=>`<label><input type="checkbox" class="smp-grade" value="${esc(g)}"><b style="color:${GRADE_COLORS[g]||'inherit'}">${esc(g)}</b></label>`).join("")}
+      </div>
+    </div>
+    <div class="ms-field"><label>お届け先</label><input id="smp-dest" value="${esc(defDest)}"></div>
+    <div class="ms-field"><label>コメント（任意）</label><textarea id="smp-comment" rows="2" placeholder="ご要望などあればご記入ください"></textarea></div>
+    <div class="sample-msg" id="smp-msg"></div>
+    <div class="ms-btns"><button class="ms-cancel" id="smp-cancel">閉じる</button><button class="ms-save" id="smp-send">送信する</button></div>
+  </div>`;
+  const gradeWrap=ov.querySelector("#smp-grades");
+  const omk=ov.querySelector("#smp-omakase");
+  const syncOmakase=()=>{
+    const on=omk.checked;
+    gradeWrap.classList.toggle("dim",on);
+    ov.querySelectorAll(".smp-grade").forEach(c=>{ c.disabled=on; if(on) c.checked=false; });
+  };
+  omk.addEventListener("change",syncOmakase);
+  ov.querySelector("#smp-cancel").addEventListener("click",()=>ov.remove());
+  ov.querySelector("#smp-send").addEventListener("click",()=>{
+    const msg=ov.querySelector("#smp-msg"); msg.style.color="#b0483a";
+    const omakase=omk.checked;
+    const types=[...ov.querySelectorAll(".smp-type:checked")].map(c=>c.value);
+    const grades=[...ov.querySelectorAll(".smp-grade:checked")].map(c=>c.value);
+    const dest=(ov.querySelector("#smp-dest").value||"").trim();
+    const comment=(ov.querySelector("#smp-comment").value||"").trim();
+    let items=[];
+    if(omakase){ items=["おまかせ一式（全等級カットサンプル）"]; }
+    else{
+      if(!types.length){ msg.textContent="サンプルの種類を選んでください。"; return; }
+      if(!grades.length){ msg.textContent="等級を1つ以上選んでください。"; return; }
+      items=types.map(t=>`${t}（${grades.join("・")}）`);
+    }
+    if(!dest){ msg.textContent="お届け先をご入力ください。"; return; }
+    const tanto=staff?staff.name:"";
+    const contact=(staff&&!staff.noMail&&staff.email)?staff.email:(prof.tel||"");
+    const payload={ market, tanto, contact, items, dest, comment };
+    const btn=ov.querySelector("#smp-send"); btn.disabled=true; msg.style.color="#7a869a"; msg.textContent="送信中…";
+    const url=STOCK_URL+"?api=ichibareq&token="+encodeURIComponent(STOCK_TOKEN)+"&data="+encodeURIComponent(JSON.stringify(payload));
+    fetch(url).then(r=>r.json()).then(j=>{
+      if(j&&j.ok){ msg.style.color="#2e7d4f"; msg.textContent="✅ サンプル請求を受け付けました。準備でき次第お送りします。"; }
+      else{ throw new Error("ng"); }
+    }).catch(()=>{
+      btn.disabled=false; msg.style.color="#b0483a";
+      msg.textContent="送信に失敗しました。お手数ですがお電話ください（0538-58-2395）。";
+    });
+  });
 }
 
 /* --- 価格表 --- */
@@ -642,7 +810,7 @@ function renderPriceTables(){
           return `<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
             const p=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
             if(p==null) return `<td class="pcell na">—</td>`;
-            return `<td class="pcell" data-name="${esc(dispName)}" data-pname="${esc(rep.type)}" data-t="${rep.thickness}" data-tdisp="${tDisp}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"><span class="num">${fmt(p)}</span><span class="add">＋見積</span></td>`;
+            return `<td class="pcell" data-name="${esc(dispName)}" data-pname="${esc(rep.type)}" data-t="${rep.thickness}" data-tdisp="${tDisp}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"><span class="num">${fmt(dp(p))}</span><span class="add">＋見積</span></td>`;
           }).join("")+`</tr>`;
         }).join("")}</tbody>
       </table></div>`;
@@ -651,6 +819,7 @@ function renderPriceTables(){
   box.querySelectorAll(".pcell[data-name]").forEach(td=>td.addEventListener("click",()=>{
     addLine(td.dataset.name, td.dataset.pname, Number(td.dataset.t), Number(td.dataset.w), Number(td.dataset.l), td.dataset.grade, td.dataset.tdisp);
   }));
+  applyCustMode();
 }
 
 /* --- 在庫 --- */
@@ -702,7 +871,7 @@ function addLine(name,pname,t,w,l,grade,tDisp){
   if(ex) ex.qty+=1; else lines.push({name,pname,t,tDisp:(tDisp!=null?tDisp:String(t)),w,l,grade,qty:1,method:METHOD,price});
   renderQuote();
 }
-function linesSubtotal(){ return lines.reduce((s,x)=>s+priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade)*x.qty,0); }
+function linesSubtotal(){ return lines.reduce((s,x)=>s+dp(priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade))*x.qty,0); }
 
 function renderQuote(){
   const box=$("#quote-box"); if(!box) return;
@@ -712,8 +881,8 @@ function renderQuote(){
     return `<tr>
       <td class="l"><span class="mtag ${x.method==="市売"?"ichi":"tsuke"}">${x.method}</span> ${esc(x.name)} ${x.tDisp?esc(x.tDisp)+"mm×":""}${x.w}×${x.l}　<b style="color:${GRADE_COLORS[x.grade]||'inherit'}">${esc(x.grade)}</b></td>
       <td><input class="qy" type="number" min="1" value="${x.qty}" data-i="${i}"></td>
-      <td>${fmt(p)}円</td>
-      <td>${fmt(p*x.qty)}円</td>
+      <td>${fmt(dp(p))}円</td>
+      <td>${fmt(dp(p)*x.qty)}円</td>
       <td><button class="del" data-i="${i}">削除</button></td>
     </tr>`;
   }).join("");
@@ -765,7 +934,7 @@ function renderQuote(){
             </div>
           </div>
         </div>
-        <div class="row">
+        <div class="row" id="q-issuer-row">
           <div><label>発行者（見積書用）</label><input id="q-from" value="株式会社 林材木店"></div>
           <div><label>納期目安</label><input id="q-nouki" value="約2〜3週間"></div>
         </div>
@@ -773,7 +942,7 @@ function renderQuote(){
       </div>
       <div class="sumbox">
         <table id="sum-table"></table>
-        <div class="qbtns primary">
+        <div class="qbtns primary" id="q-primary-btns">
           <button class="b-req" id="b-req">📋 正式な見積りを依頼</button>
           <button class="b-order" id="b-order">🛒 この内容で注文</button>
         </div>
@@ -815,7 +984,10 @@ function renderQuote(){
   $("#b-req").addEventListener("click",()=>doRequest("依頼"));
   $("#b-order").addEventListener("click",()=>doRequest("注文"));
   $("#b-clear").addEventListener("click",()=>{ if(confirm("見積明細をすべて消しますか？")){ lines=[]; renderQuote(); } });
+  // お客様向け表示中は発行者を市場名に（見積書フッターも市場名のみ）
+  if(CUST_MODE && $("#q-from")){ const mk=(loadProfile()&&loadProfile().market)||localStorage.getItem(LS_MARKET)||""; if(mk) $("#q-from").value=mk; }
   updateSum();
+  applyCustMode();
 }
 
 /* --- 配送方法の切替 --- */
@@ -872,8 +1044,12 @@ function openSettings(){
           <button id="ms-add-btn" style="margin-top:8px;border:none;background:#eef2f7;color:var(--accent);border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-family:inherit">＋ 担当者を追加</button>
         </div>
       </div>
+      <div class="ms-field"><label>お客様向け表示の掛け率（％の上乗せ）</label><input id="ms-markup" type="number" min="0" step="1" value="${MARKUP}"></div>
+      <div class="ms-field"><label>売値の丸め（切上）</label>
+        <select id="ms-round" class="ms-select"><option value="1">1円単位</option><option value="10">10円単位</option><option value="100">100円単位</option></select></div>
       <div class="ms-btns"><button class="ms-cancel" id="ms-cancel">閉じる</button><button class="ms-save" id="ms-save">保存</button></div>
     </div>`;
+    ov.querySelector("#ms-round").value=String(MARKUP_ROUND);
     ov.querySelector("#ms-tel").addEventListener("input",e=>{ work.tel=e.target.value; });
     ov.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{ work.staffs.splice(Number(b.dataset.del),1); if(work.active>=work.staffs.length) work.active=0; draw(); }));
     ov.querySelector("#ms-add-btn").addEventListener("click",()=>{
@@ -890,8 +1066,14 @@ function openSettings(){
     ov.querySelector("#ms-save").addEventListener("click",()=>{
       work.tel=(ov.querySelector("#ms-tel")||{}).value||"";
       saveProfile(work);
+      // お客様向け表示の掛け率・丸めを保存
+      const pct=Math.max(0,Number((ov.querySelector("#ms-markup")||{}).value)||0);
+      const rnd=Number((ov.querySelector("#ms-round")||{}).value)||10;
+      MARKUP=pct; MARKUP_ROUND=rnd; MARKUP_SET=true;
+      localStorage.setItem(LS_MARKUP,String(pct)); localStorage.setItem(LS_MARKUP_R,String(rnd));
       closeSettings();
-      if($("#quote-box")) renderQuote();   // 見積フッターに即反映
+      if($("#price-box")) renderPriceTables();
+      if($("#quote-box")) renderQuote();   // 見積フッター・売値に即反映
     });
   };
   draw();
@@ -973,11 +1155,12 @@ function updateSum(){
 /* --- 見積書 印刷 --- */
 function doPrint(){
   const {sub,shipEx,tax,total}=_lastCalc;
+  const mkName=(loadProfile()&&loadProfile().market)||localStorage.getItem(LS_MARKET)||"";
   const to=($("#q-to")&&$("#q-to").value.trim())||"";
-  const from=($("#q-from")&&$("#q-from").value.trim())||"株式会社 林材木店";
+  const from=($("#q-from")&&$("#q-from").value.trim())|| (CUST_MODE&&mkName ? mkName : "株式会社 林材木店");
   const memo=($("#q-memo")&&$("#q-memo").value.trim())||"";
   const nouki=($("#q-nouki")&&$("#q-nouki").value.trim())||"";
-  const rows=lines.map(x=>{ const p=priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade);
+  const rows=lines.map(x=>{ const p=dp(priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade));
     return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${x.tDisp?esc(x.tDisp)+"×":""}${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
   const isNaito = _lastCalc.carrier==="内藤運輸";
   let sumRows=`<tr><td>商品計（税別）</td><td class="r">${fmt(sub)}円</td></tr>`;
@@ -993,7 +1176,9 @@ function doPrint(){
     <div class="pa-head">
       <div><div class="pa-to">${to?esc(to):"　"}</div><div style="font-size:11px;margin-top:6px">下記の通りお見積り申し上げます。</div>
         <div class="pa-total">御見積金額　${totalStr}（税込）</div></div>
-      <div class="pa-from"><b>${esc(from)}</b><br>〒437-1203 静岡県磐田市福田5490-47<br>TEL 0538-58-2395　FAX 050-3146-7566<br>発行日：${todayJP()}${memo?`<br>${esc(memo)}`:""}</div>
+      <div class="pa-from">${ CUST_MODE
+          ? `<b>${esc(from)}</b><br>発行日：${todayJP()}${memo?`<br>${esc(memo)}`:""}`
+          : `<b>${esc(from)}</b><br>〒437-1203 静岡県磐田市福田5490-47<br>TEL 0538-58-2395　FAX 050-3146-7566<br>発行日：${todayJP()}${memo?`<br>${esc(memo)}`:""}` }</div>
     </div>
     <table>
       <tr><th>品名</th><th>等級</th><th>寸法(mm)</th><th>数量</th><th>単価(税別)</th><th>金額(税別)</th></tr>
