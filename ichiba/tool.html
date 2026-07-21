@@ -574,7 +574,7 @@ function renderMain(){
     <nav class="quicknav">
       <a href="photos.html" data-qn="photos">📷 施工写真ギャラリー</a>
       <a href="grade.html" class="qn-grade" data-qn="grade">🌲 等級の選び方</a>
-      <a href="teikyo.html" class="qn-rec" data-qn="teikyo">📤 施工写真のご提供</a>
+      <a href="teikyo.html" class="qn-rec" data-qn="teikyo">📤 施工写真のご提供にご協力ください</a>
       <a href="https://hayazai.com/pdf/hayazai_flyer_market.pdf" target="_blank" rel="noopener" data-qn="flyer">📄 販促チラシ（PDF）</a>
       <a href="#" id="qn-sample" class="qn-sample" data-qn="sample">📦 サンプル請求</a>
     </nav>
@@ -721,22 +721,48 @@ function openSampleModal(){
         ${GRADES.filter(g=>g!=="無節特上小").map(g=>`<label><input type="checkbox" class="smp-grade" value="${esc(g)}"><b style="color:${GRADE_COLORS[g]||'inherit'}">${esc(g)}</b></label>`).join("")}
       </div>
     </div>
-    <div class="ms-field"><label>お届け先</label><input id="smp-dest" value="${esc(defDest)}"></div>
+    <div class="ms-field"><label>お届け先</label>
+      <div class="sample-check">
+        <label><input type="radio" name="smp-ship" value="market" checked>市場止め（${esc(market||"いつもの市場")}）</label>
+        <label><input type="radio" name="smp-ship" value="direct">お客様へ直送</label>
+      </div>
+      <div id="smp-direct" style="display:none;margin-top:8px">
+        <input id="smp-dname" placeholder="宛名（例：〇〇工務店 △△様）" style="margin-bottom:6px">
+        <input id="smp-dzip" placeholder="郵便番号（例：438-0233）" style="margin-bottom:6px">
+        <input id="smp-daddr" placeholder="住所" style="margin-bottom:6px">
+        <input id="smp-dtel" placeholder="電話番号（配送連絡用・任意）">
+      </div>
+    </div>
     <div class="ms-field"><label>コメント（任意）</label><textarea id="smp-comment" rows="2" placeholder="ご要望などあればご記入ください"></textarea></div>
     <div class="sample-msg" id="smp-msg"></div>
     <div class="ms-btns"><button class="ms-cancel" id="smp-cancel">閉じる</button><button class="ms-save" id="smp-send">送信する</button></div>
   </div>`;
+  ov.querySelectorAll('input[name="smp-ship"]').forEach(r=>r.addEventListener("change",()=>{
+    const direct=ov.querySelector('input[name="smp-ship"]:checked').value==="direct";
+    ov.querySelector("#smp-direct").style.display=direct?"":"none";
+  }));
   ov.querySelector("#smp-cancel").addEventListener("click",()=>ov.remove());
   ov.querySelector("#smp-send").addEventListener("click",()=>{
     const msg=ov.querySelector("#smp-msg"); msg.style.color="#b0483a";
     const types=[...ov.querySelectorAll(".smp-type:checked")].map(c=>c.value);
     const grades=[...ov.querySelectorAll(".smp-grade:checked")].map(c=>c.value);
-    const dest=(ov.querySelector("#smp-dest").value||"").trim();
     const comment=(ov.querySelector("#smp-comment").value||"").trim();
     if(!types.length){ msg.textContent="サンプルの種類を選んでください。"; return; }
     if(!grades.length){ msg.textContent="等級を1つ以上選んでください。"; return; }
     let items=types.map(t=>`${t}（${grades.join("・")}）`);
-    if(!dest){ msg.textContent="お届け先をご入力ください。"; return; }
+    const ship=(ov.querySelector('input[name="smp-ship"]:checked')||{value:"market"}).value;
+    let dest;
+    if(ship==="direct"){
+      const dname=(ov.querySelector("#smp-dname").value||"").trim();
+      const dzip=(ov.querySelector("#smp-dzip").value||"").trim();
+      const daddr=(ov.querySelector("#smp-daddr").value||"").trim();
+      const dtel=(ov.querySelector("#smp-dtel").value||"").trim();
+      if(!dname){ msg.textContent="直送先の宛名をご入力ください。"; return; }
+      if(!daddr){ msg.textContent="直送先の住所をご入力ください。"; return; }
+      dest="【お客様へ直送】"+dname+"／"+(dzip?"〒"+dzip+"　":"")+daddr+(dtel?"／TEL："+dtel:"");
+    }else{
+      dest=defDest;
+    }
     const tanto=staff?staff.name:"";
     const contact=(staff&&!staff.noMail&&staff.email)?staff.email:(prof.tel||"");
     const payload={ market, tanto, contact, items, dest, comment };
