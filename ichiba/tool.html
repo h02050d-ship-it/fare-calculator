@@ -595,6 +595,8 @@ function renderMain(){
         <button id="stk-refresh">↻ 最新に更新</button>
         <span class="stk-legend"><b class="stk-o">◎ あり</b><b class="stk-a">△ 残少(20束未満)</b><b class="stk-x">× 在庫無し</b></span>
       </div>
+      <div class="stk-note">※無節特上小は、無節・特上小と同じ在庫から混合するため両者の少ない方の数量を表示しています。
+      </div>
     </div>
 
     <div class="card">
@@ -845,7 +847,7 @@ function renderStock(){
     <tbody>${lens.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
       let q, tipTxt="";
       if(g==="無節特上小"){            // 在庫を持たず、無節と特上小の少ない方で表示
-        q=derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]); tipTxt="無節と特上小の少ない方の在庫を表示";
+        q=derivedStock(STOCK[`${l}|無節`], STOCK[`${l}|特上小`]); tipTxt="無節特上小は無節・特上小と同じ在庫から混合するため、両者の少ない方を表示しています";
       }else if(l===2000 && g==="小節"){  // 最悪4m小節を木取り（4m1束→2m相当2束）できる分を上乗せ
         const four=STOCK[`4000|小節`];
         q=cutAugmented(STOCK[`2000|小節`], four);
