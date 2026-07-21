@@ -84,6 +84,13 @@ h1 { text-align: center; margin-bottom: 20px; font-size: 1.4em; }
 .naito-table tr:hover td { background:#f8fbf8; }
 .naito-table .nsub { color:#2e7d32; font-size:0.85em; font-weight:bold; }
 .naito-table .nempty { color:#ccc; }
+.naito-table .nest { color:#e67e22; font-weight:bold; cursor:help; border-bottom:1px dotted #e67e22; }
+.naito-table .nsub.nest { color:#e67e22; border-bottom:none; }
+.naito-table tr.nhidden td { opacity:0.45; }
+.nrow-btn { border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer; font-size:0.8em; padding:2px 8px; color:#888; }
+.nrow-btn:hover { border-color:#c0392b; color:#c0392b; }
+.nrow-btn.nrestore { color:#2e7d32; border-color:#b7e4c7; }
+.nrow-btn.nrestore:hover { background:#eafaf1; }
 .naito-gate-input { width:100%; padding:10px 12px; border:1px solid #ccc; border-radius:6px; font-size:1em; margin-bottom:8px; }
 /* ===== embedモード（order-desk等にiframe埋め込み・結果だけ表示）===== */
 body.embed .tabbar { display:none !important; }
@@ -231,15 +238,22 @@ body.embed #office-result:empty, body.embed #seino-result:empty { display:none; 
         <label>束数（入れると合計も表示）</label>
         <input type="number" id="naito-qty" min="1" placeholder="例: 30" oninput="renderNaitoTable()" style="width:130px;">
       </div>
+      <div class="form-group" style="align-self:flex-end;padding-bottom:6px;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:0.85em;cursor:pointer;font-weight:normal;">
+          <input type="checkbox" id="naito-show-hidden" onchange="renderNaitoTable()"> 非表示も表示<span id="naito-hidden-count"></span>
+        </label>
+      </div>
       <div class="form-group">
-        <button class="mix-btn" onclick="loadNaito(true)">🔄 再読込</button>
+        <button class="mix-btn" onclick="naitoRefresh(true)">🔄 再読込</button>
       </div>
     </div>
     <div style="overflow-x:auto;">
       <table class="naito-table" id="naito-table"></table>
     </div>
     <p class="note">単価は1束あたり（円）。内藤運輸便・合計50束以下の少量便向け単価表（納品書ツールの運賃自動提案と同じデータ）。<br>
-    単価の変更はスプレッドシート「西濃佐川運賃表」の「内藤」タブを編集 → ここで「再読込」。</p>
+    <span style="color:#e67e22;font-weight:bold;">約○円</span>＝単価未登録の推定値（住所が近い市場の単価と、その市場の他の長さとの比率から自動算出。マウスを乗せると根拠を表示）。実際の請求と異なる場合があります。<br>
+    ✕＝このページの一覧から非表示（取引先マスタ・単価表スプシは変更しません）。「非表示も表示」にチェックで戻せます。<br>
+    単価の変更はスプレッドシート「西濃佐川運賃表」の「内藤」タブを編集 → ここで「再読込」。<span id="naito-stamp" style="color:#aaa;"></span></p>
   </div>
 </div>
 </div><!-- /#tab-naito -->
@@ -1383,9 +1397,10 @@ function applyUrlParams(){
 const NAITO_GAS = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec";
 const NAITO_AUTH_URL = "https://script.google.com/macros/s/AKfycbxQCf2HVfLjUAzOYXJHzzhquN3zkNrUAgcusg3mH5uhlm-UySsDYXBChhLjZGI2DyecIg/exec"; // fax-desk顧客マスタGAS＝ログイン照合に利用
 const NAITO_SSO_KEYS = ["hayazai_sso_cred","hayazai_board_cred","hayazai_seiso_cred","hayazai_rulebook_cred","hayazai_kaizen_cred","notify_creds_v1","seinodesk_cred","faxdesk_cred","orderdesk_cred","nippou_cred"];
-const NAITO_CACHE_KEY = "naito_tanka_cache";   // sessionStorage 30分
-const NAITO_AUTH_OK_KEY = "naito_auth_ok";     // sessionStorage: 照合済みフラグ
-let naitoPrices = null;
+const NAITO_CACHE_KEY = "naito_tanka_v2";      // localStorage {at, prices, addrMap} — 単価は基本変わらないため1日1回だけ更新
+const NAITO_HIDDEN_KEY = "naito_hidden_v1";    // このページだけの非表示市場リスト（マスタ・スプシは変更しない）
+const NAITO_TTL = 24*60*60*1000;
+let naitoPrices = null, naitoAddr = {}, naitoEst = {}, naitoRefreshing = false, naitoRowNames = [];
 
 function switchTab(t){
   document.getElementById('tab-calc').style.display = (t==='calc') ? '' : 'none';
@@ -1410,30 +1425,73 @@ function naitoShow(part, err){
   });
   if(part==='gate') document.getElementById('naito-gate-err').textContent = err || '';
 }
-// 戻り値: true=認証OK / false=メール・パス不一致 / null=通信エラー
-async function naitoVerify(cred){
-  try{
-    if(sessionStorage.getItem(NAITO_AUTH_OK_KEY) === cred.email) return true;
-  }catch(e){}
-  const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 15000);
+// 取引先マスタAPI＝ログイン照合＋住所の取得を兼ねる。
+// 戻り値: {ok:true, addrMap} / {ok:false}=メール・パス不一致 / null=通信エラー
+async function naitoFetchPartners(cred){
+  const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 20000);
   try{
     const url = NAITO_AUTH_URL + "?action=partners&email=" + encodeURIComponent(cred.email) + "&pass=" + encodeURIComponent(cred.pass);
     const r = await fetch(url, {signal: ctrl.signal});
     const j = await r.json();
-    if(j && j.ok){ try{ sessionStorage.setItem(NAITO_AUTH_OK_KEY, cred.email); }catch(e){} return true; }
-    return false;
+    if(j && j.ok && Array.isArray(j.partners)){
+      const m = {};
+      j.partners.forEach(p => { if(p && p.name && p.addr) m[naitoNorm(p.name)] = String(p.addr); });
+      return {ok: true, addrMap: m};
+    }
+    return {ok: false};
   }catch(e){ return null; }
   finally{ clearTimeout(to); }
 }
-async function naitoBoot(){
+function setNaitoStamp(at){
+  const el = document.getElementById('naito-stamp');
+  if(!el || !at) return;
+  const d = new Date(at);
+  el.textContent = '｜データ: ' + (d.getMonth()+1) + '/' + d.getDate() + ' ' +
+    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ' 時点（1日1回自動更新）';
+}
+function naitoBoot(){
   if(naitoPrices){ naitoShow('content'); renderNaitoTable(); return; }
   const cred = naitoFindCred();
+  let cache = null;
+  try{ cache = JSON.parse(localStorage.getItem(NAITO_CACHE_KEY) || "null"); }catch(e){}
+  if(cache && cache.prices && cred){
+    // キャッシュを即表示（通信ゼロ）。24時間を超えていたら裏で静かに更新
+    naitoPrices = cache.prices; naitoAddr = cache.addrMap || {};
+    naitoEst = buildNaitoEstimates(naitoPrices, naitoAddr);
+    naitoShow('content'); renderNaitoTable(); setNaitoStamp(cache.at);
+    if((Date.now() - (cache.at || 0)) > NAITO_TTL) naitoRefresh();
+    return;
+  }
   if(!cred){ naitoShow('gate'); return; }
-  naitoShow('loading');
-  const ok = await naitoVerify(cred);
-  if(ok === true) loadNaito();
-  else if(ok === false) naitoShow('gate', 'ログインし直してください（メールまたはパスワードが違います）');
-  else naitoShow('gate', '通信エラーが発生しました。もう一度お試しください');
+  naitoRefresh();
+}
+// 認証照合＋単価＋住所をまとめて取得しキャッシュ更新（初回・24時間経過・手動再読込のみ通信）
+async function naitoRefresh(){
+  if(naitoRefreshing) return; naitoRefreshing = true;
+  const hadData = !!naitoPrices;
+  if(!hadData) naitoShow('loading');
+  try{
+    const cred = naitoFindCred();
+    if(!cred){ naitoShow('gate'); return; }
+    const [pr, tj] = await Promise.all([
+      naitoFetchPartners(cred),
+      fetch(NAITO_GAS + "?action=getNaitoTanka").then(r=>r.json()).catch(()=>null)
+    ]);
+    if(pr && pr.ok === false){
+      naitoPrices = null;
+      try{ localStorage.removeItem(NAITO_CACHE_KEY); }catch(e){}
+      naitoShow('gate', 'ログインし直してください（メールまたはパスワードが違います）');
+      return;
+    }
+    if(!pr || !tj || !tj.ok || !tj.prices){
+      if(!hadData) naitoShow('gate', '通信エラーが発生しました。もう一度お試しください');
+      return;  // キャッシュ表示中なら黙ってスキップ（次回また試す）
+    }
+    naitoPrices = tj.prices; naitoAddr = pr.addrMap || {};
+    try{ localStorage.setItem(NAITO_CACHE_KEY, JSON.stringify({at: Date.now(), prices: naitoPrices, addrMap: naitoAddr})); }catch(e){}
+    naitoEst = buildNaitoEstimates(naitoPrices, naitoAddr);
+    naitoShow('content'); renderNaitoTable(); setNaitoStamp(Date.now());
+  } finally { naitoRefreshing = false; }
 }
 async function naitoLogin(){
   const email = document.getElementById('naito-mail').value.trim();
@@ -1441,69 +1499,141 @@ async function naitoLogin(){
   if(!email || !pass){ document.getElementById('naito-gate-err').textContent = 'メールとパスワードを入力してください'; return; }
   const btn = document.getElementById('naito-login-btn');
   btn.disabled = true; btn.textContent = '照合中…';
-  const ok = await naitoVerify({email, pass});
+  const pr = await naitoFetchPartners({email, pass});
   btn.disabled = false; btn.textContent = 'ログイン';
-  if(ok === true){
+  if(pr && pr.ok){
     try{ localStorage.setItem('hayazai_sso_cred', JSON.stringify({email, pass})); }catch(e){}
-    loadNaito();
+    naitoRefresh();
   }
-  else if(ok === false) document.getElementById('naito-gate-err').textContent = 'メールまたはパスワードが違います';
+  else if(pr && pr.ok === false) document.getElementById('naito-gate-err').textContent = 'メールまたはパスワードが違います';
   else document.getElementById('naito-gate-err').textContent = '通信エラーが発生しました。もう一度お試しください';
 }
-async function loadNaito(force){
-  naitoShow('loading');
-  if(!force){
-    try{
-      const c = JSON.parse(sessionStorage.getItem(NAITO_CACHE_KEY) || "null");
-      if(c && c.prices && c.at && (Date.now() - c.at) < 30*60*1000){
-        naitoPrices = c.prices; naitoShow('content'); renderNaitoTable(); return;
+/* ---- 単価未登録セルの推定 ----
+   同市→同県→全市場の順で近い市場を探し、
+   ・その市場自身に他の長さの単価があれば「自社単価×近隣市場の長さ間比率」の中央値
+   ・全長さ未登録なら近隣市場のその長さ単価の中央値
+   を推定値とする（5円丸め）。住所は取引先マスタから。 */
+function naitoParseAddr(addr){
+  addr = String(addr || "").replace(/[\s　]/g,"");
+  const pm = addr.match(/^(北海道|東京都|京都府|大阪府|[^市区郡]{2,3}県)/);
+  const pref = pm ? pm[1] : "";
+  const rest = pm ? addr.slice(pref.length) : addr;
+  const cm = rest.match(/^([^市区郡]{1,6}?(?:市|区|郡))/);
+  return { pref: pref, city: cm ? cm[1] : "" };
+}
+function naitoMedian(a){
+  const s = [...a].sort((x,y)=>x-y), n = s.length;
+  return n ? (n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2) : 0;
+}
+function buildNaitoEstimates(prices, addrMap){
+  const lenSet = new Set();
+  Object.values(prices).forEach(rec => Object.keys(rec || {}).forEach(l => lenSet.add(l)));
+  const lens = [...lenSet];
+  const names = Object.keys(prices);
+  const geo = {};
+  names.forEach(n => { geo[n] = naitoParseAddr(addrMap[naitoNorm(n)]); });
+  const est = {};
+  names.forEach(n => {
+    const rec = prices[n] || {};
+    const known = lens.filter(k => rec[k] != null);
+    lens.filter(l => rec[l] == null).forEach(l => {
+      const groups = [
+        {label:"同市", ok: m => geo[n].city && geo[m].city === geo[n].city && geo[m].pref === geo[n].pref},
+        {label:"同県", ok: m => geo[n].pref && geo[m].pref === geo[n].pref},
+        {label:"全市場", ok: () => true}
+      ];
+      for(const g of groups){
+        const cands = names.filter(m => m !== n && prices[m] && prices[m][l] != null && g.ok(m));
+        if(!cands.length) continue;
+        let vals = [], how = "の" + (Number(l)/1000) + "m単価の中央値";
+        if(known.length){
+          cands.forEach(c => {
+            const cr = prices[c], shared = known.filter(k => cr[k] != null);
+            if(!shared.length) return;
+            const es = shared.map(k => rec[k] * cr[l] / cr[k]);
+            vals.push(es.reduce((a,b)=>a+b,0) / es.length);
+          });
+          if(vals.length) how = "の長さ間比率×自社単価";
+        }
+        if(!vals.length) vals = cands.map(c => Number(prices[c][l]));
+        const v = Math.round(naitoMedian(vals)/5)*5;
+        if(v > 0){ (est[n] = est[n] || {})[l] = { v: v, basis: g.label + how + "（" + vals.length + "市場）" }; }
+        break;
       }
-    }catch(e){}
-  }
-  try{
-    const r = await fetch(NAITO_GAS + "?action=getNaitoTanka");
-    const j = await r.json();
-    if(!j || !j.ok || !j.prices) throw new Error(j && j.error || "bad response");
-    naitoPrices = j.prices;
-    try{ sessionStorage.setItem(NAITO_CACHE_KEY, JSON.stringify({at: Date.now(), prices: naitoPrices})); }catch(e){}
-    naitoShow('content'); renderNaitoTable();
-  }catch(e){
-    naitoShow('content');
-    document.getElementById('naito-table').innerHTML =
-      '<tr><td style="color:#c0392b;">単価表の読み込みに失敗しました。「再読込」を押してください</td></tr>';
-  }
+    });
+  });
+  return est;
+}
+/* ---- このページだけの非表示（マスタ・スプシは変更しない）---- */
+function naitoHiddenList(){
+  try{ const a = JSON.parse(localStorage.getItem(NAITO_HIDDEN_KEY) || "[]"); return Array.isArray(a) ? a : []; }
+  catch(e){ return []; }
+}
+function naitoHide(name){
+  const a = naitoHiddenList();
+  if(!a.includes(name)) a.push(name);
+  try{ localStorage.setItem(NAITO_HIDDEN_KEY, JSON.stringify(a)); }catch(e){}
+  renderNaitoTable();
+}
+function naitoUnhide(name){
+  try{ localStorage.setItem(NAITO_HIDDEN_KEY, JSON.stringify(naitoHiddenList().filter(x => x !== name))); }catch(e){}
+  renderNaitoTable();
 }
 function naitoNorm(s){
   return String(s || "").replace(/（/g,"(").replace(/）/g,")").replace(/[\s　]/g,"").toLowerCase();
 }
+function naitoEsc(s){ return String(s ?? "").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
 function renderNaitoTable(){
   const tbl = document.getElementById('naito-table');
   if(!naitoPrices){ tbl.innerHTML = ''; return; }
   const q = naitoNorm(document.getElementById('naito-search').value);
   const qty = Math.max(0, parseInt(document.getElementById('naito-qty').value, 10) || 0);
+  const showHidden = document.getElementById('naito-show-hidden').checked;
+  const hidden = new Set(naitoHiddenList());
   // 長さ列は全取引先のキーの和集合から動的に（"2000"→2m）
   const lenSet = new Set();
   Object.values(naitoPrices).forEach(rec => Object.keys(rec || {}).forEach(l => lenSet.add(l)));
   const lens = [...lenSet].sort((a,b) => Number(a) - Number(b));
-  const names = Object.keys(naitoPrices)
-    .filter(n => !q || naitoNorm(n).includes(q))
-    .sort((a,b) => a.localeCompare(b, 'ja'));
-  let html = '<tr><th>取引先</th>' + lens.map(l => '<th>' + (Number(l)/1000) + 'm</th>').join('') + '</tr>';
+  const hidCount = Object.keys(naitoPrices).filter(n => hidden.has(n)).length;
+  document.getElementById('naito-hidden-count').textContent = hidCount ? '（' + hidCount + '件）' : '';
+  let names = Object.keys(naitoPrices).filter(n => !q || naitoNorm(n).includes(q));
+  if(!showHidden) names = names.filter(n => !hidden.has(n));
+  names.sort((a,b) => a.localeCompare(b, 'ja'));
+  naitoRowNames = names;
+  let html = '<tr><th>取引先</th>' + lens.map(l => '<th>' + (Number(l)/1000) + 'm</th>').join('') + '<th></th></tr>';
   if(!names.length){
-    html += '<tr><td colspan="' + (lens.length+1) + '" style="color:#888;">該当する取引先がありません</td></tr>';
+    html += '<tr><td colspan="' + (lens.length+2) + '" style="color:#888;">該当する取引先がありません</td></tr>';
   }
-  names.forEach(n => {
-    const rec = naitoPrices[n] || {};
-    html += '<tr><td>' + n.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</td>' + lens.map(l => {
+  names.forEach((n, i) => {
+    const rec = naitoPrices[n] || {}, er = naitoEst[n] || {}, isHid = hidden.has(n);
+    html += '<tr' + (isHid ? ' class="nhidden"' : '') + '><td>' + naitoEsc(n) + '</td>' + lens.map(l => {
       const p = rec[l];
-      if(p == null) return '<td class="nempty">—</td>';
-      let cell = Number(p).toLocaleString() + '<span style="color:#999;font-size:0.8em;">円/束</span>';
-      if(qty) cell += '<div class="nsub">' + (Number(p)*qty).toLocaleString() + '円</div>';
-      return '<td>' + cell + '</td>';
-    }).join('') + '</tr>';
+      if(p != null){
+        let cell = Number(p).toLocaleString() + '<span style="color:#999;font-size:0.8em;">円/束</span>';
+        if(qty) cell += '<div class="nsub">' + (Number(p)*qty).toLocaleString() + '円</div>';
+        return '<td>' + cell + '</td>';
+      }
+      const e = er[l];
+      if(e){
+        let cell = '<span class="nest" title="推定: ' + naitoEsc(e.basis) + '">約' + e.v.toLocaleString() + '</span><span style="color:#999;font-size:0.8em;">円/束</span>';
+        if(qty) cell += '<div class="nsub nest">約' + (e.v*qty).toLocaleString() + '円</div>';
+        return '<td>' + cell + '</td>';
+      }
+      return '<td class="nempty">—</td>';
+    }).join('');
+    html += '<td>' + (isHid
+      ? '<button class="nrow-btn nrestore" data-i="' + i + '">戻す</button>'
+      : '<button class="nrow-btn" data-i="' + i + '" title="このページの一覧から非表示（マスタは変更しません）">✕</button>') + '</td></tr>';
   });
   tbl.innerHTML = html;
 }
+document.getElementById('naito-table').addEventListener('click', e => {
+  const b = e.target.closest('button.nrow-btn');
+  if(!b) return;
+  const n = naitoRowNames[Number(b.dataset.i)];
+  if(n == null) return;
+  if(b.classList.contains('nrestore')) naitoUnhide(n); else naitoHide(n);
+});
 ["naito-mail","naito-pass"].forEach(id => document.getElementById(id).addEventListener("keydown", e => { if(e.key==="Enter") naitoLogin(); }));
 
 init();
