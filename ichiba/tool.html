@@ -71,15 +71,28 @@
   .pcell:hover .add{ opacity:1; }
   .pcell.na{ color:#c3ccd8; cursor:default; background:#fafbfc; }
   .pcell.na:hover{ background:#fafbfc; }
-  /* 2価格並記（通常モード：左＝仕入/定価・右＝お客様販売価格） */
-  .pcell-2 .p-base{ display:block; font-size:11px; color:var(--sub); font-weight:600; line-height:1.3; }
-  .pcell-2 .p-sell{ display:block; font-size:15px; font-weight:800; color:#1d6fd8; line-height:1.35; cursor:text; }
-  .pcell-2 .p-sell.edited{ text-decoration:underline; text-decoration-color:#1d6fd8; text-underline-offset:2px; }
-  .pcell-2 .p-sell.edited::after{ content:"●"; font-size:8px; color:#1d6fd8; vertical-align:super; margin-left:2px; }
-  .pcell-2 .p-sell-input{ width:76px; font-size:14px; font-weight:700; text-align:right; border:1.5px solid #1d6fd8; border-radius:6px; padding:3px 5px; font-family:inherit; }
   /* お客様表示プレビューボタン（①価格表カード見出し） */
   .preview-cust-btn{ margin-left:auto; background:#eef4fc; border:1.5px solid #9db8dd; color:#1d4e89; border-radius:8px; padding:6px 12px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
   .preview-cust-btn:hover{ background:#e2ecfa; }
+  /* 価格表：左右2表（左＝仕入/定価・右＝お客様販売価格） */
+  .price-pair{ display:flex; gap:16px; align-items:flex-start; margin-bottom:6px; }
+  .price-pair > .price-col{ flex:1 1 0; min-width:0; }
+  .price-col .pc-cap{ font-size:12.5px; font-weight:800; color:var(--ink); margin:0 0 6px; display:flex; align-items:center; gap:6px; }
+  .price-col.sell .pc-cap{ color:#1d6fd8; }
+  .price-col .grid{ min-width:440px; }
+  @media(max-width:820px){ .price-pair{ flex-direction:column; } .price-col .grid{ min-width:520px; } }
+  .pcell-sell{ cursor:pointer; }
+  .pcell-sell .p-sell{ display:inline-block; font-weight:800; font-size:15px; color:#1d6fd8; line-height:1.35; cursor:text; }
+  .pcell-sell .p-sell.unset{ color:#c3ccd8; font-weight:600; font-size:12.5px; }
+  .pcell-sell .p-sell.edited{ text-decoration:underline; text-decoration-color:#1d6fd8; text-underline-offset:2px; }
+  .pcell-sell .p-sell.edited::after{ content:"●"; font-size:8px; color:#1d6fd8; vertical-align:super; margin-left:2px; }
+  .pcell-sell:hover{ background:#eef6f0; }
+  .p-sell-input{ width:82px; font-size:14px; font-weight:700; text-align:right; border:1.5px solid #1d6fd8; border-radius:6px; padding:3px 5px; font-family:inherit; }
+  /* お客様用リンク発行モーダル */
+  .cb-issue-btn{ background:#fff !important; color:#1d4e89 !important; }
+  .link-box{ display:flex; gap:8px; margin:10px 0 4px; }
+  .link-box input{ flex:1; min-width:0; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:13px; font-family:inherit; background:var(--panel2); }
+  .link-box button{ border:none; background:var(--accent); color:#fff; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
 
   /* 在庫グリッド */
   .stk-cell{ font-weight:700; }
@@ -241,6 +254,8 @@ const $ = s => document.querySelector(s);
 const fmt = n => (Math.round(n)||0).toLocaleString("ja-JP");
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const todayJP = ()=>{ const t=new Date(); return `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`; };
+/* base64url（UTF-8対応）— お客様用リンクのトークン生成に使用 */
+const b64urlEncode = str => btoa(unescape(encodeURIComponent(str))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 
 /* ===== ログイン（市場だけが使える・端末に保持） ===== */
 const PASS = "ichiba2026";
@@ -260,7 +275,7 @@ async function fetchCustomers(){
   return CUSTOMERS;
 }
 // 「御中」「様」「株式会社」等・空白を除去して比較用に正規化
-function normName(s){ return String(s==null?"":s).replace(/(御中|様|さま|㈱|㈲|\(株\)|\(有\)|株式会社|有限会社|\s|　)/g,"").trim(); }
+function normName(s){ return String(s==null?"":s).replace(/(御中|様|さま|㈱|㈲|\(株\)|\(有\)|（株）|（有）|株式会社|有限会社|\s|　)/g,"").trim(); }
 function matchCustomer(market){
   const m = normName(market); if(!m || !CUSTOMERS.length) return null;
   let hit = CUSTOMERS.find(c=>normName(c.name)===m);                                   // 完全一致
@@ -405,8 +420,8 @@ const LS_SELLP = "hz_ichiba_sellp";
 function loadSellOverrides(){ try{ const o=JSON.parse(localStorage.getItem(LS_SELLP)); return (o&&typeof o==="object")?o:{}; }catch(e){ return {}; } }
 function saveSellOverrides(o){ try{ localStorage.setItem(LS_SELLP, JSON.stringify(o)); }catch(e){} }
 function sellKey(pname,t,w,l,grade){ return `${pname}|${t}|${w}|${l}|${grade}`; }
-// お客様販売価格：①セル個別上書き → ②付売=仕入×掛け率／市売=定価そのまま
-function sellDefault(base,method){ if(base==null) return null; return (method||METHOD)==="付売" ? sellPrice(base) : base; }
+// お客様販売価格の既定：市売=定価そのまま／付売=空白（未設定）。※掛け率の自動計算は廃止
+function sellDefault(base,method){ if(base==null) return null; return (method||METHOD)==="付売" ? null : base; }
 function sellPriceFor(pname,t,w,l,grade,method){
   const base=priceOf(method||METHOD,pname,t,w,l,grade); if(base==null) return null;
   const ov=loadSellOverrides()[sellKey(pname,t,w,l,grade)];
@@ -416,6 +431,32 @@ function sellPriceFor(pname,t,w,l,grade,method){
 function hasSellOverride(pname,t,w,l,grade){
   const ov=loadSellOverrides()[sellKey(pname,t,w,l,grade)];
   return ov!=null && ov!=="" && !isNaN(Number(ov));
+}
+// ●下線マーク判定：上書き済みかつ（市売＝定価と異なる／付売＝値あり）
+function isSellMarked(pname,t,w,l,grade,method){
+  if(!hasSellOverride(pname,t,w,l,grade)) return false;
+  const sp=sellPriceFor(pname,t,w,l,grade,method);
+  if(sp==null) return false;
+  if((method||METHOD)==="市売"){ return sp!==priceOf(method||METHOD,pname,t,w,l,grade); }
+  return true;
+}
+// 全商品の販売価格を「仕入価格×(1+pct/100)」で一括上書き（10円切上）
+function bulkSetSellPrices(pct){
+  const o=loadSellOverrides();
+  PRODUCTS.forEach(pt=>pt.thicknesses.forEach(t=>pt.lengths.forEach(l=>GRADES.forEach(g=>{
+    const base=priceOf(METHOD,pt.type,t,pt.w,l,g); if(base==null) return;
+    o[sellKey(pt.type,t,pt.w,l,g)] = Math.ceil(base*(1+(pct||0)/100)/10)*10;
+  }))));
+  saveSellOverrides(o);
+}
+// お客様販売価格が設定済みのセルを収集（リンク発行用・絶対額のみ）
+function collectSellPrices(){
+  const map={}; let count=0;
+  PRODUCTS.forEach(pt=>pt.thicknesses.forEach(t=>pt.lengths.forEach(l=>GRADES.forEach(g=>{
+    const sp=sellPriceFor(pt.type,t,pt.w,l,g,METHOD);
+    if(sp!=null){ map[`${pt.type}|${t}|${pt.w}|${l}|${g}`]=sp; count++; }
+  }))));
+  return {map,count};
 }
 // 見積・印刷の1束あたり表示単価：お客様表示中は販売価格、通常は仕入/定価そのまま
 function lineUnit(x){ return CUST_MODE ? sellPriceFor(x.pname,x.t,x.w,x.l,x.grade,x.method) : priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade); }
@@ -597,7 +638,8 @@ function renderMain(){
 
     <div id="cust-banner" class="cust-banner" style="display:none">
       <span class="cb-ico">👥</span>
-      <span class="cb-txt">お客様向け表示中（売値表示・仕入値は表示していません）</span>
+      <span class="cb-txt">お客様向け表示中（販売価格のみ・仕入値は表示していません）</span>
+      <button id="cust-issue-link" class="cb-issue-btn">🔗 この内容でお客様用リンクを発行</button>
       <button id="cust-exit">元に戻す</button>
     </div>
 
@@ -611,7 +653,7 @@ function renderMain(){
 
     <div class="card">
       <h2>① 価格表 <span class="badge" id="pm-badge"></span><button id="preview-cust" class="preview-cust-btn">👁 お客様表示をプレビュー</button></h2>
-      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。<span class="method-hint" id="method-hint"></span><span id="price-2col-note" style="display:block;margin-top:3px">左＝貴社仕入価格／右＝お客様への販売価格（タップで編集・お客様表示に反映）</span></p>
+      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。<span class="method-hint" id="method-hint"></span><span id="price-2col-note" style="display:block;margin-top:3px">左の表＝仕入価格／定価（タップで見積に追加）　右の表＝お客様への販売価格（タップで編集・お客様表示に反映）</span></p>
       <div id="price-box"></div>
       <div class="stk-note" id="price-status"></div>
     </div>
@@ -648,6 +690,7 @@ function renderMain(){
   $("#open-custmode").addEventListener("click",previewCustMode);
   const pvBtn=$("#preview-cust"); if(pvBtn) pvBtn.addEventListener("click",previewCustMode);
   $("#cust-exit").addEventListener("click",exitCustMode);
+  const ilBtn=$("#cust-issue-link"); if(ilBtn) ilBtn.addEventListener("click",issueCustLink);
   $("#qn-sample").addEventListener("click",e=>{ e.preventDefault(); openSampleModal(); });
   $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));
 
@@ -691,18 +734,10 @@ function applyCustMode(){
   // クイックメニュー（写真提供・チラシ・サンプルは非表示。ギャラリー・等級は表示のまま）
   ["teikyo","flyer","sample"].forEach(k=>{ const el=document.querySelector(`[data-qn="${k}"]`); if(el) el.style.display = on?"none":""; });
 }
-function enterCustMode(){
-  if(!MARKUP_SET){ openMarkupModal(true); return; }   // 初回は掛け率入力を促す
+// お客様表示プレビュー：モーダルを挟まず即ON（右表＝お客様への販売価格のみ表示）
+function previewCustMode(){
   CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1");
   renderPriceTables(); renderQuote(); applyCustMode();
-}
-// お客様表示プレビュー：市売は販売価格＝定価のため掛け率不要→即ON。付売は従来どおり初回のみ掛け率モーダル。
-function previewCustMode(){
-  if(METHOD==="市売"){
-    CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1");
-    renderPriceTables(); renderQuote(); applyCustMode(); return;
-  }
-  enterCustMode();
 }
 function exitCustMode(){
   const p=prompt("お客様向け表示を解除します。\nログインパスワードを入力してください。");
@@ -711,32 +746,43 @@ function exitCustMode(){
   CUST_MODE=false; localStorage.setItem(LS_CUSTMODE,"0");
   renderPriceTables(); renderQuote(); applyCustMode();
 }
-// 掛け率入力モーダル（thenEnter=trueなら保存後そのままON）
-function openMarkupModal(thenEnter){
-  const ov=document.createElement("div"); ov.className="modal-ov"; ov.id="markup-modal";
+
+/* ===== お客様用リンクの発行 ===== */
+function issueCustLink(){
+  const {map,count}=collectSellPrices();
+  if(!count){ alert("お客様への販売価格が1件も設定されていません。\n先に「お客様への販売価格」を入力してから発行してください。"); return; }
+  if(!confirm("このプレビューの内容でお客様用リンクを発行しますか？\n※発行後に販売価格を変更した場合は、再発行して新しいリンクをお渡しください。")) return;
+  const prof=currentProfile();
+  const market=(prof&&prof.market)||localStorage.getItem(LS_MARKET)||"";
+  const tel=(prof&&prof.tel)||"";
+  // トークンに入れるのは 販売価格の絶対額のみ（基準価格・仕入値・METHOD・掛け率・上書きフラグは入れない）
+  const token={ v:1, market, tel, issued:new Date().toISOString().slice(0,10), prices:map };
+  const enc=b64urlEncode(JSON.stringify(token));
+  const url=location.origin+location.pathname.replace(/[^/]*$/,"cust.html")+"#c="+enc;
+  showLinkModal(url);
+}
+function showLinkModal(url){
+  const ov=document.createElement("div"); ov.className="modal-ov"; ov.id="link-modal";
   document.body.appendChild(ov);
   ov.addEventListener("click",e=>{ if(e.target===ov) ov.remove(); });
+  const qr="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data="+encodeURIComponent(url);
   ov.innerHTML=`<div class="modal-card">
-    <h3>👥 お客様向け表示（売値）の設定</h3>
-    <p class="stk-note" style="margin-bottom:14px">仕入値に掛け率を上乗せした「売値」で全体を表示します。お客様の前で画面をお見せする際にお使いください。仕入値は表示されません。</p>
-    <div class="ms-field"><label>掛け率（％の上乗せ）</label><input id="mk-pct" type="number" min="0" step="1" value="${MARKUP}"></div>
-    <div class="ms-field"><label>売値の丸め（切上）</label>
-      <select id="mk-round" class="ms-select">
-        <option value="1">1円単位</option><option value="10">10円単位</option><option value="100">100円単位</option>
-      </select></div>
-    <div class="ms-btns"><button class="ms-cancel" id="mk-cancel">キャンセル</button><button class="ms-save" id="mk-ok">${thenEnter?"この掛け率で表示":"保存"}</button></div>
+    <h3>🔗 お客様用リンクを発行しました</h3>
+    <p class="stk-note" style="margin-bottom:6px">LINEやメールに貼ってお客様へお送りください。</p>
+    <div class="link-box"><input id="link-url" readonly value="${esc(url)}"><button id="link-copy">コピー</button></div>
+    <div id="link-copied" style="font-size:12.5px;color:#2e7d4f;font-weight:700;min-height:16px"></div>
+    <div style="text-align:center;margin-top:12px"><img src="${esc(qr)}" width="180" height="180" alt="QRコード" style="border:1px solid var(--line);border-radius:8px"></div>
+    <p class="stk-note" style="text-align:center;margin-top:6px">スマホのカメラでも読み取れます</p>
+    <div class="ms-btns"><button class="ms-cancel" id="link-close">閉じる</button></div>
   </div>`;
-  ov.querySelector("#mk-round").value=String(MARKUP_ROUND);
-  ov.querySelector("#mk-cancel").addEventListener("click",()=>ov.remove());
-  ov.querySelector("#mk-ok").addEventListener("click",()=>{
-    const pct=Math.max(0,Number(ov.querySelector("#mk-pct").value)||0);
-    const rnd=Number(ov.querySelector("#mk-round").value)||10;
-    MARKUP=pct; MARKUP_ROUND=rnd; MARKUP_SET=true;
-    localStorage.setItem(LS_MARKUP,String(pct)); localStorage.setItem(LS_MARKUP_R,String(rnd));
-    ov.remove();
-    if(thenEnter){ CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1"); }
-    renderPriceTables(); renderQuote(); applyCustMode();
-  });
+  const doCopy=()=>{
+    const inp=ov.querySelector("#link-url"); inp.focus(); inp.select();
+    const done=()=>{ const c=ov.querySelector("#link-copied"); if(c) c.textContent="✅ コピーしました"; };
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done).catch(()=>{ try{document.execCommand("copy");done();}catch(e){} }); }
+    else{ try{document.execCommand("copy");done();}catch(e){} }
+  };
+  ov.querySelector("#link-copy").addEventListener("click",doCopy);
+  ov.querySelector("#link-close").addEventListener("click",()=>ov.remove());
 }
 
 /* ===== サンプル請求 ===== */
@@ -846,6 +892,8 @@ function renderPriceTables(){
     groups[idx[sig]].members.push(c);
   });
 
+  const headRow=`<thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th style="background:${GRADE_COLORS[g]||'#556'};color:#fff;border-bottom:none">${g}</th>`).join("")}</tr></thead>`;
+
   let html="";
   groups.forEach(gr=>{
     const rep=gr.members[0];                                    // 価格を引く実SKU（type＋厚みの代表）
@@ -858,31 +906,49 @@ function renderPriceTables(){
     const dispName= merged ? parts.map(p=>`${p.ty}(${p.ths.join("・")}mm)`).join("・") : parts[0].ty;
     const tDisp= merged ? "" : String(parts[0].ths[0]);   // 統合時は明細の厚みは品名側に含める
     const vls=gr.lengths.filter(l=>anyPrice(METHOD,rep.type,rep.thickness,gr.w,l));
-    html+=`<div class="ptype">${titleHTML}</div>
-      <div class="tscroll"><table class="grid">
-        <thead><tr><th style="text-align:left;padding-left:12px">長さ＼等級</th>${GRADES.map(g=>`<th style="background:${GRADE_COLORS[g]||'#556'};color:#fff;border-bottom:none">${g}</th>`).join("")}</tr></thead>
-        <tbody>${vls.map(l=>{
-          return `<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
-            const p=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
-            if(p==null) return `<td class="pcell na">—</td>`;
-            const dataAttr=`data-name="${esc(dispName)}" data-pname="${esc(rep.type)}" data-t="${rep.thickness}" data-tdisp="${tDisp}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"`;
-            const sp=sellPriceFor(rep.type,rep.thickness,gr.w,l,g,METHOD);
-            if(CUST_MODE){   // お客様表示：販売価格の1価格のみ・編集不可
-              return `<td class="pcell" ${dataAttr}><span class="num">${fmt(sp)}</span><span class="add">＋見積</span></td>`;
-            }
-            const baseLbl=METHOD==="市売"?"定価":"仕入";
-            const edited=hasSellOverride(rep.type,rep.thickness,gr.w,l,g);
-            return `<td class="pcell pcell-2" ${dataAttr}><span class="p-base">${baseLbl} ${fmt(p)}</span><span class="p-sell${edited?' edited':''}" title="タップして販売価格を編集">${fmt(sp)}</span><span class="add">＋見積</span></td>`;
-          }).join("")+`</tr>`;
-        }).join("")}</tbody>
-      </table></div>`;
+    const dataAttrFor=(l,g)=>`data-name="${esc(dispName)}" data-pname="${esc(rep.type)}" data-t="${rep.thickness}" data-tdisp="${tDisp}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"`;
+
+    html+=`<div class="ptype">${titleHTML}</div>`;
+
+    if(CUST_MODE){
+      // お客様表示：右表（販売価格）のみの1表。未設定セルは「—」＝タップ不可
+      const body=vls.map(l=>`<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
+        const base=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
+        const sp=sellPriceFor(rep.type,rep.thickness,gr.w,l,g,METHOD);
+        if(base==null || sp==null) return `<td class="pcell na">—</td>`;
+        return `<td class="pcell" ${dataAttrFor(l,g)}><span class="num">${fmt(sp)}</span><span class="add">＋見積</span></td>`;
+      }).join("")+`</tr>`).join("");
+      html+=`<div class="tscroll"><table class="grid">${headRow}<tbody>${body}</tbody></table></div>`;
+      return;
+    }
+
+    // 通常モード：左＝仕入/定価（タップで見積追加）／右＝お客様販売価格（タップで編集）
+    const baseCap = METHOD==="市売" ? "販売基準価格（定価）" : "仕入価格（買取）";
+    const leftBody=vls.map(l=>`<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
+      const p=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
+      if(p==null) return `<td class="pcell na">—</td>`;
+      return `<td class="pcell" ${dataAttrFor(l,g)}><span class="num">${fmt(p)}</span><span class="add">＋見積</span></td>`;
+    }).join("")+`</tr>`).join("");
+    const rightBody=vls.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
+      const base=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
+      if(base==null) return `<td class="pcell na">—</td>`;
+      const sp=sellPriceFor(rep.type,rep.thickness,gr.w,l,g,METHOD);
+      const marked=isSellMarked(rep.type,rep.thickness,gr.w,l,g,METHOD);
+      if(sp==null) return `<td class="pcell pcell-sell" ${dataAttrFor(l,g)}><span class="p-sell unset" title="タップして販売価格を入力">未設定</span></td>`;
+      return `<td class="pcell pcell-sell" ${dataAttrFor(l,g)}><span class="p-sell${marked?' edited':''}" title="タップして販売価格を編集">${fmt(sp)}</span></td>`;
+    }).join("")+`</tr>`).join("");
+    html+=`<div class="price-pair">
+      <div class="price-col base"><div class="pc-cap">${baseCap}</div><div class="tscroll"><table class="grid">${headRow}<tbody>${leftBody}</tbody></table></div></div>
+      <div class="price-col sell"><div class="pc-cap">お客様への販売価格（タップで編集）</div><div class="tscroll"><table class="grid">${headRow}<tbody>${rightBody}</tbody></table></div></div>
+    </div>`;
   });
   box.innerHTML=html;
-  box.querySelectorAll(".pcell[data-name]").forEach(td=>td.addEventListener("click",()=>{
+  // 見積へ追加：左表（通常）／CUST_MODEの単表。右表(.pcell-sell)は除外
+  box.querySelectorAll(".pcell[data-name]:not(.pcell-sell)").forEach(td=>td.addEventListener("click",()=>{
     addLine(td.dataset.name, td.dataset.pname, Number(td.dataset.t), Number(td.dataset.w), Number(td.dataset.l), td.dataset.grade, td.dataset.tdisp);
   }));
-  // 通常モードのみ：右側の販売価格スパンをタップ→その場でインライン編集（見積追加とは分担）
-  box.querySelectorAll(".pcell-2 .p-sell").forEach(span=>span.addEventListener("click",e=>{ e.stopPropagation(); startSellEdit(span.closest(".pcell-2")); }));
+  // 右表：セルをタップ→その場でインライン編集（未設定セルも編集可）
+  box.querySelectorAll(".pcell-sell[data-name]").forEach(td=>td.addEventListener("click",()=>startSellEdit(td)));
   applyCustMode();
 }
 
@@ -1138,12 +1204,24 @@ function openSettings(){
           <button id="ms-add-btn" style="margin-top:8px;border:none;background:#eef2f7;color:var(--accent);border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-family:inherit">＋ 担当者を追加</button>
         </div>
       </div>
-      <div class="ms-field"><label>お客様向け表示の掛け率（％の上乗せ）</label><input id="ms-markup" type="number" min="0" step="1" value="${MARKUP}"></div>
-      <div class="ms-field"><label>売値の丸め（切上）</label>
-        <select id="ms-round" class="ms-select"><option value="1">1円単位</option><option value="10">10円単位</option><option value="100">100円単位</option></select></div>
+      <div class="ms-field"><label>お客様への販売価格を一括セット</label>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:700">仕入価格×</span>
+          <input id="ms-bulk-pct" type="number" min="0" step="1" value="15" style="width:74px">
+          <span style="font-size:14px;font-weight:700">％で</span>
+          <button id="ms-bulk-btn" style="border:none;background:#eef4fc;color:#1d4e89;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer;font-family:inherit">一括セット</button>
+        </div>
+        <div class="stk-note" style="margin-top:6px">全商品の「お客様への販売価格」を、いま表示中の${METHOD==="市売"?"定価":"仕入価格"}×（100＋入力％）で上書きします（10円切上）。個別に編集した価格も上書きされます。</div>
+      </div>
       <div class="ms-btns"><button class="ms-cancel" id="ms-cancel">閉じる</button><button class="ms-save" id="ms-save">保存</button></div>
     </div>`;
-    ov.querySelector("#ms-round").value=String(MARKUP_ROUND);
+    ov.querySelector("#ms-bulk-btn").addEventListener("click",()=>{
+      const pct=Math.max(0,Number((ov.querySelector("#ms-bulk-pct")||{}).value)||0);
+      if(!confirm(`すべての「お客様への販売価格」を「${METHOD==="市売"?"定価":"仕入価格"}×${100+pct}％」で上書きします。\nよろしいですか？\n※個別に編集済みの価格も上書きされます。`)) return;
+      bulkSetSellPrices(pct);
+      if($("#price-box")) renderPriceTables();
+      alert("お客様への販売価格を一括セットしました。");
+    });
     ov.querySelector("#ms-tel").addEventListener("input",e=>{ work.tel=e.target.value; });
     ov.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{ work.staffs.splice(Number(b.dataset.del),1); if(work.active>=work.staffs.length) work.active=0; draw(); }));
     ov.querySelector("#ms-add-btn").addEventListener("click",()=>{
@@ -1160,11 +1238,6 @@ function openSettings(){
     ov.querySelector("#ms-save").addEventListener("click",()=>{
       work.tel=(ov.querySelector("#ms-tel")||{}).value||"";
       saveProfile(work);
-      // お客様向け表示の掛け率・丸めを保存
-      const pct=Math.max(0,Number((ov.querySelector("#ms-markup")||{}).value)||0);
-      const rnd=Number((ov.querySelector("#ms-round")||{}).value)||10;
-      MARKUP=pct; MARKUP_ROUND=rnd; MARKUP_SET=true;
-      localStorage.setItem(LS_MARKUP,String(pct)); localStorage.setItem(LS_MARKUP_R,String(rnd));
       closeSettings();
       if($("#price-box")) renderPriceTables();
       if($("#quote-box")) renderQuote();   // 見積フッター・売値に即反映
