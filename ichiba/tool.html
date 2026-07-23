@@ -71,6 +71,15 @@
   .pcell:hover .add{ opacity:1; }
   .pcell.na{ color:#c3ccd8; cursor:default; background:#fafbfc; }
   .pcell.na:hover{ background:#fafbfc; }
+  /* 2価格並記（通常モード：左＝仕入/定価・右＝お客様販売価格） */
+  .pcell-2 .p-base{ display:block; font-size:11px; color:var(--sub); font-weight:600; line-height:1.3; }
+  .pcell-2 .p-sell{ display:block; font-size:15px; font-weight:800; color:#1d6fd8; line-height:1.35; cursor:text; }
+  .pcell-2 .p-sell.edited{ text-decoration:underline; text-decoration-color:#1d6fd8; text-underline-offset:2px; }
+  .pcell-2 .p-sell.edited::after{ content:"●"; font-size:8px; color:#1d6fd8; vertical-align:super; margin-left:2px; }
+  .pcell-2 .p-sell-input{ width:76px; font-size:14px; font-weight:700; text-align:right; border:1.5px solid #1d6fd8; border-radius:6px; padding:3px 5px; font-family:inherit; }
+  /* お客様表示プレビューボタン（①価格表カード見出し） */
+  .preview-cust-btn{ margin-left:auto; background:#eef4fc; border:1.5px solid #9db8dd; color:#1d4e89; border-radius:8px; padding:6px 12px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .preview-cust-btn:hover{ background:#e2ecfa; }
 
   /* 在庫グリッド */
   .stk-cell{ font-weight:700; }
@@ -390,6 +399,27 @@ function sellPrice(p){ if(p==null) return p; const r=MARKUP_ROUND||1; return Mat
 // 表示価格：お客様向け表示中は売値、通常は仕入値そのまま（内部priceOfは不変）
 function dp(p){ return (CUST_MODE && p!=null) ? sellPrice(p) : p; }
 
+/* ===== お客様への販売価格（セル単位で上書き可） ===== */
+// 上書き値は METHOD 非依存（キー = pname|t|w|l|grade）。市場は通常どちらか一方しか見ないため。
+const LS_SELLP = "hz_ichiba_sellp";
+function loadSellOverrides(){ try{ const o=JSON.parse(localStorage.getItem(LS_SELLP)); return (o&&typeof o==="object")?o:{}; }catch(e){ return {}; } }
+function saveSellOverrides(o){ try{ localStorage.setItem(LS_SELLP, JSON.stringify(o)); }catch(e){} }
+function sellKey(pname,t,w,l,grade){ return `${pname}|${t}|${w}|${l}|${grade}`; }
+// お客様販売価格：①セル個別上書き → ②付売=仕入×掛け率／市売=定価そのまま
+function sellDefault(base,method){ if(base==null) return null; return (method||METHOD)==="付売" ? sellPrice(base) : base; }
+function sellPriceFor(pname,t,w,l,grade,method){
+  const base=priceOf(method||METHOD,pname,t,w,l,grade); if(base==null) return null;
+  const ov=loadSellOverrides()[sellKey(pname,t,w,l,grade)];
+  if(ov!=null && ov!=="" && !isNaN(Number(ov))) return Number(ov);
+  return sellDefault(base,method);
+}
+function hasSellOverride(pname,t,w,l,grade){
+  const ov=loadSellOverrides()[sellKey(pname,t,w,l,grade)];
+  return ov!=null && ov!=="" && !isNaN(Number(ov));
+}
+// 見積・印刷の1束あたり表示単価：お客様表示中は販売価格、通常は仕入/定価そのまま
+function lineUnit(x){ return CUST_MODE ? sellPriceFor(x.pname,x.t,x.w,x.l,x.grade,x.method) : priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade); }
+
 /* ===== 状態 ===== */
 let METHOD = "付売";    // 市売 / 付売
 let lines = [];         // 見積 {name(表示名),pname(価格引き用の実type),t,w,l,grade,qty,method,price}
@@ -580,8 +610,8 @@ function renderMain(){
     </nav>
 
     <div class="card">
-      <h2>① 価格表 <span class="badge" id="pm-badge"></span></h2>
-      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。<span class="method-hint" id="method-hint"></span></p>
+      <h2>① 価格表 <span class="badge" id="pm-badge"></span><button id="preview-cust" class="preview-cust-btn">👁 お客様表示をプレビュー</button></h2>
+      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。<span class="method-hint" id="method-hint"></span><span id="price-2col-note" style="display:block;margin-top:3px">左＝貴社仕入価格／右＝お客様への販売価格（タップで編集・お客様表示に反映）</span></p>
       <div id="price-box"></div>
       <div class="stk-note" id="price-status"></div>
     </div>
@@ -615,7 +645,8 @@ function renderMain(){
 
   $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); localStorage.removeItem(LS_MARKET); renderGate(); });
   $("#open-settings").addEventListener("click",openSettings);
-  $("#open-custmode").addEventListener("click",enterCustMode);
+  $("#open-custmode").addEventListener("click",previewCustMode);
+  const pvBtn=$("#preview-cust"); if(pvBtn) pvBtn.addEventListener("click",previewCustMode);
   $("#cust-exit").addEventListener("click",exitCustMode);
   $("#qn-sample").addEventListener("click",e=>{ e.preventDefault(); openSampleModal(); });
   $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));
@@ -645,6 +676,8 @@ function applyCustMode(){
   const on=CUST_MODE;
   const bn=$("#cust-banner"); if(bn) bn.style.display = on?"":"none";
   const eb=$("#open-custmode"); if(eb) eb.style.display = on?"none":"";
+  const pv=$("#preview-cust"); if(pv) pv.style.display = on?"none":"";
+  const p2=$("#price-2col-note"); if(p2) p2.style.display = on?"none":"block";
   // ヘッダーの取引方法UI
   if(on){ ["#seg-method","#method-fixed","#adm-tag"].forEach(s=>{ const el=$(s); if(el) el.style.display="none"; }); }
   else{ applyMethodUI(); }
@@ -662,6 +695,14 @@ function enterCustMode(){
   if(!MARKUP_SET){ openMarkupModal(true); return; }   // 初回は掛け率入力を促す
   CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1");
   renderPriceTables(); renderQuote(); applyCustMode();
+}
+// お客様表示プレビュー：市売は販売価格＝定価のため掛け率不要→即ON。付売は従来どおり初回のみ掛け率モーダル。
+function previewCustMode(){
+  if(METHOD==="市売"){
+    CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1");
+    renderPriceTables(); renderQuote(); applyCustMode(); return;
+  }
+  enterCustMode();
 }
 function exitCustMode(){
   const p=prompt("お客様向け表示を解除します。\nログインパスワードを入力してください。");
@@ -824,7 +865,14 @@ function renderPriceTables(){
           return `<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
             const p=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
             if(p==null) return `<td class="pcell na">—</td>`;
-            return `<td class="pcell" data-name="${esc(dispName)}" data-pname="${esc(rep.type)}" data-t="${rep.thickness}" data-tdisp="${tDisp}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"><span class="num">${fmt(dp(p))}</span><span class="add">＋見積</span></td>`;
+            const dataAttr=`data-name="${esc(dispName)}" data-pname="${esc(rep.type)}" data-t="${rep.thickness}" data-tdisp="${tDisp}" data-w="${gr.w}" data-l="${l}" data-grade="${g}"`;
+            const sp=sellPriceFor(rep.type,rep.thickness,gr.w,l,g,METHOD);
+            if(CUST_MODE){   // お客様表示：販売価格の1価格のみ・編集不可
+              return `<td class="pcell" ${dataAttr}><span class="num">${fmt(sp)}</span><span class="add">＋見積</span></td>`;
+            }
+            const baseLbl=METHOD==="市売"?"定価":"仕入";
+            const edited=hasSellOverride(rep.type,rep.thickness,gr.w,l,g);
+            return `<td class="pcell pcell-2" ${dataAttr}><span class="p-base">${baseLbl} ${fmt(p)}</span><span class="p-sell${edited?' edited':''}" title="タップして販売価格を編集">${fmt(sp)}</span><span class="add">＋見積</span></td>`;
           }).join("")+`</tr>`;
         }).join("")}</tbody>
       </table></div>`;
@@ -833,7 +881,39 @@ function renderPriceTables(){
   box.querySelectorAll(".pcell[data-name]").forEach(td=>td.addEventListener("click",()=>{
     addLine(td.dataset.name, td.dataset.pname, Number(td.dataset.t), Number(td.dataset.w), Number(td.dataset.l), td.dataset.grade, td.dataset.tdisp);
   }));
+  // 通常モードのみ：右側の販売価格スパンをタップ→その場でインライン編集（見積追加とは分担）
+  box.querySelectorAll(".pcell-2 .p-sell").forEach(span=>span.addEventListener("click",e=>{ e.stopPropagation(); startSellEdit(span.closest(".pcell-2")); }));
   applyCustMode();
+}
+
+/* --- 販売価格のインライン編集 --- */
+function startSellEdit(td){
+  if(!td || td.querySelector(".p-sell-input")) return;
+  const pname=td.dataset.pname, t=Number(td.dataset.t), w=Number(td.dataset.w), l=Number(td.dataset.l), grade=td.dataset.grade;
+  const span=td.querySelector(".p-sell"); if(!span) return;
+  const cur=sellPriceFor(pname,t,w,l,grade,METHOD);
+  const inp=document.createElement("input");
+  inp.type="number"; inp.className="p-sell-input"; inp.min="0"; inp.step="1"; inp.value=(cur!=null?cur:"");
+  inp.addEventListener("click",e=>e.stopPropagation());
+  span.replaceWith(inp);
+  inp.focus(); inp.select();
+  let done=false;
+  const commit=()=>{
+    if(done) return; done=true;
+    const raw=String(inp.value).trim();
+    const o=loadSellOverrides(), k=sellKey(pname,t,w,l,grade);
+    const base=priceOf(METHOD,pname,t,w,l,grade);
+    const def=sellDefault(base,METHOD);
+    if(raw==="" || Number(raw)===def){ delete o[k]; }          // 空 or 既定と同値→上書き解除
+    else { o[k]=Math.max(0,Math.round(Number(raw))||0); }
+    saveSellOverrides(o);
+    renderPriceTables();
+  };
+  inp.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){ e.preventDefault(); commit(); }
+    else if(e.key==="Escape"){ done=true; renderPriceTables(); }
+  });
+  inp.addEventListener("blur",commit);
 }
 
 /* --- 在庫 --- */
@@ -885,18 +965,18 @@ function addLine(name,pname,t,w,l,grade,tDisp){
   if(ex) ex.qty+=1; else lines.push({name,pname,t,tDisp:(tDisp!=null?tDisp:String(t)),w,l,grade,qty:1,method:METHOD,price});
   renderQuote();
 }
-function linesSubtotal(){ return lines.reduce((s,x)=>s+dp(priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade))*x.qty,0); }
+function linesSubtotal(){ return lines.reduce((s,x)=>s+(lineUnit(x)||0)*x.qty,0); }
 
 function renderQuote(){
   const box=$("#quote-box"); if(!box) return;
   if(!lines.length){ box.innerHTML=`<div class="q-empty">価格表の金額をタップすると、ここに見積の明細が入ります。</div>`; return; }
   const rows=lines.map((x,i)=>{
-    const p=priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade);
+    const u=lineUnit(x);
     return `<tr>
       <td class="l"><span class="mtag ${x.method==="市売"?"ichi":"tsuke"}">${x.method}</span> ${esc(x.name)} ${x.tDisp?esc(x.tDisp)+"mm×":""}${x.w}×${x.l}　<b style="color:${GRADE_COLORS[x.grade]||'inherit'}">${esc(x.grade)}</b></td>
       <td><input class="qy" type="number" min="1" value="${x.qty}" data-i="${i}"></td>
-      <td>${fmt(dp(p))}円</td>
-      <td>${fmt(dp(p)*x.qty)}円</td>
+      <td>${fmt(u)}円</td>
+      <td>${fmt(u*x.qty)}円</td>
       <td><button class="del" data-i="${i}">削除</button></td>
     </tr>`;
   }).join("");
@@ -1174,7 +1254,7 @@ function doPrint(){
   const from=($("#q-from")&&$("#q-from").value.trim())|| (CUST_MODE&&mkName ? mkName : "株式会社 林材木店");
   const memo=($("#q-memo")&&$("#q-memo").value.trim())||"";
   const nouki=($("#q-nouki")&&$("#q-nouki").value.trim())||"";
-  const rows=lines.map(x=>{ const p=dp(priceOf(x.method,x.pname,x.t,x.w,x.l,x.grade));
+  const rows=lines.map(x=>{ const p=lineUnit(x);
     return `<tr><td>${esc(x.name)}</td><td>${esc(x.grade)}</td><td class="r">${x.tDisp?esc(x.tDisp)+"×":""}${x.w}×${x.l}</td><td class="r">${x.qty}束</td><td class="r">${fmt(p)}円</td><td class="r">${fmt(p*x.qty)}円</td></tr>`; }).join("");
   const isNaito = _lastCalc.carrier==="内藤運輸";
   let sumRows=`<tr><td>商品計（税別）</td><td class="r">${fmt(sub)}円</td></tr>`;
