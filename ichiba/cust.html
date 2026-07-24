@@ -95,6 +95,13 @@ const STOCK = {};
 let stockUpdated = "", stockOk = false;
 const todayJP = ()=>{ const t=new Date(); return `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`; };
 function stockClass(q){ if(q==null) return null; if(q<0) return {c:"stk-o",m:"◎",t:"潤沢",ample:true}; if(q===0) return {c:"stk-x",m:"×",t:"在庫無し"}; if(q<20) return {c:"stk-a",m:"△",t:"残少"}; return {c:"stk-o",m:"◎",t:"あり"}; }
+/* 在庫の大元は 2m=20枚・3m=10枚・4m=8枚 の束。本ページの表記は 2m=8枚のため2mのみ2.5倍換算（切捨て＝安全側・負値=無限在庫はそのまま） */
+const STOCK_CONV = { 2000: 20/8 };
+function toToolBundles(q, l){
+  const r = STOCK_CONV[l];
+  if(q==null || !r || q<0) return q;
+  return Math.floor(q*r);
+}
 function derivedStock(qm, qt){
   if(qm==null || qt==null) return null;
   const em = qm<0 ? Infinity : qm, et = qt<0 ? Infinity : qt;
@@ -114,7 +121,7 @@ async function refreshStock(){
     const j=await r.json();
     if(j&&j.ok&&Array.isArray(j.stock)){
       for(const k in STOCK) delete STOCK[k];
-      j.stock.forEach(s=>{ STOCK[`${s.length}|${s.grade}`]=s.qty; });
+      j.stock.forEach(s=>{ STOCK[`${s.length}|${s.grade}`]=toToolBundles(s.qty, s.length); });
       stockUpdated=j.updated||todayJP(); stockOk=true;
     }else{ stockOk=false; }
   }catch(e){ stockOk=false; }
@@ -227,7 +234,7 @@ function renderMain(tok){
 
     <div class="card">
       <h2>リアルタイム在庫 <span class="badge">束数</span></h2>
-      <p class="h2sub">A級120mm原板の在庫束数（フローリング・羽目板 共通）。倉庫の実在庫と連動しています。</p>
+      <p class="h2sub">A級120mm原板の在庫束数（フローリング・羽目板 共通）。倉庫の実在庫と連動しています。<b>入数は 2m=8枚・3m=10枚・4m=8枚</b>。</p>
       <div id="stock-box"></div>
       <div class="stk-meta">
         <span id="stk-updated"></span>

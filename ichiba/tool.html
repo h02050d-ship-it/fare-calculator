@@ -382,7 +382,16 @@ async function refreshPricebook(){
   }catch(e){}
 }
 
-/* 在庫（A級120mm原板共通・長さ×等級・束数）。webboardのトークン読取口から取得 */
+/* 在庫（A級120mm原板共通・長さ×等級・束数）。webboardのトークン読取口から取得
+   ⚠在庫の大元（在庫スプシ/salesboard）は 2m=20枚・3m=10枚・4m=8枚 の束で管理。
+   本ツールの表記は 2m=8枚（3m/4mは同じ）なので、2mだけ 20/8=2.5倍に換算して表示する。
+   端数は切捨て＝安全側（実際より多く見せない）。負値=無限在庫はそのまま。 */
+const STOCK_CONV = { 2000: 20/8 };   // 在庫元の入数 ÷ 本ツールの入数
+function toToolBundles(q, l){
+  const r = STOCK_CONV[l];
+  if(q==null || !r || q<0) return q;
+  return Math.floor(q*r);
+}
 const STOCK = {};   // "length|grade" -> qty(束)
 let stockUpdated = "", stockOk = false;
 async function refreshStock(){
@@ -392,7 +401,7 @@ async function refreshStock(){
     const j=await r.json();
     if(j&&j.ok&&Array.isArray(j.stock)){
       for(const k in STOCK) delete STOCK[k];
-      j.stock.forEach(s=>{ STOCK[`${s.length}|${s.grade}`]=s.qty; });
+      j.stock.forEach(s=>{ STOCK[`${s.length}|${s.grade}`]=toToolBundles(s.qty, s.length); });
       stockUpdated=j.updated||todayJP(); stockOk=true;
     }else{ stockOk=false; }
   }catch(e){ stockOk=false; }
@@ -660,7 +669,7 @@ function renderMain(){
 
     <div class="card">
       <h2>② リアルタイム在庫 <span class="badge" style="background:#1d4e89">束数</span></h2>
-      <p class="h2sub">A級120mm原板の在庫束数（フローリング・羽目板 共通）。倉庫の実在庫と自動連動します。</p>
+      <p class="h2sub">A級120mm原板の在庫束数（フローリング・羽目板 共通）。倉庫の実在庫と自動連動します。<b>入数は 2m=8枚・3m=10枚・4m=8枚</b>。</p>
       <div id="stock-box"></div>
       <div class="stk-meta">
         <span id="stk-updated"></span>
