@@ -748,10 +748,8 @@ function previewCustMode(){
   CUST_MODE=true; localStorage.setItem(LS_CUSTMODE,"1");
   renderPriceTables(); renderQuote(); applyCustMode();
 }
+// プレビューの解除は市場さまご自身の操作なのでパスワード不要（ワンタップで通常表示に戻す）
 function exitCustMode(){
-  const p=prompt("お客様向け表示を解除します。\nログインパスワードを入力してください。");
-  if(p==null) return;
-  if(p!==PASS){ alert("パスワードが違います。"); return; }
   CUST_MODE=false; localStorage.setItem(LS_CUSTMODE,"0");
   renderPriceTables(); renderQuote(); applyCustMode();
 }
