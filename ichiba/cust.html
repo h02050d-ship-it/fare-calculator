@@ -60,6 +60,8 @@
   .linknav{ display:flex; gap:10px; flex-wrap:wrap; }
   .linknav a{ display:inline-flex; align-items:center; gap:6px; text-decoration:none; background:#fff; border:1.5px solid var(--line2);
     border-radius:999px; padding:11px 20px; font-size:14px; font-weight:700; color:var(--accent); box-shadow:var(--shadow); }
+  .linknav a.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .teikyo-note{ font-size:12.5px; color:var(--sub); margin:12px 2px 0; }
 
   footer.foot{ margin-top:24px; text-align:center; font-size:12.5px; color:var(--sub); line-height:1.9; }
   footer.foot .maker{ font-size:11px; margin-top:4px; }
@@ -250,6 +252,16 @@ function renderMain(tok){
       <div class="linknav">
         <a href="photos.html">📷 施工写真ギャラリー</a>
         <a href="grade.html">🌲 等級の選び方</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📷 施工写真のご提供にご協力ください</h2>
+      <p class="h2sub">桧フローリング・羽目板を施工されたお写真を募集しています。</p>
+      <div>いただいたお写真は<b>施工写真ギャラリー</b>に掲載します。ギャラリーは<b>御社からお客様へのご提案</b>にもそのままお使いいただけますので、実際の仕上がりをお見せする資料としてご活用ください。</div>
+      <div class="teikyo-note">※ 送り方は「その場でアップロード」「ギガファイル便のURLを貼る」「共有フォルダをご希望」の3つからお選びいただけます。枚数が多くても大丈夫です。</div>
+      <div class="linknav" style="margin-top:14px">
+        <a class="primary" href="teikyo.html?from=cust">📤 写真を提供する</a>
       </div>
     </div>
 

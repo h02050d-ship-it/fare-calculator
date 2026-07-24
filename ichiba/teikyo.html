@@ -67,7 +67,7 @@
 
 <div class="wrap">
   <div class="card" id="form-card">
-    <div class="lead">桧フローリング・羽目板の施工写真をお持ちでしたら、こちらから送るだけでOKです。いただいた写真は<b>施工写真ギャラリーに掲載</b>し、貴社からお客様へのご提案にもお使いいただけます。</div>
+    <div class="lead">桧フローリング・羽目板の施工写真をお持ちでしたら、こちらから送るだけでOKです。いただいた写真は<b>施工写真ギャラリーに掲載</b>し、<b>貴社からお客様へのご提案</b>にもそのままお使いいただけます。</div>
 
     <div class="step">
       <div class="st"><span class="n">1</span>送り方を選ぶ</div>
@@ -97,7 +97,7 @@
 
     <div class="step">
       <div class="st"><span class="n">2</span>会社名を入れる</div>
-      <input class="tx" id="market" placeholder="貴社名（市場名）">
+      <input class="tx" id="market" placeholder="貴社名（会社名）">
       <div class="opt">よろしければ施工場所・使用商品などを：<input class="tx" id="comment" style="margin-top:5px;font-size:14px;padding:10px" placeholder="例）○○様邸 リビング床・フローリング15mm（任意）"></div>
     </div>
 
@@ -129,8 +129,12 @@ const UP_TOKEN = "hzy-ichiba-stock-2026";
 const MAX_PHOTOS = 10;
 const $ = s => document.querySelector(s);
 
-// ツール側で記憶済みの市場名を初期値に
-(function(){ const m=localStorage.getItem("hz_ichiba_market")||localStorage.getItem("hz_ichiba_q-market"); if(m) $("#market").value=m; })();
+// ツール側で記憶済みの市場名を初期値に。
+// ただしお客様ページ(cust.html)からのご来訪は別の会社さまなので、端末に残った市場名は入れない
+(function(){
+  if(/[?&]from=cust\b/.test(location.search)) return;
+  const m=localStorage.getItem("hz_ichiba_market")||localStorage.getItem("hz_ichiba_q-market"); if(m) $("#market").value=m;
+})();
 
 $("#files").addEventListener("change",()=>{
   const n=$("#files").files.length;
@@ -177,7 +181,7 @@ $("#send").addEventListener("click", async ()=>{
   if(way==="upload" && files.length>MAX_PHOTOS){ msg(`一度に送れるのは${MAX_PHOTOS}枚までです。多い場合は「ギガファイル便」をお選びください`, false); return; }
   if(way==="giga" && !gigaUrl){ msg("ギガファイル便のURLを貼り付けてください", false); return; }
   if(way==="giga" && !/^https?:\/\//.test(gigaUrl)){ msg("URLは https:// から貼り付けてください", false); return; }
-  if(!market){ msg("貴社名（市場名）をご入力ください", false); $("#market").focus(); return; }
+  if(!market){ msg("貴社名をご入力ください", false); $("#market").focus(); return; }
   if(!$("#consent").checked){ msg("使用への同意（チェック）をお願いします", false); return; }
 
   const btn=$("#send"); btn.disabled=true;
