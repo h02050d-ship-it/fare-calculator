@@ -70,6 +70,22 @@
   .empty .card{ padding:28px 24px; }
   .empty h1{ font-size:18px; margin:0 0 10px; }
   .empty p{ font-size:13.5px; color:var(--sub); margin:0; }
+
+  /* サンプル請求モーダル */
+  .modal-ov{ position:fixed; inset:0; background:rgba(20,28,40,.5); display:flex; align-items:flex-start; justify-content:center; padding:40px 14px; z-index:1000; overflow:auto; }
+  .modal-card{ background:#fff; border-radius:14px; padding:20px; max-width:460px; width:100%; box-shadow:var(--shadow); }
+  .modal-card h3{ margin:0 0 12px; font-size:16px; }
+  .ms-field{ margin-bottom:12px; }
+  .ms-field label{ font-size:12px; font-weight:700; color:var(--sub); display:block; margin-bottom:3px; }
+  .ms-field input{ width:100%; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; }
+  .ms-field textarea{ width:100%; padding:9px; border:1.5px solid var(--line2); border-radius:9px; font-size:14px; font-family:inherit; resize:vertical; }
+  .ms-btns{ display:flex; gap:10px; margin-top:16px; }
+  .ms-btns button{ flex:1; border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .ms-save{ background:var(--accent); color:#fff; }
+  .ms-cancel{ background:#f4f6f9; color:var(--sub); border:1px solid var(--line2) !important; }
+  .sample-check{ display:flex; flex-wrap:wrap; gap:8px 14px; margin:4px 0 4px; }
+  .sample-check label{ font-size:13.5px; font-weight:600; color:var(--ink); display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+  .sample-msg{ font-size:13px; font-weight:700; margin-top:8px; }
 </style>
 </head>
 <body>
@@ -248,10 +264,20 @@ function renderMain(tok){
 
     <div class="card">
       <h2>もっと詳しく</h2>
-      <p class="h2sub">施工事例や等級の選び方をご覧いただけます。</p>
+      <p class="h2sub">施工事例・等級の選び方・製品パンフレットをご覧いただけます。</p>
       <div class="linknav">
         <a href="photos.html">📷 施工写真ギャラリー</a>
         <a href="grade.html">🌲 等級の選び方</a>
+        <a href="https://hayazai.com/pdf/hayazai_flyer_market.pdf" target="_blank" rel="noopener">📄 製品パンフレット（PDF）</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📦 無料サンプル請求</h2>
+      <p class="h2sub">実物の桧サンプルを無料でお送りします。手ざわり・木肌・香りをお確かめください。</p>
+      <div>等級による節の入り方や、桧ならではの色味・香りは実物が一番わかりやすいです。ご検討中の等級を、施工前にぜひお手元でご確認ください。</div>
+      <div class="linknav" style="margin-top:14px">
+        <a class="primary" href="#" id="req-sample">📦 サンプルを請求する</a>
       </div>
     </div>
 
@@ -273,6 +299,62 @@ function renderMain(tok){
   </div>`;
   renderStock(); refreshStock();
   const rb=$("#stk-refresh"); if(rb) rb.addEventListener("click",refreshStock);
+  const sb=$("#req-sample"); if(sb) sb.addEventListener("click",e=>{ e.preventDefault(); openSampleModal(market); });
+}
+
+/* ===== サンプル請求（お客様版：担当市場経由で林材木店へ通知） ===== */
+function openSampleModal(market){
+  const TYPES=["桧フローリング 15mm","桧フローリング 12mm","桧羽目板 12mm"];
+  const grades=GRADES.filter(g=>g!=="無節特上小");
+  const ov=document.createElement("div"); ov.className="modal-ov"; ov.id="sample-modal";
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{ if(e.target===ov) ov.remove(); });
+  ov.innerHTML=`<div class="modal-card">
+    <h3>📦 無料サンプル請求</h3>
+    <p class="stk-note" style="margin-bottom:14px">ご希望のサンプルとお届け先をご記入ください。無料でお送りします。</p>
+    <div class="ms-field"><label>サンプルの種類（複数可）</label>
+      <div class="sample-check" id="smp-types">
+        ${TYPES.map(t=>`<label><input type="checkbox" class="smp-type" value="${esc(t)}">${esc(t)}</label>`).join("")}
+      </div>
+    </div>
+    <div class="ms-field"><label>等級（複数可）</label>
+      <div class="sample-check" id="smp-grades">
+        ${grades.map(g=>`<label><input type="checkbox" class="smp-grade" value="${esc(g)}"><b style="color:${GRADE_COLORS[g]||'inherit'}">${esc(g)}</b></label>`).join("")}
+      </div>
+    </div>
+    <div class="ms-field"><label>お名前 <span style="color:#b0483a">*</span></label><input id="smp-name" placeholder="例：〇〇工務店 △△様"></div>
+    <div class="ms-field"><label>ご連絡先（電話またはメール） <span style="color:#b0483a">*</span></label><input id="smp-contact" placeholder="例：090-1234-5678 / sample@example.com"></div>
+    <div class="ms-field"><label>お届け先ご住所 <span style="color:#b0483a">*</span></label><input id="smp-addr" placeholder="例：〒438-0000 静岡県磐田市〇〇1-2-3"></div>
+    <div class="ms-field"><label>ご要望・コメント（任意）</label><textarea id="smp-comment" rows="2" placeholder="ご検討中の用途などあればご記入ください"></textarea></div>
+    <div class="sample-msg" id="smp-msg"></div>
+    <div class="ms-btns"><button class="ms-cancel" id="smp-cancel">閉じる</button><button class="ms-save" id="smp-send">送信する</button></div>
+  </div>`;
+  ov.querySelector("#smp-cancel").addEventListener("click",()=>ov.remove());
+  ov.querySelector("#smp-send").addEventListener("click",()=>{
+    const msg=ov.querySelector("#smp-msg"); msg.style.color="#b0483a";
+    const types=[...ov.querySelectorAll(".smp-type:checked")].map(c=>c.value);
+    const grds=[...ov.querySelectorAll(".smp-grade:checked")].map(c=>c.value);
+    const name=(ov.querySelector("#smp-name").value||"").trim();
+    const contact=(ov.querySelector("#smp-contact").value||"").trim();
+    const addr=(ov.querySelector("#smp-addr").value||"").trim();
+    const comment=(ov.querySelector("#smp-comment").value||"").trim();
+    if(!types.length){ msg.textContent="サンプルの種類を選んでください。"; return; }
+    if(!grds.length){ msg.textContent="等級を1つ以上選んでください。"; return; }
+    if(!name){ msg.textContent="お名前をご入力ください。"; return; }
+    if(!contact){ msg.textContent="ご連絡先をご入力ください。"; return; }
+    if(!addr){ msg.textContent="お届け先ご住所をご入力ください。"; return; }
+    const items=types.map(t=>`${t}（${grds.join("・")}）`);
+    const payload={ market: market||"", tanto:"（お客様）"+name, contact, items, dest:addr, comment:"【お客様ご案内ページからの請求】"+(comment?" "+comment:"") };
+    const btn=ov.querySelector("#smp-send"); btn.disabled=true; msg.style.color="#7a869a"; msg.textContent="送信中…";
+    const url=STOCK_URL+"?api=ichibareq&token="+encodeURIComponent(STOCK_TOKEN)+"&data="+encodeURIComponent(JSON.stringify(payload));
+    fetch(url).then(r=>r.json()).then(j=>{
+      if(j&&j.ok){ msg.style.color="#2e7d4f"; msg.textContent="✅ サンプル請求を受け付けました。準備でき次第お送りします。"; btn.textContent="送信しました"; }
+      else{ throw new Error("ng"); }
+    }).catch(()=>{
+      btn.disabled=false; msg.style.color="#b0483a";
+      msg.textContent="送信に失敗しました。お手数ですが担当までお電話ください。";
+    });
+  });
 }
 (function(){
   const tok=parseToken();
