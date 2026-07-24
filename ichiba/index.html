@@ -254,18 +254,11 @@ const PB_RAW = {
     ["桧フローリング",12,120,4000, 8000,12000,18000,22000,20000,null]
   ]
 };
+/* 価格は起動時に埋め込まない：必ずGAS(getPrices)の最新値だけを使う。
+   通信失敗時は古い価格を出さず「お問い合わせ」にフォールバックする（価格改定の反映漏れ・誤表示を防止）。 */
 const PRICEBOOK = { "市売":{}, "付売":{} };
-function buildPricebook(){
-  ["市売","付売"].forEach(k=>{
-    PRICEBOOK[k]={};
-    PB_RAW[k].forEach(r=>{
-      const key=`${r[0]}|${r[1]}|${r[2]}|${r[3]}`; const g={};
-      GRADES.forEach((gl,i)=>{ const v=r[4+i]; if(v!=null) g[gl]=v; });
-      PRICEBOOK[k][key]=g;
-    });
-  });
-}
-buildPricebook();
+let priceLoaded = false;
+/* PB_RAW は商品カタログ（品名・厚み・巾・長さ）の定義としてのみ使用。価格列は参照しない。 */
 const PROD_ROWS = PB_RAW["市売"].map(r=>({ name:r[0], t:r[1], w:r[2], l:r[3], key:`${r[0]}|${r[1]}|${r[2]}|${r[3]}` }));
 function rowByKey(key){ return PROD_ROWS.find(r=>r.key===key); }
 
@@ -283,8 +276,9 @@ async function refreshPricebook(){
       });
       if(Object.keys(tbl).length) PRICEBOOK[m]=tbl;
     }
-    renderProductTables(); renderQuote();
-  }catch(e){ /* オフライン時はスナップショットのまま */ }
+    priceLoaded = Object.keys(PRICEBOOK["市売"]).length>0 || Object.keys(PRICEBOOK["付売"]).length>0;
+  }catch(e){ priceLoaded=false; /* 通信失敗：古い価格を出さず「お問い合わせ」にフォールバック */ }
+  renderProductTables(); renderQuote();
 }
 
 /* ========== 在庫（価格GASの在庫列 or 将来の getStock。key: name|t|w|l|grade → 束数） ========== */
@@ -454,7 +448,12 @@ function renderProductTables(){
 
   // 行の表示可否と価格は共通の基準行（canonKey）で判定
   const rows=COMMON.lengths.map(l=>rowByKey(canonKey(l))).filter(r=>r&&GRADES.some(g=>custPrice(r,g)!=null));
-  if(!rows.length){ box.innerHTML=""; return; }
+  if(!rows.length){
+    box.innerHTML = priceLoaded
+      ? `<div class="qempty">現在ご案内できる商品がありません。お手数ですが市場のご担当者様へお問い合わせください。</div>`
+      : `<div class="qempty">ただいま最新価格を確認しています。しばらくたっても表示されない場合は、お手数ですがお電話・FAXでお問い合わせください。</div>`;
+    return;
+  }
 
   // 市場側で全長さ非表示にされた種類は選択肢から外す
   const vvars=VARIANTS.filter(v=>COMMON.lengths.some(l=>{
