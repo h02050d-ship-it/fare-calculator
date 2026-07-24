@@ -327,7 +327,8 @@ const PRODUCTS = [
   { type:"桧フローリング", thicknesses:[15,12], w:120, lengths:[2000,3000,4000] },
   { type:"桧羽目板",       thicknesses:[12],    w:120, lengths:[2000,3000,4000] }
 ];
-/* 内蔵スナップショット（2026-07-18時点のGAS実価格と同期。オフライン初回用＝通常は下のキャッシュ復元が優先） */
+/* ⚠️【未使用・参考値】2026-07-18時点の価格スナップショット。価格改定に追従しないため“表示価格としては使わない”。
+   価格は必ずGAS(getPrices)の最新値のみを使用し、取得できない時は下の鮮度バナーで警告する。将来削除予定。 */
 const PB_RAW = {
   "市売": [
     ["桧フローリング",15,120,2000, 4200,5300,6000,8800,7400],
@@ -353,17 +354,23 @@ const PB_RAW = {
   ]
 };
 const PRICEBOOK = { "市売":{}, "付売":{} };
-function buildPricebook(){
-  ["市売","付売"].forEach(k=>{ PRICEBOOK[k]={};
-    PB_RAW[k].forEach(r=>{ const key=`${r[0]}|${r[1]}|${r[2]}|${r[3]}`; const g={};
-      GRADES.forEach((gl,i)=>{ const v=r[4+i]; if(v!=null) g[gl]=v; }); PRICEBOOK[k][key]=g; });
-  });
-}
-buildPricebook();
-/* 前回取得のライブ価格を復元（初回描画が古い価格→最新へ切り替わって表が組み変わるチラつきを防止） */
+let priceFresh = false;      // 今セッションでGAS(getPrices)の最新価格取得に成功したか
+let priceFromCache = false;  // 前回取得のライブ価格キャッシュを暫定表示中か
+/* 起動時に凍結スナップショット(PB_RAW)を価格として使わない（価格改定後に古い価格を誤表示しないため）。
+   前回取得のライブ価格キャッシュがあれば「暫定表示」として復元し、最新確認できるまで警告を出す。 */
 const LS_PB = "hz_ichiba_pricebook";
-try{ const c=JSON.parse(localStorage.getItem(LS_PB)); if(c && c["市売"] && c["付売"]){ PRICEBOOK["市売"]=c["市売"]; PRICEBOOK["付売"]=c["付売"]; } }catch(e){}
+try{ const c=JSON.parse(localStorage.getItem(LS_PB)); if(c && c["市売"] && c["付売"]){ PRICEBOOK["市売"]=c["市売"]; PRICEBOOK["付売"]=c["付売"]; priceFromCache = (Object.keys(c["市売"]).length>0 || Object.keys(c["付売"]).length>0); } }catch(e){}
 function priceOf(method,name,t,w,l,grade){ const g=PRICEBOOK[method][`${name}|${t}|${w}|${l}`]; return (g&&g[grade]!=null)?g[grade]:null; }
+/* 価格の鮮度バナー：最新取得できていない間は「暫定/取得失敗」を明示（古い価格での見積もり事故を防ぐ） */
+function updatePriceStatus(){
+  const el=$("#price-status"); if(!el) return;
+  if(priceFresh){ el.innerHTML=""; el.removeAttribute("style"); return; }
+  el.style.cssText="display:block;margin-top:8px;padding:8px 10px;border-radius:8px;font-weight:700;background:#fff4e5;color:#8a4b00;border:1px solid #ffc27a";
+  el.innerHTML = priceFromCache
+    ? `⚠️ 最新価格を確認中です。表示は前回取得時の価格（暫定）です。<b>価格改定の直後は特にご注意ください。</b> <button type="button" id="price-reload">再読込</button>`
+    : `⚠️ 最新価格を取得できませんでした。表示されない場合は通信状況をご確認のうえ再読込してください。 <button type="button" id="price-reload">再読込</button>`;
+  const b=$("#price-reload"); if(b) b.onclick=()=>refreshPricebook();
+}
 
 /* ===== GAS ===== */
 const GAS_URL   = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPReblSOyA5CyjfHTNXAYzK6tX1zgEzRypcFFSjtDy2SWa7wg/exec"; // getPrices
@@ -380,9 +387,10 @@ async function refreshPricebook(){
         Object.keys(GRADE_ROMAJI).forEach(rk=>{ const v=p[rk]; if(typeof v==="number" && v>0) g[GRADE_ROMAJI[rk]]=v; }); tbl[key]=g; });
       if(Object.keys(tbl).length) PRICEBOOK[m]=tbl;
     }
-    try{ localStorage.setItem(LS_PB, JSON.stringify({ "市売":PRICEBOOK["市売"], "付売":PRICEBOOK["付売"] })); }catch(e){}
-    renderPriceTables();
-  }catch(e){}
+    priceFresh = Object.keys(PRICEBOOK["市売"]).length>0 || Object.keys(PRICEBOOK["付売"]).length>0;
+    if(priceFresh){ priceFromCache=false; try{ localStorage.setItem(LS_PB, JSON.stringify({ "市売":PRICEBOOK["市売"], "付売":PRICEBOOK["付売"] })); }catch(e){} }
+  }catch(e){ priceFresh=false; /* 通信失敗：最新価格は未確認。古い価格を鵜呑みにしないよう警告表示 */ }
+  renderPriceTables(); updatePriceStatus();
 }
 
 /* 在庫（A級120mm原板共通・長さ×等級・束数）。webboardのトークン読取口から取得
@@ -717,7 +725,7 @@ function renderMain(){
     applyCustMode();   // 取引方法UIの復元(通常)またはお客様向け表示の再適用(ON時)を一括
   })();
 
-  renderPriceTables(); renderStock(); renderQuote(); renderDrafts();
+  renderPriceTables(); renderStock(); renderQuote(); renderDrafts(); updatePriceStatus();
   refreshPricebook(); refreshStock();
   fetchNaitoTanka().then(()=>{ if(lines.length) updateSum(); });   // 内藤単価表を先読み
   $("#stk-refresh").addEventListener("click",refreshStock);
