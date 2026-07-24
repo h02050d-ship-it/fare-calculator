@@ -63,6 +63,7 @@
   .ptype{ font-size:13.5px; font-weight:800; color:var(--ink); margin:14px 0 7px; display:flex; align-items:center; gap:10px; }
   .ptype:first-child{ margin-top:0; }
   .ptype .tag{ font-size:11px; font-weight:600; color:var(--sub); background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 7px; }
+  .ptype .tag.sane{ color:#2f6f4f; background:#eef6f1; border-color:#cfe6d8; }
 
   .pcell{ cursor:pointer; transition:background .1s; }
   .pcell:hover{ background:#eef6f0; }
@@ -320,6 +321,8 @@ const GRADES = ["丸節","小節","特上小","無節","無節特上小"];
 const GRADE_COLORS = { "丸節":"#d32f2f", "小節":"#ef6c00", "特上小":"#8e24aa", "無節":"#1565c0", "無節特上小":"#6a1b9a" };
 const GRADE_ROMAJI = { marubushi:"丸節", kobushi:"小節", tokujoko:"特上小", mubushi:"無節", marubushi_tokujoko:"無節特上小" };
 const NYUSU = { 2000:"8枚", 3000:"10枚", 4000:"8枚" };
+/* 実（さね）加工：フローリング＝本実突付、羽目板＝本実目透し（2mm目透し） */
+const SANE = { "桧フローリング":"本実突付", "桧羽目板":"本実目透し（2mm目透し）" };
 const PRODUCTS = [
   { type:"桧フローリング", thicknesses:[15,12], w:120, lengths:[2000,3000,4000] },
   { type:"桧羽目板",       thicknesses:[12],    w:120, lengths:[2000,3000,4000] }
@@ -908,7 +911,7 @@ function renderPriceTables(){
     const typeThs={};
     gr.members.forEach(m=>{ (typeThs[m.type]=typeThs[m.type]||[]).push(m.thickness); });
     const parts=Object.keys(typeThs).map(ty=>({ty, ths:typeThs[ty].sort((a,b)=>b-a)}));
-    const titleHTML=parts.map(p=>`${esc(p.ty)} <span class="tag">厚み ${p.ths.join("・")}mm</span>`).join("　");
+    const titleHTML=parts.map(p=>`${esc(p.ty)} <span class="tag">厚み ${p.ths.join("・")}mm</span>${SANE[p.ty]?` <span class="tag sane">${esc(SANE[p.ty])}</span>`:""}`).join("　");
     const merged=(parts.length>1 || parts[0].ths.length>1);
     const dispName= merged ? parts.map(p=>`${p.ty}(${p.ths.join("・")}mm)`).join("・") : parts[0].ty;
     const tDisp= merged ? "" : String(parts[0].ths[0]);   // 統合時は明細の厚みは品名側に含める
