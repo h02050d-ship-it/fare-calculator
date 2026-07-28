@@ -1351,8 +1351,27 @@ function emitFareSummary(){
     const totalEl=document.querySelector('#seino-result tr.total td');
     const off=document.querySelector('#office-result .office-item');
     const t=el=>el?String(el.textContent||'').trim():'';
+    // 距離帯・適用重量帯・運賃実費・段ボール代（order-deskのミニ表示用）
+    let dist='',weight='',fare='',box='';
+    document.querySelectorAll('#seino-result tr').forEach(r=>{
+      const tx=r.textContent||''; const val=t(r.querySelector('td:last-child'));
+      if(/距離帯/.test(tx)&&!dist) dist=val;
+      else if(/適用重量帯/.test(tx)&&!weight) weight=val;
+      else if(/運賃（実費）/.test(tx)&&!fare) fare=val;
+      else if(/ダンボール代/.test(tx)&&!box) box=val;
+    });
+    // 数量内訳（混載: 1m×n + 2m×n… / 単一: 2m×n束）
+    let mix='';
+    if(typeof mixMode!=='undefined'&&mixMode){
+      const parts=[]; [1,2,3,4].forEach(n=>{const q=parseInt((document.getElementById('mix-q'+n)||{}).value)||0; if(q)parts.push(n+'m×'+q+'束');});
+      mix=parts.join(' + ');
+    } else {
+      const sl=document.getElementById('s-length'), sq=document.getElementById('s-qty');
+      if(sl&&sq&&sq.value) mix=sl.value+'m×'+sq.value+'束';
+    }
     parent.postMessage({type:'fareSummary',
       total:t(totalEl),
+      dist:dist, weight:weight, fare:fare, box:box, mix:mix,
       officeName:off?t(off.querySelector('.office-name')):'',
       officeDist:off?t(off.querySelector('.office-dist')):'',
       officeAddr:off?t(off.querySelector('.office-addr')):''},'*');
