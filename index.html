@@ -1384,9 +1384,17 @@ function applyUrlParams(){
     }
     let pref=q.get('pref'); const len=q.get('len'), qty=q.get('qty'), addr=q.get('addr');
     if(pref){ if(pref!=='北海道') pref=pref.replace(/[都府県]$/,''); const sp=document.getElementById('s-pref'); if(sp) sp.value=pref; const spm=document.getElementById('s-pref-mix'); if(spm) spm.value=pref; }
+    // 混載プリフィル: ?q1=&q2=&q3=&q4=（長さクラス別の束数）。1つでもあれば混載モードで計算（len/qtyより優先）
+    const mq=[1,2,3,4].map(n=>parseInt(q.get('q'+n))||0);
+    if(mq.some(v=>v>0)){
+      toggleMixMode(true);
+      [1,2,3,4].forEach((n,i)=>{ const el=document.getElementById('mix-q'+n); if(el) el.value=mq[i]; });
+      calcSeino();
+    } else {
     if(len){ const sl=document.getElementById('s-length'); if(sl){ sl.value=len; updateQtyLabel(); } }
     if(qty){ const sq=document.getElementById('s-qty'); if(sq){ if(![...sq.options].some(o=>o.value===String(qty))){ const op=document.createElement('option'); op.value=op.textContent=String(qty); sq.appendChild(op); } sq.value=String(qty); } }
     if(pref||len||qty) calcSeino();
+    }
     if(addr){ const ai=document.getElementById('addr-input'); if(ai){ ai.value=addr; searchOffice(); } }
   }catch(e){ console.warn('applyUrlParams',e); }
 }
