@@ -927,12 +927,12 @@ function render(){
 
   // 運賃は税抜で表示し、消費税10%は「商品＋運賃」に掛ける（納品書と同じ標準方式）。
   // 運賃ツールは税込を返すので、反映時に freightExcl で税抜換算済み＝f-freightは税抜。
-  // 直売はヤフー価格が送料込み＝送料無料(運賃を加算しない)。
-  const isChoku=(d.kubun==="直売");
-  const freightAmt=isChoku?0:d.freight;        // 運賃は税抜
+  // 直売も運賃を加算する（2026-07-18の送料改定でヤフー・楽天とも送料別建てになったため。
+  //   旧仕様「直売＝ヤフー価格が送料込み＝送料無料」は無効）。
+  const freightAmt=d.freight;                  // 運賃は税抜
   const tax=Math.round((itemsTotal+freightAmt)*0.1); const grand=itemsTotal+freightAmt+tax;
   $("#o-taxlabel").textContent="消費税（10％）";
-  $("#o-freight").textContent=isChoku?"送料無料":(d.freight?fmt(d.freight):"");
+  $("#o-freight").textContent=d.freight?fmt(d.freight):"";
   $("#o-tax").textContent=fmt(tax); $("#o-grand").textContent=fmt(grand); $("#o-grandtop").textContent="¥"+fmt(grand);
 }
 
@@ -977,8 +977,8 @@ function loadHist(){ try{ return JSON.parse(localStorage.getItem(LS_HIST))||[]; 
 function saveHist(a){ localStorage.setItem(LS_HIST, JSON.stringify(a.slice(0,200))); }
 function computeTotals(d){
   let it=0; (d.items||[]).forEach(x=> it+=Math.round((x.qty||0)*(x.price||0)));
-  // render()と統一: 運賃は税抜、消費税10%は(商品＋運賃)。直売=送料無料(加算しない)。
-  const freight=(d.kubun==="直売")?0:(d.freight||0);
+  // render()と統一: 運賃は税抜、消費税10%は(商品＋運賃)。直売も運賃を加算（送料改定2026で送料別建て）。
+  const freight=d.freight||0;
   const tax=Math.round((it+freight)*0.1); return { itemsTotal:it, tax, grand:it+tax+freight };
 }
 async function loadDbHistory(){
