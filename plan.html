@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>お客様見積り（長さ別プラン）｜林材木店</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231A4A2E'/%3E%3Ctext x='16' y='23' font-size='20' font-family='sans-serif' font-weight='bold' fill='%23fff' text-anchor='middle'%3E見%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --g:#1A4A2E; --g-l:#E9F2EC; --g-b:#9AB4A2;
+  --ink:#212121; --sub:#666; --line:#dcdcdc; --bg:#f4f6f5;
+  --warn:#b45309; --warn-bg:#fef3c7; --err:#b91c1c; --err-bg:#fee2e2;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Yu Gothic UI","Yu Gothic","Meiryo","Hiragino Kaku Gothic ProN",sans-serif;font-size:14px;line-height:1.6}
+.topbar{background:var(--g);color:#fff;padding:9px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.topbar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.04em}
+.topbar .st{font-size:12px;opacity:.85;margin-left:auto}
+.topbar a{color:#cfe6d8;font-size:12px;text-decoration:none;border:1px solid rgba(255,255,255,.35);padding:3px 9px;border-radius:4px}
+.topbar a:hover{background:rgba(255,255,255,.12)}
+
+.wrap{display:grid;grid-template-columns:minmax(430px,470px) 1fr;gap:16px;padding:16px;align-items:start}
+@media(max-width:1100px){.wrap{grid-template-columns:1fr}}
+
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:13px;color:var(--g);margin:0 0 10px;padding-left:8px;border-left:4px solid var(--g);font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.f{flex:1;min-width:120px}
+.f label{display:block;font-size:11px;color:var(--sub);margin-bottom:3px}
+input,select,textarea{width:100%;padding:6px 8px;border:1px solid #c9c9c9;border-radius:4px;font:inherit;font-size:13px;background:#fff}
+textarea{resize:vertical;line-height:1.5}
+input:focus,select:focus,textarea:focus{outline:2px solid #b9d2c3;outline-offset:-1px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--g-b);background:#fff;border-radius:5px;padding:7px 12px;cursor:pointer;font-size:13px;user-select:none}
+.chip.on{background:var(--g);color:#fff;border-color:var(--g);font-weight:700}
+.hint{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.5}
+.master{background:var(--g-l);border:1px solid var(--g-b);border-radius:4px;padding:8px 10px;font-size:11.5px;line-height:1.7;color:#2c4a38}
+.master b{color:var(--g)}
+.msg{border-radius:4px;padding:7px 10px;font-size:12px;margin-top:8px;line-height:1.55}
+.msg.w{background:var(--warn-bg);color:var(--warn)}
+.msg.e{background:var(--err-bg);color:var(--err)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+button{font:inherit;font-size:13px;padding:8px 14px;border-radius:5px;border:1px solid var(--g);background:var(--g);color:#fff;cursor:pointer;font-weight:700}
+button.sec{background:#fff;color:var(--g)}
+button:hover{opacity:.88}
+
+.fitmsg{margin-top:9px;font-size:12px;padding:6px 10px;border-radius:4px;font-weight:700}
+.fitmsg.ok{background:#dcfce7;color:#15803d}
+.fitmsg.shrink{background:var(--warn-bg);color:var(--warn)}
+.fitmsg.over{background:var(--err-bg);color:var(--err)}
+.calc{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.calc th,.calc td{border:1px solid var(--g-b);padding:4px 5px;text-align:center}
+.calc th{background:var(--g);color:#fff;font-size:11px}
+.calc td.n{text-align:right}
+.calc tr.off{opacity:.35}
+.mg{font-weight:700}
+.mg.ok{color:#15803d}.mg.tight{color:var(--err)}.mg.loose{color:var(--warn)}
+
+/* ===== A4 見積書 ===== */
+.sheetwrap{background:#fff;border:1px solid var(--line);border-radius:6px;padding:0;overflow:auto}
+#sheet{width:210mm;min-height:297mm;padding:11mm 12mm 9mm;background:#fff;color:#212121;
+  font-size:9.1pt;line-height:1.45;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#sheet h1{text-align:center;color:var(--g);font-size:20pt;letter-spacing:.5em;margin:0;padding-left:.5em;font-weight:700}
+#sheet .tr1{width:58%;margin:5px auto 0;border-top:2px solid var(--g)}
+#sheet .tr2{width:58%;margin:3px auto 11px;border-top:1px solid var(--g)}
+#sheet .head{display:flex;justify-content:space-between;align-items:flex-start}
+#sheet .head-l{width:58%}#sheet .head-r{width:40%;text-align:right}
+#sheet .to{font-size:16pt;color:var(--g);font-weight:700;letter-spacing:.04em}
+#sheet .to-rule{border-bottom:1.5px solid var(--g);width:74%;margin:3px 0 8px}
+#sheet .lead{margin:0 0 6px}
+#sheet .subj{font-weight:700;font-size:10.5pt;margin:0 0 2px}
+#sheet .meta{font-size:8.6pt;line-height:1.75}
+#sheet .corp{font-size:12pt;font-weight:700;color:var(--g);margin:6px 0 3px}
+#sheet .corp-info{font-size:8.6pt;line-height:1.7}
+#sheet .sec{display:flex;align-items:center;gap:7px;margin:9px 0 4px}
+#sheet .sec i{display:inline-block;width:4px;height:15px;background:var(--g)}
+#sheet .sec span{font-weight:700;color:var(--g);font-size:10.5pt}
+#sheet .specbox{background:var(--g-l);border:1px solid var(--g-b);border-radius:2px;padding:6px 12px;font-size:9pt;line-height:1.6}
+#sheet table{width:100%;border-collapse:collapse}
+#sheet th,#sheet td{border:1px solid var(--g-b);padding:3px 4px;text-align:center;vertical-align:middle}
+#sheet thead th{background:var(--g);color:#fff;font-weight:700;font-size:8.8pt;line-height:1.35;border-color:var(--g)}
+#sheet .len{font-weight:700;font-size:9.4pt;white-space:nowrap}
+#sheet .sum{font-weight:700;font-size:11.5pt}
+#sheet .notes{font-size:8.1pt;line-height:1.6;margin:5px 0 0;color:#333}
+#sheet .notes div{text-indent:-1em;padding-left:1em}
+#sheet .opt td.desc{text-align:left;padding:5px 9px;font-size:8.6pt;line-height:1.5}
+#sheet .opt td.nm{font-weight:700}
+#sheet .opt .pr b{display:block;font-size:10pt}
+#sheet ul{margin:0;padding-left:0;list-style:none;font-size:8.9pt;line-height:1.62}
+#sheet ul li{text-indent:-.9em;padding-left:.9em}
+#sheet footer{margin-top:14px;border-top:1px solid #ccc;padding-top:6px;text-align:center;color:#888;font-size:8pt}
+
+@media print{
+  body{background:#fff}
+  .topbar,.panel,.noprint{display:none!important}
+  .wrap{display:block;padding:0}
+  .sheetwrap{border:0;padding:0;overflow:visible}
+  #sheet{width:auto;min-height:auto;padding:0;margin:0}
+  @page{size:A4;margin:11mm 12mm 9mm}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>お客様見積り（長さ別プラン）</h1>
+  <a href="mitsumori.html">市場向け見積ツール</a>
+  <a href="index.html">運賃ツール</a>
+  <span class="st" id="st">価格取得中…</span>
+</div>
+
+<div class="wrap">
+<!-- ============ 入力パネル ============ -->
+<div class="panel">
+
+  <div class="card">
+    <h2>1. お客様・案件</h2>
+    <div class="row">
+      <div class="f" style="flex:2"><label>宛名</label><input id="i-to" placeholder="例）河内 宏美"></div>
+      <div class="f" style="flex:0 0 92px"><label>敬称</label><select id="i-keisho"><option>様</option><option>御中</option></select></div>
+    </div>
+    <div class="row">
+      <div class="f"><label>お届け先 都道府県</label><select id="i-pref"></select></div>
+      <div class="f"><label>市区町村（任意）</label><input id="i-city" placeholder="例）美作市"></div>
+    </div>
+    <div class="row">
+      <div class="f"><label>ご希望納期</label><input id="i-nouki" placeholder="例）2〜3ヶ月"></div>
+      <div class="f"><label>発行日</label><input id="i-date" type="date"></div>
+    </div>
+    <div class="row">
+      <div class="f"><label>見積番号</label><input id="i-no"></div>
+      <div class="f"><label>有効期限</label><input id="i-limit" type="number" value="30" min="1"><div class="hint">発行日から◯日間</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. 商品</h2>
+    <div class="row">
+      <div class="f"><label>品名</label><select id="i-name"><option>桧フローリング</option><option>桧羽目板</option></select></div>
+      <div class="f"><label>厚さ</label><select id="i-t"><option value="15">15mm</option><option value="12">12mm</option></select></div>
+      <div class="f"><label>等級</label><select id="i-grade">
+        <option value="丸節">節有（丸節）</option><option value="小節">小節</option>
+        <option value="特上小">特上小節</option><option value="無節">無節</option></select></div>
+    </div>
+    <div class="master" id="m-box"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. 数量</h2>
+    <div class="row">
+      <div class="f"><label>広さ</label><input id="i-area" type="number" step="0.1" min="0" placeholder="例）38"></div>
+      <div class="f" style="flex:0 0 110px"><label>単位</label><select id="i-unit"><option value="m2">㎡</option><option value="jo">畳</option></select></div>
+      <div class="f" style="flex:0 0 130px"><label>必要面積</label><input id="i-areadisp" readonly style="background:#f6f6f6;font-weight:700"></div>
+    </div>
+    <div class="hint">畳は1畳=1.62㎡で換算します。ここに入れるのは「張りたい面積」です（ロスは下の計算で自動的に上乗せします）。</div>
+  </div>
+
+  <div class="card">
+    <h2>4. 長さ</h2>
+    <div class="chips" id="len-chips"></div>
+    <div class="hint">
+      <b>長さが決まっていない場合</b>は複数選択（＝お客様に長さ別プランを比較で提示）。<br>
+      <b>決まっている場合</b>は1つだけ選択すると、そのプランだけの見積書になります。
+    </div>
+    <table class="calc" id="calc"><tbody></tbody></table>
+    <div id="msgs"></div>
+  </div>
+
+  <div class="card">
+    <h2>5. 文面</h2>
+    <div class="row"><div class="f"><label>件名</label><input id="i-subj"></div></div>
+    <div class="row"><div class="f"><label>備考（1行1項目）</label>
+      <textarea id="i-remarks" rows="5"></textarea></div></div>
+    <div class="btns">
+      <button onclick="window.print()">🖨 印刷 / PDF保存</button>
+      <button class="sec" onclick="resetRemarks()">備考を既定に戻す</button>
+      <button class="sec" onclick="clearAll()">クリア</button>
+    </div>
+    <div id="fit" class="fitmsg"></div>
+    <div class="hint">PDFは印刷ダイアログで「PDFに保存」／余白は「既定」、背景グラフィックONで出力してください。</div>
+  </div>
+</div>
+
+<!-- ============ 見積書プレビュー ============ -->
+<div class="sheetwrap"><div id="sheet"></div></div>
+</div>
+
+<iframe id="fare-frame" src="index.html" title="運賃ツール" aria-hidden="true"
+        style="position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px"></iframe>
+
+<script>
+/* ===================== 固定マスタ（ここが唯一の正） ===================== */
+const WORK_W = 0.108;                                  // 働き幅 m（幅120mm材の有効幅）
+const LOT    = {910:20, 1820:10, 3000:10, 4000:8};     // 1梱包(束)の枚数＝送料の口数の基準
+const LENS   = [910, 1820, 3000, 4000];
+const JO_M2  = 1.62;                                   // 1畳
+const DISC   = 0.95;                                   // ヤフー価格からの直販割引
+const MIN_MG = 0.01;                                   // 余裕率がこれ未満なら1梱包足す
+const MAX_MG = 0.15;                                   // これを超えたら「減らせます」と警告
+const OPT    = {910:{cut:25, paint:100}, 1820:{cut:50, paint:200}};  // 加工オプション（円/枚・税込）
+const CARRIER= {910:"佐川急便", 1820:"西濃運輸", 3000:"西濃運輸", 4000:"西濃運輸"};
+
+/* ヤフー価格API（在庫GAS・公開価格のみ返す） */
+const YPRICE_URL = "https://script.google.com/macros/s/AKfycbxvPjDv81vrJMW2GaqpCJooyxxt7__gvMF4mJkmcGNbNS2xGMoXgTnn6_OEPZ3Rr0spdg/exec";
+const YPRICE_TOKEN = "hzy-yprice-mitsumori-2026";
+const YP = {};   // "type|len|grade" -> {price, bundle}
+
+const PREFS = ["静岡","愛知","岐阜","神奈川","滋賀","三重","東京","奈良","京都","山梨","埼玉","千葉","大阪","長野","栃木","和歌山","石川","徳島","茨城","群馬","兵庫","福島","鳥取","岡山","高知","新潟","香川","福井","富山","宮城","広島","愛媛","山形","島根","秋田","岩手","山口","福岡","佐賀","青森","長崎","熊本","大分","宮崎","鹿児島","北海道","沖縄"];
+
+const DEFAULT_REMARKS = [
+  "納期：ご希望の納期に対応可能です。正式なお届け日はご注文時にご案内いたします。",
+  "お支払い：銀行振込（前払い）。振込先口座はご注文確定後にご案内いたします。",
+  "ご希望があれば無料サンプルをお送りいたします。お気軽にお申し付けください。",
+  "本見積の商品は当店ヤフーショッピング店掲載の商品と同一品です。"
+].join("\n");
+
+const $ = s => document.querySelector(s);
+const fmt = n => (Math.round(n)||0).toLocaleString("ja-JP");
+const esc = s => (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const LNAME = {910:"1m（910mm）", 1820:"2m（1820mm）", 3000:"3m（3000mm）", 4000:"4m（4000mm）"};
+const SHORT = {910:"1m", 1820:"2m", 3000:"3m", 4000:"4m"};
+const lenName = l => LNAME[l] || (l+"mm");
+const bracket  = l => Math.min(4, Math.max(1, Math.ceil(l/1000)));   // 運賃ツールの長さ区分
+// 運賃ツールのキーは短縮名（例「岡山」）。表示用に正式名へ戻す
+const prefFull = p => p==="北海道" ? p : (p==="東京" ? "東京都" : ((p==="大阪"||p==="京都") ? p+"府" : p+"県"));
+
+let LENON = {910:true, 1820:true, 3000:true, 4000:true};
+
+/* ===================== ヤフー価格 ===================== */
+function yType(){
+  const nm=$("#i-name").value, t=Number($("#i-t").value);
+  if(nm==="桧フローリング") return t===15 ? "フローリング15mm" : "フローリング12mm";
+  return "羽目板12mm";
+}
+// A級・標準（幅120）のヤフー価格。フローリングは15mm/12mmが同一商品＝同価格なので12mmは15mmにフォールバック
+function yPrice(len, grade){
+  const k = len===1820 ? 2000 : len;
+  let v = YP[`${yType()}|${k}|${grade}`];
+  if(!v && yType()==="フローリング12mm") v = YP[`フローリング15mm|${k}|${grade}`];
+  return v || null;
+}
+async function loadPrices(){
+  try{
+    const r = await fetch(YPRICE_URL+"?api=yahooprices&token="+encodeURIComponent(YPRICE_TOKEN));
+    const j = await r.json();
+    if(j && j.ok && Array.isArray(j.prices)){
+      j.prices.forEach(p=>{ if(p.q!=="A"||p.group!=="標準") return;
+        YP[`${p.type}|${p.len}|${p.grade}`] = {price:p.price, bundle:p.bundle||20}; });
+      $("#st").textContent = "ヤフー価格：取得済（"+(j.updated||"")+"）";
+      render();
+      return;
+    }
+    throw 0;
+  }catch(e){ $("#st").textContent = "⚠ ヤフー価格を取得できませんでした（再読込してください）"; }
+}
+
+/* ===================== 送料（運賃ツールを隠しiframeで実行） ===================== */
+function fareReady(){
+  const f=$("#fare-frame");
+  try{ return !!(f&&f.contentWindow&&f.contentWindow.calcSeino&&f.contentDocument&&f.contentDocument.getElementById("s-pref").options.length); }
+  catch(e){ return false; }
+}
+function fare(pref, len, lots){
+  if(!fareReady()) return null;
+  const f=$("#fare-frame"), w=f.contentWindow, d=f.contentDocument;
+  try{
+    if(d.getElementById("s-mix-mode") && d.getElementById("s-mix-mode").style.display!=="none" && typeof w.toggleMixMode==="function") w.toggleMixMode(false);
+    d.getElementById("s-pref").value = pref;
+    d.getElementById("s-length").value = String(bracket(len));
+    if(typeof w.updateQtyLabel==="function") w.updateQtyLabel();
+    const sq=d.getElementById("s-qty");
+    if(![...sq.options].some(o=>o.value===String(lots))) sq.add(new Option(lots+"束", String(lots)));
+    sq.value=String(lots);
+    w.calcSeino();
+    const el=d.querySelector("#seino-result tr.total td");
+    if(!el) return null;
+    const n=parseInt(el.textContent.replace(/[^0-9]/g,""));
+    return n>0 ? n : null;
+  }catch(e){ return null; }
+}
+
+/* ===================== 計算 ===================== */
+function areaM2(){
+  const v=parseFloat($("#i-area").value)||0;
+  return $("#i-unit").value==="jo" ? v*JO_M2 : v;
+}
+function calcPlan(len, area, pref, grade){
+  const lot = LOT[len], perPc = WORK_W * (len/1000);
+  const yp = yPrice(len, grade);
+  const p = {len, lot, perPc, ok:false, note:""};
+  if(!yp){ p.err="ヤフー価格なし"; return p; }
+  p.yBundle = yp.bundle;
+  p.perPiece = yp.price * DISC / yp.bundle;          // 1枚あたり税込（5%引後）
+  p.yLotPrice = Math.round(yp.price / yp.bundle * lot);        // ヤフー通常価格を販売単位に換算
+  p.lotPrice  = Math.round(p.perPiece * lot);                  // 5%引後の販売単位価格
+  if(area<=0) return p;
+
+  let lots = Math.ceil(Math.ceil(area/perPc) / lot);
+  let cover = lots*lot*perPc;
+  if(cover/area - 1 < MIN_MG){ lots += 1; cover = lots*lot*perPc; p.bumped = true; }
+  p.lots   = lots;
+  p.pieces = lots*lot;
+  p.cover  = cover;
+  p.margin = cover/area - 1;
+  p.goods  = Math.round(p.perPiece * p.pieces);
+  p.fare   = fare(pref, len, lots);
+  p.total  = p.fare==null ? null : p.goods + p.fare;
+  p.ok     = p.total!=null;
+  return p;
+}
+function unitCells(p){          // 販売単位の表記（自社梱包とヤフー入数が違えば「◯枚単位／◯口」）
+  const diff = p.yBundle && p.yBundle!==p.lot;
+  return {
+    unit : diff ? `${p.lot}枚単位` : `${p.lot}枚/束`,
+    price: diff ? `${fmt(p.lotPrice)}円/${p.lot}枚` : `${fmt(p.lotPrice)}円/束`,
+    qty  : diff ? `${p.lots}口` : `${p.lots}束`,
+    ynote: diff ? `${fmt(p.yLotPrice)}円/${p.lot}枚` : `${fmt(p.yLotPrice)}円/束`
+  };
+}
+
+/* ===================== 描画 ===================== */
+function render(){
+  // 羽目板は12mmのみ（厚さを固定）
+  const tSel=$("#i-t");
+  if($("#i-name").value==="桧羽目板"){ tSel.value="12"; tSel.disabled=true; } else { tSel.disabled=false; }
+  // マスタ表示
+  $("#m-box").innerHTML =
+    "<b>固定マスタ</b>（手入力できません）　働き幅 <b>108mm</b>（幅120mm材）／ 1梱包の枚数 "+
+    LENS.map(l=>`${l===910?"1m":l/1000+"m"}=<b>${LOT[l]}枚</b>`).join(" ・ ")+
+    "<br>送料はこの梱包数（口数）で運賃ツールに渡します。ヤフーの2mは「20枚入り」表記ですが実梱包は10枚束です。";
+
+  const area = areaM2();
+  $("#i-areadisp").value = area ? area.toFixed(2)+" ㎡" : "";
+  const pref = $("#i-pref").value, grade = $("#i-grade").value;
+
+  // 計算＆パネル表
+  const plans = LENS.map(l => calcPlan(l, area, pref, grade));
+  const msgs = [];
+  let tb = "<tr><th>長さ</th><th>梱包</th><th>数量</th><th>枚数</th><th>張れる面積</th><th>余裕</th><th>商品代</th><th>送料</th><th>合計</th></tr>";
+  plans.forEach(p=>{
+    const on = LENON[p.len];
+    if(p.err){ tb += `<tr class="${on?"":"off"}"><td>${lenName(p.len)}</td><td colspan="8">ヤフー価格が見つかりません（この等級・長さは対象外）</td></tr>`;
+      if(on) msgs.push(["e", `${lenName(p.len)}：ヤフー価格が無いためプランに出せません。等級・品名をご確認ください。`]); return; }
+    if(!p.lots){ tb += `<tr class="${on?"":"off"}"><td>${lenName(p.len)}</td><td>${LOT[p.len]}枚</td><td colspan="7">広さを入力してください</td></tr>`; return; }
+    const u = unitCells(p);
+    const cls = p.margin<0.02 ? "tight" : (p.margin>MAX_MG ? "loose" : "ok");
+    tb += `<tr class="${on?"":"off"}">
+      <td>${lenName(p.len)}</td><td>${p.lot}枚</td><td>${u.qty}</td><td>${p.pieces}枚</td>
+      <td>${p.cover.toFixed(2)}㎡</td><td class="mg ${cls}">+${(p.margin*100).toFixed(1)}%</td>
+      <td class="n">${fmt(p.goods)}</td><td class="n">${p.fare==null?"—":fmt(p.fare)}</td>
+      <td class="n"><b>${p.total==null?"—":fmt(p.total)}</b></td></tr>`;
+    if(!on) return;
+    if(p.bumped) msgs.push(["w", `${lenName(p.len)}：切り上げただけでは余裕が1%未満だったため、1${u.qty.slice(-1)}足して${u.qty}にしています。`]);
+    if(p.margin>MAX_MG) msgs.push(["w", `${lenName(p.len)}：余裕が+${(p.margin*100).toFixed(0)}%あります。長さの都合で減らせません（販売単位の切り上げのため）。`]);
+    if(p.fare==null) msgs.push(["e", `${lenName(p.len)}：送料を計算できません（${pref}は個別見積の可能性）。`]);
+  });
+  $("#calc").innerHTML = "<tbody>"+tb+"</tbody>";
+  $("#msgs").innerHTML = msgs.map(m=>`<div class="msg ${m[0]}">${esc(m[1])}</div>`).join("");
+
+  // 件名の自動生成（未編集なら追随）
+  const gname = $("#i-grade").selectedOptions[0].textContent.replace(/（.*/,"");
+  const autoSubj = `国産無垢 ${$("#i-name").value} ${gname}（A級品）　${area?(+area.toFixed(2))+"㎡":""}分`;
+  const si=$("#i-subj"); if(!si.dataset.touched) si.value = autoSubj;
+
+  drawSheet(plans.filter(p=>LENON[p.len] && p.ok), area, gname);
+}
+
+function drawSheet(plans, area, gname){
+  const s=$("#sheet");
+  const to=$("#i-to").value.trim(), kei=$("#i-keisho").value;
+  const date=$("#i-date").value, lim=parseInt($("#i-limit").value)||30;
+  const nm=$("#i-name").value, t=$("#i-t").value;
+  const isFloor = nm==="桧フローリング";
+  const dest=[prefFull($("#i-pref").value), $("#i-city").value.trim()].filter(Boolean).join("");
+  const jp=iso=>{ if(!iso) return ""; const [y,m,d]=iso.split("-").map(Number); return `${y}年${m}月${d}日`; };
+  const addD=(iso,n)=>{ if(!iso) return ""; const [y,m,d]=iso.split("-").map(Number); const dt=new Date(y,m-1,d); dt.setDate(dt.getDate()+n); return jp(`${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}`); };
+
+  if(!plans.length){ s.innerHTML = `<div style="padding:60px 0;text-align:center;color:#999">広さと長さを入力すると見積書が表示されます</div>`; return; }
+
+  const rows = plans.map(p=>{ const u=unitCells(p); return `
+    <tr><td class="len">${lenName(p.len)}</td><td>${u.unit}</td><td>${u.price}</td>
+    <td>${u.qty}</td><td>${p.pieces}枚</td><td>約${p.cover.toFixed(1)}㎡</td>
+    <td>${fmt(p.goods)}円</td><td>${fmt(p.fare)}円</td><td class="sum">${fmt(p.total)}円</td></tr>`; }).join("");
+
+  const ynote = plans.map(p=>`${SHORT[p.len]}：${unitCells(p).ynote}`).join("、");
+  const bumped = plans.filter(p=>p.bumped);
+  const notes = [
+    `※単価はヤフー店通常価格（${ynote}）の5%引きです。`,
+    `※必要数は施工ロス（割付・端部カット等）を見込み、ご希望の${+area.toFixed(2)}㎡を上回る数量としています。`,
+    `※販売はロット単位です。${plans.some(p=>p.yBundle!==p.lot)?"2mは直接販売のため10枚単位でご購入いただけます。":""}`,
+    ...bumped.map(p=>{ const u=unitCells(p); const one=p.lots-1;
+      return `※${lenName(p.len)}は${one}${u.qty.slice(-1)}（${one*p.lot}枚・約${(one*p.lot*p.perPc).toFixed(1)}㎡）でも数量上は足りますが、ロスの余裕がほとんど無いため${u.qty}でご案内しています。`; })
+  ].filter(x=>x.replace(/※|。/g,"").trim());
+
+  // 加工オプション（1m・2mが含まれる場合のみ）
+  const optPlans = plans.filter(p=>OPT[p.len]);
+  const optHtml = !optPlans.length ? "" : `
+  <div class="sec"><i></i><span>加工オプション（${optPlans.map(p=>SHORT[p.len]).join("・")}プランのみ）</span></div>
+  <table class="opt"><thead><tr><th style="width:16%">オプション</th><th style="width:${43-(optPlans.length-1)*0}%">内容</th>
+  ${optPlans.map(p=>`<th style="width:20%">${SHORT[p.len]}プラン（${p.pieces}枚）</th>`).join("")}</tr></thead><tbody>
+  <tr><td class="nm">両端直角カット</td><td class="desc">両端を直角に精密カット。継ぎ合わせ・DIY施工が楽になります。</td>
+  ${optPlans.map(p=>`<td class="pr">＋${OPT[p.len].cut}円/枚<b>＋${fmt(OPT[p.len].cut*p.pieces)}円</b></td>`).join("")}</tr>
+  <tr><td class="nm">自然塗装</td><td class="desc">自然系塗料（玄々化学 G-NATURE／IG-19）を工場で塗装してお届け。現場での塗装作業が不要になります。</td>
+  ${optPlans.map(p=>`<td class="pr">＋${OPT[p.len].paint}円/枚<b>＋${fmt(OPT[p.len].paint*p.pieces)}円</b></td>`).join("")}</tr>
+  </tbody></table>
+  <div class="notes"><div>※オプションは加工賃のため割引対象外・税込です。「カット＋塗装」の両方選択も可能です（金額は合算）。${plans.filter(p=>!OPT[p.len]).length?plans.filter(p=>!OPT[p.len]).map(p=>SHORT[p.len]).join("・")+"プランは対象外です。":""}</div></div>`;
+
+  // 配送
+  const seino = plans.filter(p=>CARRIER[p.len]==="西濃運輸").map(p=>SHORT[p.len]);
+  const sagawa= plans.filter(p=>CARRIER[p.len]==="佐川急便").map(p=>SHORT[p.len]);
+  const ship = [
+    seino.length ? `・<b>${seino.join("・")} は西濃運輸</b>でのお届けです。表示送料は法人様宛て（会社届け）の基本価格です。` : "",
+    seino.length ? `・<b>個人のお客様は西濃運輸の支店止め</b>（最寄り支店でのお受け取り）となります。` : "",
+    seino.length ? `・現場でのお降ろし（現場渡し）は別途費用がかかります。` : "",
+    sagawa.length? `・<b>${sagawa.join("・")} のみ佐川急便</b>（160サイズ）のため、個人様のご自宅へもお届けできます。` : "",
+    `・数量・梱包状況により実際の送料が前後する場合があります。`
+  ].filter(Boolean);
+
+  const remarks = $("#i-remarks").value.split("\n").map(x=>x.trim()).filter(Boolean);
+
+  s.innerHTML = `
+  <h1>御見積書</h1><div class="tr1"></div><div class="tr2"></div>
+  <div class="head">
+    <div class="head-l">
+      <div class="to">${esc(to||"　")} ${esc(kei)}</div><div class="to-rule"></div>
+      <div class="lead">下記のとおりお見積り申し上げます。</div>
+      <div class="subj">件名：${esc($("#i-subj").value)}</div>
+      <div>お届け先：${esc(dest)}${$("#i-nouki").value.trim()?`　／　ご希望納期：${esc($("#i-nouki").value)}`:""}</div>
+    </div>
+    <div class="head-r">
+      <div class="meta">見積番号：${esc($("#i-no").value)}<br>発行日：${jp(date)}<br>有効期限：${addD(date,lim)}まで（発行日より${lim}日間）</div>
+      <div class="corp">株式会社 林材木店</div>
+      <div class="corp-info">〒437-1203 静岡県磐田市福田5490-47<br>TEL 0538-58-2395　FAX 050-3146-7566<br>Email info@hayazai.com　／　HP hayazai.com</div>
+    </div>
+  </div>
+
+  <div class="sec"><i></i><span>共通仕様</span></div>
+  <div class="specbox">
+    国産無垢 ${esc(nm)} <b>${esc(gname)}</b>（A級品・超仕上げ）／ 幅は <b>108mm</b> で統一 ／
+    ${isFloor ? `厚さは <b>15mm・12mm</b> のどちらでも同価格でお選びいただけます。` : `厚さ <b>${esc(t)}mm</b>。`}<br>
+    価格はすべて<b>税込</b>・当店ヤフーショッピング店の通常価格から <b>5%引き</b>の直接販売特別価格です。
+  </div>
+
+  <div class="sec"><i></i><span>${plans.length>1?"長さ別のお見積り（いずれか1プランをお選びください）":"お見積り"}</span></div>
+  <table><thead><tr>
+    <th style="width:16%">長さ</th><th style="width:10%">販売単位</th><th style="width:13%">単価（税込）<br>5%引き後</th>
+    <th style="width:8%">必要数</th><th style="width:9%">合計枚数</th><th style="width:10%">施工可能<br>面積</th>
+    <th style="width:12%">商品代<br>（税込）</th><th style="width:10%">送料 ※<br>（税込）</th>
+    <th style="width:15%;white-space:nowrap">合計（税込）</th>
+  </tr></thead><tbody>${rows}</tbody></table>
+  <div class="notes">${notes.map(n=>`<div>${n}</div>`).join("")}</div>
+
+  ${optHtml}
+
+  <div class="sec"><i></i><span>配送について（送料は${esc(prefFull($("#i-pref").value))}宛て・税込）</span></div>
+  <ul>${ship.map(x=>`<li>${x}</li>`).join("")}</ul>
+
+  ${remarks.length?`<div class="sec"><i></i><span>備考</span></div><ul>${remarks.map(r=>`<li>・${esc(r)}</li>`).join("")}</ul>`:""}
+
+  <footer>株式会社 林材木店　｜　国産無垢材の製材・販売　｜　https://hayazai.com</footer>`;
+  fitSheet();
+  save();
+}
+
+/* A4 1枚に収まるか判定し、はみ出す分だけ自動縮小する（2枚に割れる事故の防止） */
+function fitSheet(){
+  const s=$("#sheet"), fit=$("#fit");
+  s.style.zoom=1;
+  const oldMin=s.style.minHeight; s.style.minHeight="0";
+  const cs=getComputedStyle(s);
+  const h=s.getBoundingClientRect().height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  s.style.minHeight=oldMin;
+  const avail=277*96/25.4;                       // A4縦 297mm − 上下余白(11+9mm)
+  if(h<=avail){
+    fit.className="fitmsg ok";
+    fit.textContent=`A4 1枚に収まります（下の余白 ${Math.round((avail-h)/96*25.4)}mm）`;
+    return;
+  }
+  const z=Math.max(0.85, avail/h);
+  s.style.zoom=z;
+  if(avail/h>=0.85){
+    fit.className="fitmsg shrink";
+    fit.textContent=`A4 1枚に自動縮小しました（${Math.round(z*100)}%）`;
+  }else{
+    fit.className="fitmsg over";
+    fit.textContent=`⚠ 1枚に収まりません（${Math.round(z*100)}%でも超過）。備考を減らしてください`;
+  }
+}
+
+/* ===================== 入力まわり ===================== */
+function drawChips(){
+  $("#len-chips").innerHTML = LENS.map(l=>
+    `<div class="chip ${LENON[l]?"on":""}" data-l="${l}">${lenName(l)}</div>`).join("");
+  $("#len-chips").querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+    const l=Number(c.dataset.l);
+    if(LENON[l] && LENS.filter(x=>LENON[x]).length===1) return;   // 全部OFFは不可
+    LENON[l]=!LENON[l]; drawChips(); render(); });
+}
+const LS="hayazai_plan_quote";
+function save(){
+  const d={}; ["i-to","i-keisho","i-pref","i-city","i-nouki","i-date","i-no","i-limit","i-name","i-t","i-grade","i-area","i-unit","i-subj","i-remarks"].forEach(id=>d[id]=$("#"+id).value);
+  d._len=LENON; d._touched=$("#i-subj").dataset.touched||"";
+  try{ localStorage.setItem(LS, JSON.stringify(d)); }catch(e){}
+}
+function load(){
+  let d; try{ d=JSON.parse(localStorage.getItem(LS)||"null"); }catch(e){}
+  if(!d) return false;
+  Object.keys(d).forEach(k=>{ if(k[0]!=="_" && $("#"+k)) $("#"+k).value=d[k]; });
+  if(d._len) LENON=d._len;
+  if(d._touched) $("#i-subj").dataset.touched="1";
+  return true;
+}
+/* URLパラメータで初期値を渡せる（例 plan.html?to=河内 宏美&pref=岡山&area=38&len=1820,3000） */
+function applyQuery(){
+  const q=new URLSearchParams(location.search);
+  const map={to:"i-to",kei:"i-keisho",pref:"i-pref",city:"i-city",nouki:"i-nouki",no:"i-no",date:"i-date",
+             name:"i-name",t:"i-t",grade:"i-grade",area:"i-area",unit:"i-unit",subj:"i-subj"};
+  Object.keys(map).forEach(k=>{ if(q.has(k)){ const el=$("#"+map[k]); if(el){ el.value=q.get(k); if(k==="subj") el.dataset.touched="1"; } } });
+  if(q.has("len")){ const on=q.get("len").split(",").map(Number); LENS.forEach(l=>{ LENON[l]=on.includes(l); }); if(!LENS.some(l=>LENON[l])) LENS.forEach(l=>LENON[l]=true); }
+}
+function resetRemarks(){ $("#i-remarks").value=DEFAULT_REMARKS; render(); }
+function clearAll(){
+  if(!confirm("入力内容をすべて消します。よろしいですか？")) return;
+  localStorage.removeItem(LS); location.reload();
+}
+function todayISO(){ const t=new Date(), z=n=>String(n).padStart(2,"0"); return `${t.getFullYear()}-${z(t.getMonth()+1)}-${z(t.getDate())}`; }
+
+function init(){
+  $("#i-pref").innerHTML = PREFS.map(p=>`<option>${p}</option>`).join("");
+  $("#i-date").value = todayISO();
+  $("#i-no").value = "HZ-"+todayISO().replace(/-/g,"")+"-01";
+  $("#i-remarks").value = DEFAULT_REMARKS;
+  load();
+  applyQuery();
+  drawChips();
+  $("#i-subj").addEventListener("input", ()=>{ $("#i-subj").dataset.touched="1"; });
+  document.querySelectorAll("input,select,textarea").forEach(el=>{
+    el.addEventListener("input", ()=>{ render(); });
+    el.addEventListener("change", ()=>{ render(); });
+  });
+  render();
+  loadPrices();
+  // 運賃ツールiframeの読み込み完了後に送料を反映
+  const f=$("#fare-frame");
+  f.addEventListener("load", ()=>setTimeout(render, 300));
+  let n=0; const t=setInterval(()=>{ if(fareReady()){ clearInterval(t); render(); } if(++n>40) clearInterval(t); }, 250);
+}
+init();
+</script>
+</body>
+</html>

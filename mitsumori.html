@@ -1222,6 +1222,7 @@ function buildWizard(){
   /* 常時表示ユーティリティ（見積書フォルダ／データベース）をナビ右へ移動＝全ステップで使える */
   const btnFolder=document.getElementById("btn-folder"), btnDb=document.getElementById("btn-db");
   const utils=elFrom(`<div class="wiz-utils"></div>`);
+  utils.appendChild(elFrom(`<a href="plan.html" class="btn" style="text-decoration:none;display:inline-flex;align-items:center">📐 お客様見積り（長さ別プラン）</a>`));
   if(btnFolder) utils.appendChild(btnFolder);
   if(btnDb) utils.appendChild(btnDb);
   const topbar=elFrom(`<div class="wiz-topbar"></div>`);
