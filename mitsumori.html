@@ -1113,7 +1113,7 @@ let flashTO;
 function flash(msg){ let el=$("#flash"); if(!el){ el=document.createElement("div"); el.id="flash"; el.style.cssText="position:fixed;bottom:18px;left:18px;background:#222;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;z-index:99;opacity:.95"; document.body.appendChild(el);} el.textContent=msg; el.style.display="block"; clearTimeout(flashTO); flashTO=setTimeout(()=>el.style.display="none",1600); }
 
 /* ---- 必要数量計算（畳・㎡→束数）＋入数の長さ連動デフォルト ---- */
-const NYUSU_DEF={910:20,1820:20,2000:10,3000:10,4000:8};   // 長さ→入数の初期値（明細で手修正可）
+const NYUSU_DEF={910:20,1820:10,2000:10,3000:10,4000:8};   // 長さ→入数（梱包=束の枚数。2026-08-17ユーザー確定。ヤフー2mは「20枚入」表記だが実梱包は10枚束×2）
 const JO_M2=1.62;                                           // 1畳=1.62㎡
 function firstFilledRow(){ return [...document.querySelectorAll(".item-row")].find(r=>{const it=readRow(r); return it.l||it.name;}); }
 function workingWidth(w){ w=Number(w)||0; return w>12 ? w-12 : w; }   // 働き幅の目安=幅−12mm（実さね分）
