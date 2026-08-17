@@ -100,6 +100,8 @@ button:hover{opacity:.88}
   @page{size:A4;margin:11mm 12mm 9mm}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -173,11 +175,23 @@ button:hover{opacity:.88}
     <div class="row"><div class="f"><label>備考（1行1項目）</label>
       <textarea id="i-remarks" rows="5"></textarea></div></div>
     <div class="btns">
-      <button onclick="window.print()">🖨 印刷 / PDF保存</button>
+      <button id="btn-pdf" onclick="downloadPdf()">📄 PDFをダウンロード</button>
+      <button class="sec" onclick="window.print()">🖨 印刷</button>
       <button class="sec" onclick="resetRemarks()">備考を既定に戻す</button>
       <button class="sec" onclick="clearAll()">クリア</button>
     </div>
     <div id="fit" class="fitmsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>6. LINE送付文</h2>
+    <textarea id="line-text" rows="14"></textarea>
+    <div class="btns" style="margin-top:8px">
+      <button class="sec" onclick="copyLine()">📋 コピー</button>
+      <button class="sec" onclick="render(true)">文面を作り直す</button>
+      <span id="copied" style="font-size:12px;color:#15803d;align-self:center"></span>
+    </div>
+    <div class="hint">LINE公式アカウントのトーク画面に貼り付けて、上のPDFを添付して送ってください。編集しても「作り直す」で再生成できます。</div>
     <div class="hint">PDFは印刷ダイアログで「PDFに保存」／余白は「既定」、背景グラフィックONで出力してください。</div>
   </div>
 </div>
@@ -320,7 +334,7 @@ function unitCells(p){          // 販売単位の表記（自社梱包とヤフ
 }
 
 /* ===================== 描画 ===================== */
-function render(){
+function render(force){
   // 羽目板は12mmのみ（厚さを固定）
   const tSel=$("#i-t");
   if($("#i-name").value==="桧羽目板"){ tSel.value="12"; tSel.disabled=true; } else { tSel.disabled=false; }
@@ -363,7 +377,62 @@ function render(){
   const autoSubj = `国産無垢 ${$("#i-name").value} ${gname}（A級品）　${area?(+area.toFixed(2))+"㎡":""}分`;
   const si=$("#i-subj"); if(!si.dataset.touched) si.value = autoSubj;
 
-  drawSheet(plans.filter(p=>LENON[p.len] && p.ok), area, gname);
+  const shown = plans.filter(p=>LENON[p.len] && p.ok);
+  drawSheet(shown, area, gname);
+  buildLine(shown, area, gname, force);
+}
+
+/* ===================== LINE送付文 ===================== */
+function buildLine(plans, area, gname, force){
+  const ta=$("#line-text");
+  if(!force && ta.dataset.touched) return;               // 手で直した文面は勝手に上書きしない
+  if(!plans.length){ ta.value=""; return; }
+  const to=$("#i-to").value.trim(), kei=$("#i-keisho").value;
+  const isFloor=$("#i-name").value==="桧フローリング";
+  const list=plans.map(p=>`・${LNAME[p.len]}　${fmt(p.total)}円`).join("\n");
+  const lines=[
+    `${(to.split(/[\s　]+/)[0])||"お客様"}${kei}`, "",   // LINEは苗字＋敬称（見積書は氏名フル）
+    `${+area.toFixed(2)}㎡分のお見積書をお送りします📄`, "",
+    plans.length>1 ? `長さ別に${plans.length}プランご用意しました。` : `お見積り金額は下記のとおりです。`,
+    list,
+    "※すべて税込・送料込みの総額です。", ""
+  ];
+  if(isFloor) lines.push("厚さは15mm・12mmどちらでも同価格でお選びいただけます。");
+  lines.push("無料サンプルもお送りできますので、ご希望でしたらお気軽にお申し付けください😊");
+  ta.value=lines.join("\n");
+}
+function copyLine(){
+  const ta=$("#line-text");
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(()=>{
+    $("#copied").textContent="コピーしました";
+    setTimeout(()=>$("#copied").textContent="", 2000);
+  }).catch(()=>{ document.execCommand("copy"); $("#copied").textContent="コピーしました"; });
+}
+
+/* ===================== PDFダウンロード ===================== */
+async function downloadPdf(){
+  const btn=$("#btn-pdf"), sheet=$("#sheet");
+  if(!window.html2canvas || !window.jspdf){ alert("PDF部品を読み込めませんでした。オンラインで再読込してください。"); return; }
+  if(!sheet.querySelector("table")){ alert("先に広さと長さを入力してください。"); return; }
+  const label=btn.textContent; btn.textContent="作成中…"; btn.disabled=true;
+  try{
+    const canvas=await window.html2canvas(sheet,{scale:2,useCORS:true,backgroundColor:"#ffffff"});
+    const { jsPDF }=window.jspdf;
+    const pdf=new jsPDF({unit:"mm",format:"a4",orientation:"portrait"});
+    const pw=210, ph=297;
+    let w=pw, h=canvas.height/canvas.width*pw;
+    if(h>ph){ h=ph; w=canvas.width/canvas.height*ph; }        // 念のため1枚に収める
+    pdf.addImage(canvas.toDataURL("image/jpeg",0.92), "JPEG", (pw-w)/2, 0, w, h);
+    pdf.save(pdfName());
+  }catch(e){ alert("PDFを作成できませんでした："+e); }
+  btn.textContent=label; btn.disabled=false;
+}
+function pdfName(){
+  const nm=$("#i-name").value.replace("桧","無垢桧");
+  const a=+areaM2().toFixed(2);
+  const to=($("#i-to").value.trim().split(/[\s　]+/)[0])||"お客様";
+  return `御見積書_${nm}${a}平米_${to}様.pdf`.replace(/[\/:*?"<>|]/g,"");
 }
 
 function drawSheet(plans, area, gname){
@@ -535,6 +604,7 @@ function init(){
   applyQuery();
   drawChips();
   $("#i-subj").addEventListener("input", ()=>{ $("#i-subj").dataset.touched="1"; });
+  $("#line-text").addEventListener("input", ()=>{ $("#line-text").dataset.touched="1"; });
   document.querySelectorAll("input,select,textarea").forEach(el=>{
     el.addEventListener("input", ()=>{ render(); });
     el.addEventListener("change", ()=>{ render(); });
