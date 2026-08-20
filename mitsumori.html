@@ -670,7 +670,7 @@ function updateCustCurrent(){
 }
 async function loadCustomerCandidates(){
   try{
-    const r=await fetch(GAS_URL+"?action=getCustomers"); const j=await r.json();
+    const r=await fetch(GAS_URL+"?action=getCustomerNames"); const j=await r.json();
     custMaster=(j.customers||[]).filter(c=>c.name && !isJunkCust(c.name)).map(c=>({name:c.name, method:(c.method==="市売"||c.method==="付売")?c.method:null}));
     (j.customers||[]).forEach(c=>{ if(c.name && !isJunkCust(c.name)) addCandidate(c.name, false); });
     mergeLocalIntoMaster();

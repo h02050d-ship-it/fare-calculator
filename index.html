@@ -1502,7 +1502,7 @@ async function naitoRefresh(){
     if(!cred){ naitoShow('gate'); return; }
     const [pr, tj] = await Promise.all([
       naitoFetchPartners(cred),
-      fetch(NAITO_GAS + "?action=getNaitoTanka").then(r=>r.json()).catch(()=>null)
+      fetch(NAITO_GAS + "?action=getNaitoTanka&pass="+encodeURIComponent(cred.pass||"")).then(r=>r.json()).catch(()=>null)
     ]);
     if(pr && pr.ok === false){
       naitoPrices = null;

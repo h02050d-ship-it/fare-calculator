@@ -270,7 +270,7 @@ let CUSTOMERS = [];          // [{name, method}]
 let METHOD_LOCKED = false;   // マスタで方式が確定したらトグルを隠して固定
 async function fetchCustomers(){
   try{
-    const r = await fetch(GAS_URL+"?action=getCustomers");
+    const r = await fetch(GAS_URL+"?action=getCustomerNames");
     const j = await r.json();
     CUSTOMERS = Array.isArray(j&&j.customers) ? j.customers : [];
   }catch(e){ CUSTOMERS = []; }
@@ -495,7 +495,7 @@ let CARRIER = localStorage.getItem(LS_CARRIER) || "内藤運輸";
 let NAITO_TANKA = null;   // { "取引先名": {"2000":円,"3000":円,"4000":円}, ... }（束あたり税抜円）
 async function fetchNaitoTanka(){
   try{
-    const r = await fetch(GAS_URL+"?action=getNaitoTanka");
+    const r = await fetch(GAS_URL+"?action=ichibaMyTanka&market="+encodeURIComponent(localStorage.getItem(LS_MARKET)||""));
     const j = await r.json();
     NAITO_TANKA = (j && j.ok && j.prices) ? j.prices : null;
   }catch(e){ NAITO_TANKA = null; }
