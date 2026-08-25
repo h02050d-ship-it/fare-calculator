@@ -259,8 +259,7 @@ const todayJP = ()=>{ const t=new Date(); return `${t.getFullYear()}年${t.getMo
 /* base64url（UTF-8対応）— お客様用リンクのトークン生成に使用 */
 const b64urlEncode = str => btoa(unescape(encodeURIComponent(str))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 
-/* ===== ログイン（市場だけが使える・端末に保持） ===== */
-const PASS = "ichiba2026";
+/* ===== ログイン（電話/FAX番号をサーバー照合・端末に保持。2026-08-25 パスワード廃止） ===== */
 const LS_AUTH = "hz_ichiba_tool_auth";
 const LS_MARKET = "hz_ichiba_market";           // ログイン時の市場名（貴社名）
 function isAuthed(){ return localStorage.getItem(LS_AUTH)==="1" || sessionStorage.getItem(LS_AUTH)==="1"; }
@@ -426,7 +425,7 @@ function stockClass(q){ if(q==null) return null; if(q<0) return {c:"stk-o",m:"�
 const LS_CUSTMODE = "hz_ichiba_custmode";
 const LS_MARKUP   = "hz_ichiba_markup";
 const LS_MARKUP_R = "hz_ichiba_round";
-let CUST_MODE   = localStorage.getItem(LS_CUSTMODE)==="1";
+let CUST_MODE   = false;   // お客様向け表示は一旦とりやめ（2026-08-25）。裏の関数は温存・保存値は無視して常にOFF
 let MARKUP_SET  = localStorage.getItem(LS_MARKUP)!=null;               // 一度でも掛け率を設定したか
 let MARKUP      = MARKUP_SET ? (Number(localStorage.getItem(LS_MARKUP))||0) : 15;   // %上乗せ（既定15）
 let MARKUP_ROUND= localStorage.getItem(LS_MARKUP_R)!=null ? (Number(localStorage.getItem(LS_MARKUP_R))||10) : 10;  // 1/10/100円 切上
@@ -534,8 +533,8 @@ function renderGate(){
       <h1>市場さま向けツール</h1>
       <p>桧製品の価格表・リアルタイム在庫の確認と、<br>運賃込みのお見積り作成ができます。</p>
       <div id="g-step1">
-        <input type="tel" id="g-fax" placeholder="貴社のFAX番号（例 053-000-0000）" autocomplete="off">
-        <input type="password" id="g-pass" placeholder="パスワード" autocomplete="current-password">
+        <input type="tel" id="g-fax" placeholder="貴社の電話番号またはFAX番号" autocomplete="off">
+        <input type="password" id="g-pass" placeholder="管理者パスワード" autocomplete="current-password" style="display:none">
         <button id="g-btn">ログイン</button>
         <label class="keep"><input type="checkbox" id="g-keep" checked> この端末で次回から自動ログイン</label>
       </div>
@@ -543,13 +542,7 @@ function renderGate(){
         <p style="margin-bottom:6px">こちらの会社名でよろしいですか？</p>
         <div class="g-name" id="g-name"></div>
         <button id="g-yes">はい、ログインする</button>
-        <button id="g-no" class="sub-btn">いいえ（会社名を直接入力する）</button>
-      </div>
-      <div id="g-manual" style="display:none">
-        <p style="margin-bottom:6px">FAX番号が見つかりませんでした。<br>会社名（市場名）を直接入力してください。</p>
-        <input type="text" id="g-market" placeholder="市場名（貴社名）" list="g-market-list" autocomplete="off">
-        <datalist id="g-market-list"></datalist>
-        <button id="g-manual-btn">この会社名でログイン</button>
+        <button id="g-no" class="sub-btn">いいえ（番号を入力し直す）</button>
       </div>
       <div id="g-setup" style="display:none">
         <p style="margin-bottom:6px">はじめてのご利用です。<br>ご担当者さまの情報をご登録ください。</p>
@@ -565,34 +558,47 @@ function renderGate(){
 
   const savedFax = localStorage.getItem("hz_ichiba_fax")||"";
   if(savedFax) $("#g-fax").value = savedFax;
-  fetchCustomers().then(list=>{
-    const dl=$("#g-market-list"); if(dl && list && list.length){ dl.innerHTML=list.map(c=>`<option value="${esc(c.name)}"></option>`).join(""); }
-  });
+  fetchCustomers();   // 取引方法の名前照合用に先読み（番号一覧は含まれない）
 
   let pendingName = "";
+  let pendingTel  = "";
   const finish = (marketName)=>{
     if(marketName) localStorage.setItem(LS_MARKET, marketName); else localStorage.removeItem(LS_MARKET);
     localStorage.setItem("hz_ichiba_fax", $("#g-fax").value.trim());
     ($("#g-keep").checked?localStorage:sessionStorage).setItem(LS_AUTH,"1");
     renderMain();
   };
+  // 番号をサーバー照合（一致した1社だけ返る）。自社番号は管理者パスワードを追加要求。
   const go=async ()=>{
     $("#g-err").textContent="";
-    if($("#g-pass").value!==PASS){ $("#g-err").textContent="パスワードが違います"; return; }
-    const fax=normFax($("#g-fax").value);
-    if(!fax || fax.length<9){ $("#g-err").textContent="FAX番号をご入力ください"; return; }
-    if(OWN_FAXES.includes(fax)){ pendingName="林材木店"; $("#g-name").textContent="株式会社 林材木店（管理者）"; }
-    else{
-      $("#g-err").textContent="照合中…"; $("#g-err").style.color="#7a869a";
-      if(!CUSTOMERS.length) await fetchCustomers();
-      $("#g-err").textContent=""; $("#g-err").style.color="";
-      const hit = CUSTOMERS.find(c=>c.faxNum && normFax(c.faxNum)===fax);
-      if(!hit){ $("#g-step1").style.display="none"; $("#g-manual").style.display=""; $("#g-market").focus(); return; }
-      pendingName = hit.name;
-      $("#g-name").textContent = hit.name;
+    const num=normFax($("#g-fax").value);
+    if(!num || num.length<9){ $("#g-err").textContent="電話番号またはFAX番号をご入力ください"; return; }
+    $("#g-err").textContent="照合中…"; $("#g-err").style.color="#7a869a";
+    let j=null;
+    try{
+      const pass=$("#g-pass").value;
+      const r=await fetch(GAS_URL+"?action=ichibaLogin&num="+encodeURIComponent(num)+(pass?"&pass="+encodeURIComponent(pass):""));
+      j=await r.json();
+    }catch(e){ j={ok:false,error:"network"}; }
+    $("#g-err").textContent=""; $("#g-err").style.color="";
+    if(j && j.ok){
+      pendingName = j.admin ? "林材木店" : j.name;
+      pendingTel  = j.tel || "";
+      $("#g-name").textContent = j.admin ? "株式会社 林材木店（管理者）" : j.name;
+      $("#g-step1").style.display="none";
+      $("#g-confirm").style.display="";
+      return;
     }
-    $("#g-step1").style.display="none";
-    $("#g-confirm").style.display="";
+    const er=(j&&j.error)||"";
+    if(er==="admin_pass"){
+      $("#g-pass").style.display="";
+      $("#g-err").textContent = $("#g-pass").value ? "パスワードが違います" : "管理者ログイン：パスワードを入力してください";
+      $("#g-pass").focus();
+    }
+    else if(er==="not_found") $("#g-err").textContent="この番号が見つかりませんでした。番号をご確認のうえ、見つからない場合は林材木店（TEL 0538-58-2395）までご連絡ください";
+    else if(er==="rate_limited") $("#g-err").textContent="しばらく時間をおいてからお試しください";
+    else if(er==="network") $("#g-err").textContent="通信に失敗しました。電波状況をご確認ください";
+    else $("#g-err").textContent="ログインできませんでした（"+er+"）";
   };
   // 会社名確定後：プロファイル未作成ならセットアップへ、作成済み（管理者含む）は即ログイン
   let pendingSetupMarket = "";
@@ -605,26 +611,18 @@ function renderGate(){
   const showSetup = (marketName)=>{
     $("#g-step1").style.display="none";
     $("#g-confirm").style.display="none";
-    $("#g-manual").style.display="none";
     $("#g-setup").style.display="";
     $("#g-err").textContent="";
     $("#gs-market").textContent = marketName || "（市場名未設定）";
-    const hit = matchCustomer(marketName);   // 取引先マスタにTELがあれば自動セット
-    if(hit && hit.tel && $("#gs-tel")) $("#gs-tel").value = hit.tel;
+    if(pendingTel && $("#gs-tel")) $("#gs-tel").value = pendingTel;   // マスタのTELを自動セット（ログイン応答から）
     $("#gs-staff").focus();
   };
 
   $("#g-btn").addEventListener("click",go);
-  $("#g-fax").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-pass").focus(); });
+  $("#g-fax").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
   $("#g-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
   $("#g-yes").addEventListener("click",()=>proceed(pendingName));
-  $("#g-no").addEventListener("click",()=>{ $("#g-confirm").style.display="none"; $("#g-manual").style.display=""; $("#g-market").focus(); });
-  $("#g-manual-btn").addEventListener("click",()=>{
-    const mk=$("#g-market").value.trim();
-    if(!mk){ $("#g-err").textContent="会社名（市場名）をご入力ください"; return; }
-    proceed(mk);
-  });
-  $("#g-market").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#g-manual-btn").click(); });
+  $("#g-no").addEventListener("click",()=>{ $("#g-confirm").style.display="none"; $("#g-step1").style.display=""; $("#g-fax").focus(); });
   $("#gs-btn").addEventListener("click",()=>{
     const name=$("#gs-staff").value.trim();
     const noMail=$("#gs-nomail").checked;
@@ -638,7 +636,7 @@ function renderGate(){
   });
   $("#gs-email").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#gs-btn").click(); });
   $("#gs-tel").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#gs-btn").click(); });
-  (savedFax ? $("#g-pass") : $("#g-fax")).focus();
+  $("#g-fax").focus();
 }
 
 function renderMain(){
@@ -653,16 +651,9 @@ function renderMain(){
       <span class="adm-tag" id="adm-tag" style="display:none">管理者表示</span>
       <span class="method-fixed" id="method-fixed" style="display:none"></span>
     </div>
-    <div class="who"><span>ようこそ</span><button id="open-custmode" class="custmode-btn">👥 お客様向け表示</button><button id="open-settings">⚙ 設定</button><button id="logout">ログアウト</button></div>
+    <div class="who"><span>ようこそ</span><button id="open-settings">⚙ 設定</button><button id="logout">ログアウト</button></div>
   </div></header>
   <div class="wrap">
-
-    <div id="cust-banner" class="cust-banner" style="display:none">
-      <span class="cb-ico">👥</span>
-      <span class="cb-txt">お客様向け表示中（販売価格のみ・仕入値は表示していません）</span>
-      <button id="cust-issue-link" class="cb-issue-btn">🔗 この内容でお客様用リンクを発行</button>
-      <button id="cust-exit">元に戻す</button>
-    </div>
 
     <nav class="quicknav">
       <a href="https://hayazai.com/lp/" target="_blank" rel="noopener" class="qn-lp" data-qn="lp">✨ 桧フローリング特設ページ</a>
@@ -674,8 +665,8 @@ function renderMain(){
     </nav>
 
     <div class="card">
-      <h2>① 価格表 <span class="badge" id="pm-badge"></span><button id="preview-cust" class="preview-cust-btn">👁 お客様表示をプレビュー</button></h2>
-      <p class="h2sub">登録価格を表示します。価格をタップするとその場で見積に追加できます。<span class="method-hint" id="method-hint"></span><span id="price-2col-note" style="display:block;margin-top:3px">左の表＝仕入価格／定価（タップで見積に追加）　右の表＝お客様への販売価格（タップで編集・お客様表示に反映）</span></p>
+      <h2>① 価格表 <span class="badge" id="pm-badge"></span></h2>
+      <p class="h2sub">貴社と林材木店とのお取引価格です。価格をタップするとその場で見積に追加できます。<span class="method-hint" id="method-hint"></span></p>
       <div id="price-box"></div>
       <div class="stk-note" id="price-status"></div>
     </div>
@@ -709,10 +700,6 @@ function renderMain(){
 
   $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); localStorage.removeItem(LS_MARKET); renderGate(); });
   $("#open-settings").addEventListener("click",openSettings);
-  $("#open-custmode").addEventListener("click",previewCustMode);
-  const pvBtn=$("#preview-cust"); if(pvBtn) pvBtn.addEventListener("click",previewCustMode);
-  $("#cust-exit").addEventListener("click",exitCustMode);
-  const ilBtn=$("#cust-issue-link"); if(ilBtn) ilBtn.addEventListener("click",issueCustLink);
   $("#qn-sample").addEventListener("click",e=>{ e.preventDefault(); openSampleModal(); });
   $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));
 
@@ -942,33 +929,19 @@ function renderPriceTables(){
       return;
     }
 
-    // 通常モード：左＝仕入/定価（タップで見積追加）／右＝お客様販売価格（タップで編集）
-    const baseCap = METHOD==="市売" ? "販売基準価格（定価）" : "仕入価格（買取）";
+    // 通常モード：仕入/定価の1表（タップで見積追加）。お客様販売価格の右表は一旦とりやめ（2026-08-25）
     const leftBody=vls.map(l=>`<tr><th>${l/1000}m<small>1束＝${NYUSU[l]||""}</small></th>`+GRADES.map(g=>{
       const p=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
       if(p==null) return `<td class="pcell na">—</td>`;
       return `<td class="pcell" ${dataAttrFor(l,g)}><span class="num">${fmt(p)}</span><span class="add">＋見積</span></td>`;
     }).join("")+`</tr>`).join("");
-    const rightBody=vls.map(l=>`<tr><th>${l/1000}m</th>`+GRADES.map(g=>{
-      const base=priceOf(METHOD,rep.type,rep.thickness,gr.w,l,g);
-      if(base==null) return `<td class="pcell na">—</td>`;
-      const sp=sellPriceFor(rep.type,rep.thickness,gr.w,l,g,METHOD);
-      const marked=isSellMarked(rep.type,rep.thickness,gr.w,l,g,METHOD);
-      if(sp==null) return `<td class="pcell pcell-sell" ${dataAttrFor(l,g)}><span class="p-sell unset" title="タップして販売価格を入力">未設定</span></td>`;
-      return `<td class="pcell pcell-sell" ${dataAttrFor(l,g)}><span class="p-sell${marked?' edited':''}" title="タップして販売価格を編集">${fmt(sp)}</span></td>`;
-    }).join("")+`</tr>`).join("");
-    html+=`<div class="price-pair">
-      <div class="price-col base"><div class="pc-cap">${baseCap}</div><div class="tscroll"><table class="grid">${headRow}<tbody>${leftBody}</tbody></table></div></div>
-      <div class="price-col sell"><div class="pc-cap">お客様への販売価格（タップで編集）</div><div class="tscroll"><table class="grid">${headRow}<tbody>${rightBody}</tbody></table></div></div>
-    </div>`;
+    html+=`<div class="tscroll"><table class="grid">${headRow}<tbody>${leftBody}</tbody></table></div>`;
   });
   box.innerHTML=html;
-  // 見積へ追加：左表（通常）／CUST_MODEの単表。右表(.pcell-sell)は除外
-  box.querySelectorAll(".pcell[data-name]:not(.pcell-sell)").forEach(td=>td.addEventListener("click",()=>{
+  // 見積へ追加
+  box.querySelectorAll(".pcell[data-name]").forEach(td=>td.addEventListener("click",()=>{
     addLine(td.dataset.name, td.dataset.pname, Number(td.dataset.t), Number(td.dataset.w), Number(td.dataset.l), td.dataset.grade, td.dataset.tdisp);
   }));
-  // 右表：セルをタップ→その場でインライン編集（未設定セルも編集可）
-  box.querySelectorAll(".pcell-sell[data-name]").forEach(td=>td.addEventListener("click",()=>startSellEdit(td)));
   applyCustMode();
 }
 
@@ -1224,24 +1197,8 @@ function openSettings(){
           <button id="ms-add-btn" style="margin-top:8px;border:none;background:#eef2f7;color:var(--accent);border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-family:inherit">＋ 担当者を追加</button>
         </div>
       </div>
-      <div class="ms-field"><label>お客様への販売価格を一括セット</label>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <span style="font-size:14px;font-weight:700">仕入価格×</span>
-          <input id="ms-bulk-pct" type="number" min="0" step="1" value="15" style="width:74px">
-          <span style="font-size:14px;font-weight:700">％で</span>
-          <button id="ms-bulk-btn" style="border:none;background:#eef4fc;color:#1d4e89;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer;font-family:inherit">一括セット</button>
-        </div>
-        <div class="stk-note" style="margin-top:6px">全商品の「お客様への販売価格」を、いま表示中の${METHOD==="市売"?"定価":"仕入価格"}×（100＋入力％）で上書きします（10円切上）。個別に編集した価格も上書きされます。</div>
-      </div>
       <div class="ms-btns"><button class="ms-cancel" id="ms-cancel">閉じる</button><button class="ms-save" id="ms-save">保存</button></div>
     </div>`;
-    ov.querySelector("#ms-bulk-btn").addEventListener("click",()=>{
-      const pct=Math.max(0,Number((ov.querySelector("#ms-bulk-pct")||{}).value)||0);
-      if(!confirm(`すべての「お客様への販売価格」を「${METHOD==="市売"?"定価":"仕入価格"}×${100+pct}％」で上書きします。\nよろしいですか？\n※個別に編集済みの価格も上書きされます。`)) return;
-      bulkSetSellPrices(pct);
-      if($("#price-box")) renderPriceTables();
-      alert("お客様への販売価格を一括セットしました。");
-    });
     ov.querySelector("#ms-tel").addEventListener("input",e=>{ work.tel=e.target.value; });
     ov.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{ work.staffs.splice(Number(b.dataset.del),1); if(work.active>=work.staffs.length) work.active=0; draw(); }));
     ov.querySelector("#ms-add-btn").addEventListener("click",()=>{
