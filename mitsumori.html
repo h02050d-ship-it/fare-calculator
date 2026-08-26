@@ -1362,6 +1362,7 @@ let modeBarEl=null, pane0El=null, paneKEl=null;
 const TSUBO_M2=3.305785;       // 1坪=400/121㎡（≒2畳）
 const KJ_HW=108;               // 働き幅(mm)＝ヤフー商品の実寸固定（plan.htmlと同じ固定マスタ方式・入数取り違え防止）
 let kojinPath=null;            // null=ルート選択, "decided"=商品が決まっている, "undecided"=面積から試算
+let kojinWizard=false;         // 個人モードから見積書作成へ進んだ状態（タブは個人のままウィザード表示）
 let kjUnit=null;               // 面積の単位: m2 / jo / tsubo / wh(縦×横)。未選択=null
 let qpType="フローリング15mm"; // クイック価格表の表示中商品
 
@@ -1537,7 +1538,7 @@ function applyKojinToQuote(qty, o){
   addRow({name:it.name, grade:o.grade, t:it.t, w:"120", l:String(o.len), in:String(kjNyusu(o.len)), qty:qty});
   addRow();
   setKubun("直売");
-  setMode("ichiba"); goStep(2);
+  kojinWizard=true; setMode("kojin"); goStep(2);   // タブは「個人」のまま見積書編集へ
   deriveFreightFromItems(); updateCustCurrent(); saveDraft(); render();
   flash("個人見積りを明細に反映しました（直売＝ヤフー5%引き単価）");
 }
@@ -1628,10 +1629,10 @@ function buildModeUI(){
   const topbar=panel.querySelector(".wiz-topbar");
   panel.insertBefore(modeBarEl, topbar);
   panel.insertBefore(pane0El, topbar);
-  panel.appendChild(paneKEl);
-  [...modeBarEl.querySelectorAll(".mode-btn"), ...pane0El.querySelectorAll(".mode-card")].forEach(b=> b.addEventListener("click",()=> setMode(b.dataset.m)));
-  // 個人パネル：ルート選択（商品が決まっている／面積から試算）
-  paneKEl.querySelectorAll("#kj-choice .kj-card, #kj-switch .kj-sw").forEach(b=> b.addEventListener("click",()=> setKojinPath(b.dataset.k)));
+  panel.insertBefore(paneKEl, topbar);   // 個人モードのルートバーがウィザードより上に来るように
+  [...modeBarEl.querySelectorAll(".mode-btn"), ...pane0El.querySelectorAll(".mode-card")].forEach(b=> b.addEventListener("click",()=>{ kojinWizard=false; setMode(b.dataset.m); }));
+  // 個人パネル：ルート選択（商品が決まっている／面積から試算）。見積書編集中に押すと計算へ戻る
+  paneKEl.querySelectorAll("#kj-choice .kj-card, #kj-switch .kj-sw").forEach(b=> b.addEventListener("click",()=>{ kojinWizard=false; kojinPath=b.dataset.k; setMode("kojin"); }));
   // ルートA（商品が決まっている）
   paneKEl.querySelector("#kd-grade").innerHTML=GRADES.map(g=>`<option value="${g}"${g==="無節"?" selected":""}>${g}</option>`).join("");
   $("#kd-type").addEventListener("change",()=>{ qpType=$("#kd-type").value; renderQuickPrices(); calcDecided(); });
@@ -1655,15 +1656,24 @@ function setMode(m){
   pane0El.style.display = m ? "none" : "";
   modeBarEl.style.display = m ? "" : "none";
   modeBarEl.querySelectorAll(".mode-btn").forEach(b=> b.classList.toggle("on", b.dataset.m===m));
-  const showWiz=(m==="ichiba");
+  const showWiz=(m==="ichiba") || (m==="kojin" && kojinWizard);
   [document.querySelector(".wiz-topbar"), paneEls[1], paneEls[2], paneEls[3], document.querySelector(".wiz-btns")]
     .forEach(el=>{ if(el) el.style.display=showWiz?"":"none"; });
-  paneKEl.style.display=(m==="kojin")?"block":"none";
+  if(m==="kojin"){
+    paneKEl.style.display="block";
+    if(kojinWizard){
+      // 見積書編集中：ルート切替バーだけ残す（押すと個人の計算に戻る）
+      $("#kj-choice").style.display="none";
+      $("#kj-switch").style.display="";
+      document.querySelectorAll("#kj-switch .kj-sw").forEach(b=> b.classList.toggle("on", b.dataset.k===kojinPath));
+      $("#kj-decided").style.display="none";
+      $("#kj-undecided").style.display="none";
+    } else setKojinPath(kojinPath);
+  } else paneKEl.style.display="none";
   if(showWiz){ goStep(currentStep); }
   else{
-    if(wizStageEl) wizStageEl.style.display="none";              // プレビューは市場モードのステップ3のみ
+    if(wizStageEl) wizStageEl.style.display="none";              // プレビューはウィザード表示時のステップ3のみ
     document.querySelector(".app").classList.add("single");
-    if(m==="kojin") setKojinPath(kojinPath);
   }
   window.scrollTo({top:0});
 }
