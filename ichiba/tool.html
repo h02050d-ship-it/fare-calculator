@@ -378,10 +378,33 @@ const STOCK_URL = "https://script.google.com/macros/s/AKfycbxvPjDv81vrJMW2GaqpCJ
 const STOCK_TOKEN = "hzy-ichiba-stock-2026";
 const DB_URL    = "https://script.google.com/macros/s/AKfycbzskqossGk7mBeZEY2XrfqE2-MNS5b0PfgX65tpBfowD7mMwqXvueRe7E6Cclob2iFQ/exec"; // saveQuote
 
+/* 価格表APIはログイン時に発行されるトークン必須（2026-08-26・無認証ダンプ封鎖）。
+   既にログイン済みの端末はトークンを持っていないので、保存済みの番号で静かに取り直す。 */
+const LS_TOKEN = "hz_ichiba_token";
+async function ensureToken(){
+  let t=localStorage.getItem(LS_TOKEN)||"";
+  if(t) return t;
+  const num=localStorage.getItem("hz_ichiba_fax")||"";
+  if(!num) return "";
+  try{
+    const r=await fetch(GAS_URL+"?action=ichibaLogin&num="+encodeURIComponent(num));
+    const j=await r.json();
+    if(j&&j.ok&&j.token){
+      localStorage.setItem(LS_TOKEN, j.token);
+      if(j.name) localStorage.setItem(LS_MARKET, j.name);
+      return j.token;
+    }
+  }catch(e){}
+  return "";
+}
+
 async function refreshPricebook(){
   try{
+    const tok=await ensureToken();
+    const mk=localStorage.getItem(LS_MARKET)||"";
+    const auth="&t="+encodeURIComponent(tok)+"&market="+encodeURIComponent(mk);
     for(const m of ["市売","付売"]){
-      const r=await fetch(GAS_URL+"?action=getPrices&method="+encodeURIComponent(m)); const j=await r.json();
+      const r=await fetch(GAS_URL+"?action=getPrices&method="+encodeURIComponent(m)+auth); const j=await r.json();
       const tbl={};
       (j.prices||[]).forEach(p=>{ const key=`${p.hinmei}|${p.thickness}|${p.width}|${p.length}`; const g={};
         Object.keys(GRADE_ROMAJI).forEach(rk=>{ const v=p[rk]; if(typeof v==="number" && v>0) g[GRADE_ROMAJI[rk]]=v; }); tbl[key]=g; });
@@ -584,6 +607,7 @@ function renderGate(){
     if(j && j.ok){
       pendingName = j.admin ? "林材木店" : j.name;
       pendingTel  = j.tel || "";
+      if(j.token){ try{ localStorage.setItem(LS_TOKEN, j.token); }catch(e){} }   // 価格表APIの認証に使う
       $("#g-name").textContent = j.admin ? "株式会社 林材木店（管理者）" : j.name;
       $("#g-step1").style.display="none";
       $("#g-confirm").style.display="";
@@ -698,7 +722,7 @@ function renderMain(){
 
   </div>`;
 
-  $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); localStorage.removeItem(LS_MARKET); renderGate(); });
+  $("#logout").addEventListener("click",()=>{ localStorage.removeItem(LS_AUTH); sessionStorage.removeItem(LS_AUTH); localStorage.removeItem(LS_MARKET); localStorage.removeItem(LS_TOKEN); renderGate(); });
   $("#open-settings").addEventListener("click",openSettings);
   $("#qn-sample").addEventListener("click",e=>{ e.preventDefault(); openSampleModal(); });
   $("#seg-method").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ METHOD=b.dataset.v; renderPriceTables(); }));

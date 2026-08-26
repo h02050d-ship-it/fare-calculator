@@ -271,6 +271,35 @@
   .btn-next,.btn-back{ padding:13px 30px; font-size:15px; }
   .wiz-btns{ margin-top:22px; }
   .freight-box{ padding:14px 16px; }
+
+  /* ===== 見積りモード（市場／個人） ===== */
+  .mode-bar{ display:flex; gap:8px; margin:0 0 14px; }
+  .mode-btn{ flex:1; border:2px solid #d5d9de; background:#fff; border-radius:10px; padding:10px 14px; font-size:15px; font-weight:700; cursor:pointer; color:#555; font-family:inherit; }
+  .mode-btn.on{ border-color:#2e7d32; background:#e8f5e9; color:#2e7d32; }
+  .mode-choose{ display:flex; gap:18px; justify-content:center; padding:34px 0 24px; flex-wrap:wrap; }
+  .mode-card{ flex:0 1 350px; border:2px solid #d5d9de; border-radius:14px; background:#fff; padding:28px 22px; text-align:center; cursor:pointer; font-family:inherit; }
+  .mode-card:hover{ border-color:#2e7d32; background:#f4faf5; box-shadow:0 3px 10px rgba(46,125,50,.15); }
+  .mode-card .mc-ico{ font-size:42px; }
+  .mode-card .mc-t{ font-size:18px; font-weight:700; margin:10px 0 6px; }
+  .mode-card .mc-d{ font-size:12.5px; color:#777; line-height:1.7; }
+  #pane-kojin{ display:none; }
+  .qp-tabs{ display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+  .qp-tab{ border:1px solid #ccc; background:#fff; border-radius:20px; padding:6px 14px; font-size:13px; cursor:pointer; font-weight:700; font-family:inherit; }
+  .qp-tab.on{ background:#1f6feb; border-color:#1f6feb; color:#fff; }
+  .qp-table{ width:100%; border-collapse:collapse; background:#fff; }
+  .qp-table th,.qp-table td{ border:1px solid #dfe3e8; padding:7px 6px; text-align:center; font-size:13.5px; white-space:nowrap; }
+  .qp-table th{ background:#eef1f5; font-size:12.5px; }
+  .qp-table td b{ font-size:15px; color:#c62828; }
+  .qp-table td small{ display:block; color:#999; font-size:10.5px; }
+  .qp-table td.click{ cursor:pointer; }
+  .qp-table td.click:hover{ background:#eef5ff; }
+  .unit-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .unit-chip{ border:1px solid #ccc; background:#fff; border-radius:20px; padding:7px 16px; font-size:13.5px; cursor:pointer; font-weight:700; font-family:inherit; }
+  .unit-chip.on{ background:#2e7d32; border-color:#2e7d32; color:#fff; }
+  .kj-result{ background:#fff; border:2px solid #dee2e6; border-radius:8px; padding:14px; margin-top:10px; font-size:14px; line-height:1.8; }
+  .kj-result .big{ font-size:19px; font-weight:700; color:#2e7d32; }
+  .kj-actions{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  @media (max-width:1000px){ .mode-choose{ padding:16px 0 8px; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -554,8 +583,11 @@ const DB_URL = "https://script.google.com/macros/s/AKfycbzskqossGk7mBeZEY2XrfqE2
 const DB_SHEET_URL = "https://docs.google.com/spreadsheets/d/1qaHLTYfQPGU8lT9K1UIkzXxnMwhY-r0Df3rBcjIuwCM/edit";
 async function refreshPricebook(){
   try{
+    // 価格表APIは認証必須（2026-08-26）。ログイン済みならSSOパス、無ければ社内ツール共通の合言葉で取得
+    const _c=borrowCred();
+    const auth=_c ? "&pass="+encodeURIComponent(_c.pass) : "&k=nk-9t2Xr7Lq4wPz";
     for(const m of ["市売","付売"]){
-      const r=await fetch(GAS_URL+"?action=getPrices&method="+encodeURIComponent(m)); const j=await r.json();
+      const r=await fetch(GAS_URL+"?action=getPrices"+auth+"&method="+encodeURIComponent(m)); const j=await r.json();
       const tbl={};
       (j.prices||[]).forEach(p=>{ const key=`${p.hinmei}|${p.thickness}|${p.width}|${p.length}`; const g={};
         Object.keys(GRADE_ROMAJI).forEach(rk=>{ const v=p[rk]; if(typeof v==="number" && v>0) g[GRADE_ROMAJI[rk]]=v; }); tbl[key]=g; });
@@ -688,7 +720,7 @@ const PARTNERS_CACHE_KEY = "mitsumori_partners";
 const PARTNERS_CACHE_MS = 30*60*1000;      // sessionStorage 30分キャッシュ
 // 同一オリジンの他ツールが保存した資格情報を拝借（壊れたJSON・別形式でも例外で死なない）
 function borrowCred(){
-  for(const k of ["hayazai_board_cred","seinodesk_cred"]){
+  for(const k of ["hayazai_sso_cred","hayazai_board_cred","seinodesk_cred"]){
     try{
       const raw=localStorage.getItem(k); if(!raw) continue;
       const c=JSON.parse(raw);
