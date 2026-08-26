@@ -574,6 +574,7 @@ async function refreshYahooPrices(){
       for(const k in YAHOO_PRICES) delete YAHOO_PRICES[k];
       j.prices.forEach(p=>{ if(p.q!=="A" || p.group!=="標準") return; YAHOO_PRICES[`${p.type}|${p.len}|${p.grade}`]=p.price; });
       if(kubun==="直売"){ autofillPrices(true); render(); }
+      if(typeof renderQuickPrices==="function"){ renderQuickPrices(); calcKojin(); }
     }
   }catch(e){ /* オフライン/未デプロイ時は直売価格は手入力 */ }
 }
@@ -637,8 +638,9 @@ function yomiRow(name){
 }
 function yomiSortKey(name){ return yomiHead(name)+"　"+custSortKey(name); }
 function mergeLocalIntoMaster(){
-  const names=new Set(custMaster.map(c=>c.name));
-  loadCands().forEach(n=>{ if(n && !isJunkCust(n) && !names.has(n)){ custMaster.push({name:n, method:null}); names.add(n); } });
+  const names=new Set(custMaster.map(c=>custNormKey(c.name)));
+  loadCands().forEach(n=>{ const cn=canonCust(n); const k=custNormKey(cn);
+    if(cn && !isJunkCust(cn) && !names.has(k)){ custMaster.push({name:cn, method:null}); names.add(k); } });
 }
 let custManage=false;   // 🗂 リスト整理モード（✕で非表示にする）
 function renderCustChips(filter){
@@ -703,8 +705,8 @@ function updateCustCurrent(){
 async function loadCustomerCandidates(){
   try{
     const r=await fetch(GAS_URL+"?action=getCustomerNames"); const j=await r.json();
-    custMaster=(j.customers||[]).filter(c=>c.name && !isJunkCust(c.name)).map(c=>({name:c.name, method:(c.method==="市売"||c.method==="付売")?c.method:null}));
-    (j.customers||[]).forEach(c=>{ if(c.name && !isJunkCust(c.name)) addCandidate(c.name, false); });
+    custMaster=canonMergeMaster((j.customers||[]).filter(c=>c.name && !isJunkCust(c.name)).map(c=>({name:c.name, method:(c.method==="市売"||c.method==="付売")?c.method:null})));
+    custMaster.forEach(c=> addCandidate(c.name, false));
     mergeLocalIntoMaster();
     renderCustomerDatalist();
     renderCustChips($("#cust-search")?$("#cust-search").value:""); updateCustCurrent();
@@ -737,6 +739,38 @@ function custNormKey(name){
   s=s.replace(/[\s　]/g,"");
   return s;
 }
+/* ---- 取引先名の正規化（正式名称へ統一・重複マージ）----
+   𠮷貞の拠点は公式に「熊谷市場・佐野市場・高崎市場・戸田市場」（yoshisada.co.jp 拠点案内）。
+   マスタやこの端末の候補に残る「市場」なしの旧名を正式名へ寄せ、一覧の重複を防ぐ。
+   ※非表示リスト(LS_HIDE)には適用しない＝ユーザーが整理した内容はそのまま保持。 */
+const CUST_CANON=[
+  [/^[（(]株[）)][\s　]*吉貞[\s　]*熊谷(?![市プ])/, "（株）吉貞　熊谷市場"],
+  [/^[（(]株[）)][\s　]*吉貞[\s　]*佐野(?!市場)/, "（株）吉貞　佐野市場"],
+  [/^[（(]株[）)][\s　]*吉貞[\s　]*高崎(?!市場)/, "（株）吉貞　高崎市場"],
+  [/^[（(]株[）)][\s　]*吉貞[\s　]*戸田(?!市場)/, "（株）吉貞　戸田市場"]
+];
+function canonCust(name){
+  const s=(name==null?"":String(name)).trim();
+  for(const [re,to] of CUST_CANON){ if(re.test(s)) return to; }
+  return s;
+}
+// custMasterを正規化名でマージ（同名は取引方法あり優先）
+function canonMergeMaster(list){
+  const map=new Map();
+  list.forEach(c=>{
+    const name=canonCust(c.name); const k=custNormKey(name); if(!k) return;
+    const ex=map.get(k);
+    if(!ex) map.set(k,{name, method:c.method||null});
+    else if(!ex.method && c.method) ex.method=c.method;
+  });
+  return [...map.values()];
+}
+// この端末のlocalStorage候補を一度だけクリーンアップ（旧名→正式名・正規化キーで重複排除）
+function migrateCands(){
+  const a=loadCands(); const seen=new Set(); const out=[];
+  a.forEach(n=>{ const cn=canonCust(n); const k=custNormKey(cn); if(!cn||isJunkCust(cn)||seen.has(k)) return; seen.add(k); out.push(cn); });
+  if(out.length!==a.length || out.some((v,i)=>v!==a[i])) saveCands(out);
+}
 // partners を取得（sessionStorageキャッシュ→無ければfetch。15秒タイムアウト・失敗はnull）
 async function fetchPartners(cred){
   try{
@@ -764,7 +798,7 @@ async function loadPartnerCustomers(){
   loadCands().forEach(n=> seen.add(custNormKey(n)));
   let added=0;
   partners.forEach(p=>{
-    const name=(p && p.name!=null ? String(p.name) : "").trim();
+    const name=canonCust((p && p.name!=null ? String(p.name) : "").trim());
     if(!name || isJunkCust(name)) return;
     const key=custNormKey(name); if(!key || seen.has(key)) return;
     seen.add(key);
@@ -832,7 +866,7 @@ let kubun = "付売";
 const LS_CUST = "hayazai_mitsumori_customers";
 function loadCands(){ try{ return JSON.parse(localStorage.getItem(LS_CUST))||[]; }catch(e){ return []; } }
 function saveCands(a){ localStorage.setItem(LS_CUST, JSON.stringify(a.slice(0,500))); }
-function addCandidate(name, persist){ name=(name||"").trim(); if(!name) return; const a=loadCands(); if(!a.includes(name)){ a.push(name); if(persist!==false) saveCands(a); else { window._candCache=a; localStorage.setItem(LS_CUST, JSON.stringify(a.slice(0,500))); } } }
+function addCandidate(name, persist){ name=canonCust((name||"").trim()); if(!name) return; const a=loadCands(); const k=custNormKey(name); if(!a.some(x=>custNormKey(x)===k)){ a.push(name); if(persist!==false) saveCands(a); else { window._candCache=a; localStorage.setItem(LS_CUST, JSON.stringify(a.slice(0,500))); } } }
 function renderCustomerDatalist(){ const dl=$("#dl-customer"); const hid=hiddenKeySet(); const a=loadCands().filter(n=>!hid.has(custNormKey(n))).sort((x,y)=>x.localeCompare(y,"ja")); dl.innerHTML=a.map(v=>`<option value="${esc(v)}">`).join(""); }
 
 /* ---- 非表示リスト（見積に関係ない取引先を候補から隠す。マスタ本体は消さない）---- */
@@ -1310,15 +1344,199 @@ function validateStep(n){
   return true;
 }
 
+/* ===== 見積りモード（市場＝定型ウィザード／個人＝広さ計算＋ヤフー5%引きクイック価格） ===== */
+let quoteMode=null;            // null=最初の選択画面, "ichiba"=市場・取引先, "kojin"=個人
+let modeBarEl=null, pane0El=null, paneKEl=null;
+const TSUBO_M2=3.305785;       // 1坪=400/121㎡（≒2畳）
+let kjUnit="m2";               // 広さの入力方法: m2 / jo / tsubo / wh(縦×横)
+let qpType="フローリング15mm"; // クイック価格表の表示中商品
+
+// ヤフー価格を引く（1820⇄2000はどちらで登録されていても拾う）
+function yPriceOf(type,len,grade){
+  let v=YAHOO_PRICES[`${type}|${len}|${grade}`];
+  if(v==null){ const n=Number(len); const alt=(n===1820)?2000:(n===2000)?1820:null;
+    if(alt!=null) v=YAHOO_PRICES[`${type}|${alt}|${grade}`]; }
+  return (typeof v==="number" && v>0) ? v : null;
+}
+function kjItemOf(){
+  const ty=$("#kj-type").value;
+  if(ty==="フローリング15mm") return {name:"桧フローリング",t:"15"};
+  if(ty==="フローリング12mm") return {name:"桧フローリング",t:"12"};
+  return {name:"桧羽目板",t:"12"};
+}
+function kjArea(){
+  if(kjUnit==="wh"){ const t=parseFloat($("#kj-tate").value)||0, y=parseFloat($("#kj-yoko").value)||0; return t*y; }
+  const v=parseFloat($("#kj-val").value)||0;
+  if(kjUnit==="jo") return v*JO_M2;
+  if(kjUnit==="tsubo") return v*TSUBO_M2;
+  return v;
+}
+/* 📞 クイック価格表：商品タブ×（長さ×等級）でヤフー5%引きを一覧表示（電話即答用） */
+function renderQuickPrices(){
+  const tabs=$("#qp-tabs"), box=$("#qp-table"); if(!tabs||!box) return;
+  const TYPES=[["フローリング15mm","桧フローリング15mm"],["フローリング12mm","桧フローリング12mm"],["羽目板12mm","桧羽目板12mm"]];
+  tabs.innerHTML=TYPES.map(([v,l])=>`<button type="button" class="qp-tab${v===qpType?" on":""}" data-t="${v}">${l}</button>`).join("");
+  tabs.querySelectorAll(".qp-tab").forEach(b=> b.addEventListener("click",()=>{ qpType=b.dataset.t; $("#kj-type").value=qpType; renderQuickPrices(); calcKojin(); }));
+  if(!Object.keys(YAHOO_PRICES).length){ box.innerHTML='<div class="fb-note">ヤフー価格を取得中…（オフライン時は表示できません）</div>'; return; }
+  const LENS=[[910,"910mm"],[1820,"1820mm（2m級）"],[3000,"3m"],[4000,"4m"]];
+  let h='<table class="qp-table"><tr><th>長さ＼等級</th>'+GRADES.map(g=>`<th>${g}</th>`).join("")+"</tr>";
+  LENS.forEach(([len,label])=>{
+    h+=`<tr><th>${label}</th>`;
+    GRADES.forEach(g=>{
+      const y=yPriceOf(qpType,len,g);
+      h+= (y!=null)
+        ? `<td class="click" data-len="${len}" data-g="${g}" title="クリックで下の計算に反映"><b>¥${fmt(Math.round(y*0.95))}</b><small>税抜 ¥${fmt(Math.round(y*0.95/1.1))}</small></td>`
+        : '<td style="color:#ccc">—</td>';
+    });
+    h+="</tr>";
+  });
+  box.innerHTML=h+"</table>";
+  box.querySelectorAll("td.click").forEach(td=> td.addEventListener("click",()=>{
+    $("#kj-type").value=qpType; $("#kj-grade").value=td.dataset.g;
+    $("#kj-len").value=String(td.dataset.len);
+    $("#kj-n").value=String(NYUSU_DEF[Number(td.dataset.len)]||10);
+    calcKojin(); flash("価格表から商品・等級・長さを反映しました");
+  }));
+}
+/* 📐 個人：広さ→必要束数・概算金額 */
+function calcKojin(){
+  const box=$("#kj-result"), act=$("#kj-actions"); if(!box) return;
+  const area=kjArea(), hw=parseFloat($("#kj-hw").value)||0, n=parseFloat($("#kj-n").value)||0;
+  const grade=$("#kj-grade").value, len=Number($("#kj-len").value);
+  const y=yPriceOf($("#kj-type").value,len,grade);
+  const inclU=(y!=null)?Math.round(y*0.95):null, exclU=(y!=null)?Math.round(y*0.95/1.1):null;
+  act.innerHTML="";
+  if(!area || !hw || !n){
+    box.innerHTML='<div class="fb-note">広さ（㎡・畳・坪・縦×横）を入れると、必要束数と概算金額を計算します。</div>'; return;
+  }
+  const per=(hw/1000)*(len/1000)*n;
+  const pure=Math.ceil(area/per), loss=Math.ceil(area*1.1/per);
+  const unitLabel = kjUnit==="jo"?"畳" : kjUnit==="tsubo"?"坪" : kjUnit==="wh"?"縦×横" : "㎡";
+  let h=`<div>必要面積 <b>${area.toFixed(2)}㎡</b>（${unitLabel}入力）／ 1束 = <b>${per.toFixed(2)}㎡</b>（働き幅${hw}mm × ${len}mm × ${n}枚）</div>
+    <div>純面積：<span class="big">${pure}束</span>　／　ロス1割込み：<span class="big">${loss}束</span></div>`;
+  if(inclU!=null){
+    h+=`<div>単価（ヤフー5%引き）：<b>¥${fmt(inclU)}</b> 税込/束（税抜 ¥${fmt(exclU)}）</div>
+      <div>概算金額（商品のみ・送料別）：純 <b>¥${fmt(pure*inclU)}</b> ／ ロス込み <b style="color:#c62828">¥${fmt(loss*inclU)}</b>（税込）</div>`;
+  }else{
+    h+='<div class="fb-note">この等級・長さのヤフー価格が未取得のため単価は表示できません（見積書側で手入力できます）。</div>';
+  }
+  box.innerHTML=h;
+  act.innerHTML=`<button type="button" class="btn-next" data-q="${loss}">ロス込み ${loss}束で見積書を作る →</button>
+    <button type="button" class="btn-back" data-q="${pure}">純 ${pure}束で見積書を作る</button>`;
+  act.querySelectorAll("button").forEach(b=> b.addEventListener("click",()=> applyKojinToQuote(parseInt(b.dataset.q))));
+}
+function applyKojinToQuote(qty){
+  if(!qty) return;
+  const it=kjItemOf();
+  $("#f-customer").value=$("#kj-name").value.trim();
+  $("#f-keisho").value="様";
+  $("#items").innerHTML="";
+  addRow({name:it.name, grade:$("#kj-grade").value, t:it.t, w:"120", l:$("#kj-len").value, in:$("#kj-n").value, qty:qty});
+  addRow();
+  setKubun("直売");
+  setMode("ichiba"); goStep(2);
+  deriveFreightFromItems(); updateCustCurrent(); saveDraft(); render();
+  flash("個人見積りを明細に反映しました（直売＝ヤフー5%引き単価）");
+}
+function buildModeUI(){
+  const panel=document.querySelector(".panel");
+  modeBarEl=elFrom(`<div class="mode-bar" style="display:none">
+    <button type="button" class="mode-btn" data-m="ichiba">🏢 市場・取引先の見積り</button>
+    <button type="button" class="mode-btn" data-m="kojin">👤 個人のお客様</button>
+  </div>`);
+  pane0El=elFrom(`<div class="mode-choose">
+    <button type="button" class="mode-card" data-m="ichiba"><div class="mc-ico">🏢</div><div class="mc-t">市場・取引先の見積り</div><div class="mc-d">いつもの定型（束数）で入力<br>市売・付売・直売の単価を自動反映</div></button>
+    <button type="button" class="mode-card" data-m="kojin"><div class="mc-ico">👤</div><div class="mc-t">個人のお客様</div><div class="mc-d">㎡・畳・坪・縦×横から必要束数を計算<br>ヤフー5%引き価格をすぐ確認（電話対応）</div></button>
+  </div>`);
+  paneKEl=elFrom(`<div id="pane-kojin">
+    <div class="freight-box" style="margin-top:0">
+      <div class="fb-title"><span>📞 クイック価格表（ヤフー価格から5%引き・1束あたり）</span></div>
+      <div class="qp-tabs" id="qp-tabs"></div>
+      <div style="overflow-x:auto" id="qp-table"></div>
+      <div class="fb-note">※赤字＝<b>税込（ヤフー税込価格×0.95）</b>／下段＝税抜。電話ではこのまま読み上げOK。セルをクリックすると下の計算に商品・等級・長さが入ります。</div>
+    </div>
+    <div class="freight-box">
+      <div class="fb-title"><span>📐 広さから必要束数・概算金額</span></div>
+      <div class="fb-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div><label>商品</label><select id="kj-type"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select></div>
+        <div><label>等級</label><select id="kj-grade"></select></div>
+        <div><label>長さ</label><select id="kj-len"><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000" selected>3m</option><option value="4000">4m</option></select></div>
+      </div>
+      <div style="margin-top:12px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:5px">広さの伝えられ方（お客様の言い方に合わせて選ぶ）</label>
+        <div class="unit-chips">
+          <button type="button" class="unit-chip on" data-u="m2">㎡（平米）</button>
+          <button type="button" class="unit-chip" data-u="jo">畳</button>
+          <button type="button" class="unit-chip" data-u="tsubo">坪</button>
+          <button type="button" class="unit-chip" data-u="wh">縦×横（m）</button>
+        </div>
+      </div>
+      <div class="fb-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
+        <div id="kj-in-val"><label>広さ <span id="kj-unit-label">（㎡）</span></label><input id="kj-val" type="number" step="0.1" min="0" placeholder="例 20"></div>
+        <div id="kj-in-w" style="display:none"><label>縦（m）</label><input id="kj-tate" type="number" step="0.1" min="0" placeholder="例 3.6"></div>
+        <div id="kj-in-h" style="display:none"><label>横（m）</label><input id="kj-yoko" type="number" step="0.1" min="0" placeholder="例 5.4"></div>
+        <div><label>働き幅（mm）</label><input id="kj-hw" type="number" step="1" value="108"></div>
+        <div><label>入数（枚/束）</label><input id="kj-n" type="number" step="1" value="10"></div>
+      </div>
+      <div class="fb-note">※1畳=1.62㎡／1坪=3.31㎡（約2畳）。働き幅＝実（さね）を除いた有効幅（幅120mm→108mm）。入数は長さを変えると自動で切り替わります。</div>
+      <div class="kj-result" id="kj-result"></div>
+      <div class="fb-grid" style="grid-template-columns:1fr;margin-top:10px">
+        <div><label>お客様のお名前（見積書に載せる場合・空欄OK）</label><input id="kj-name" placeholder="例 山田 太郎"></div>
+      </div>
+      <div class="kj-actions" id="kj-actions"></div>
+    </div>
+  </div>`);
+  const topbar=panel.querySelector(".wiz-topbar");
+  panel.insertBefore(modeBarEl, topbar);
+  panel.insertBefore(pane0El, topbar);
+  panel.appendChild(paneKEl);
+  [...modeBarEl.querySelectorAll(".mode-btn"), ...pane0El.querySelectorAll(".mode-card")].forEach(b=> b.addEventListener("click",()=> setMode(b.dataset.m)));
+  // 個人パネルの操作
+  const gsel=paneKEl.querySelector("#kj-grade");
+  gsel.innerHTML=GRADES.map(g=>`<option value="${g}"${g==="無節"?" selected":""}>${g}</option>`).join("");
+  paneKEl.querySelectorAll(".unit-chip").forEach(c=> c.addEventListener("click",()=>{
+    kjUnit=c.dataset.u;
+    paneKEl.querySelectorAll(".unit-chip").forEach(x=>x.classList.toggle("on",x===c));
+    const wh=(kjUnit==="wh");
+    $("#kj-in-val").style.display=wh?"none":"";
+    $("#kj-in-w").style.display=wh?"":"none";
+    $("#kj-in-h").style.display=wh?"":"none";
+    $("#kj-unit-label").textContent = kjUnit==="jo"?"（畳）" : kjUnit==="tsubo"?"（坪）" : "（㎡）";
+    calcKojin();
+  }));
+  $("#kj-len").addEventListener("change",()=>{ $("#kj-n").value=String(NYUSU_DEF[Number($("#kj-len").value)]||10); calcKojin(); });
+  $("#kj-type").addEventListener("change",()=>{ qpType=$("#kj-type").value; renderQuickPrices(); calcKojin(); });
+  ["#kj-grade","#kj-val","#kj-tate","#kj-yoko","#kj-hw","#kj-n"].forEach(s=> $(s).addEventListener("input", calcKojin));
+  renderQuickPrices(); calcKojin();
+}
+function setMode(m){
+  quoteMode=m;
+  pane0El.style.display = m ? "none" : "";
+  modeBarEl.style.display = m ? "" : "none";
+  modeBarEl.querySelectorAll(".mode-btn").forEach(b=> b.classList.toggle("on", b.dataset.m===m));
+  const showWiz=(m==="ichiba");
+  [document.querySelector(".wiz-topbar"), paneEls[1], paneEls[2], paneEls[3], document.querySelector(".wiz-btns")]
+    .forEach(el=>{ if(el) el.style.display=showWiz?"":"none"; });
+  paneKEl.style.display=(m==="kojin")?"block":"none";
+  if(showWiz){ goStep(currentStep); }
+  else{
+    if(wizStageEl) wizStageEl.style.display="none";              // プレビューは市場モードのステップ3のみ
+    document.querySelector(".app").classList.add("single");
+    if(m==="kojin"){ renderQuickPrices(); calcKojin(); }
+  }
+  window.scrollTo({top:0});
+}
+
 /* ---- 初期化 ---- */
 function init(){
   buildWizard();
+  buildModeUI();
   $("#o-qr").src=QR_DATAURI;
   const sel=$("#fb-pref"); Object.keys(SEINO_PREF_MAP).forEach(p=>sel.appendChild(new Option(p,p))); sel.value="東京";
   const fq=$("#fb-qty"); let fqo=''; for(let i=1;i<=30;i++) fqo+=`<option value="${i}">${i}</option>`; fq.innerHTML=fqo; fq.value="1";
   const dl=$("#dl-name"); ["桧フローリング","桧羽目板"].forEach(v=>{const o=document.createElement("option");o.value=v;dl.appendChild(o);});
   // 取引先の初期候補
   if(!loadCands().length){ ["ナイス（株）相模原","ナイス（株）浜松","ナイス（株）沼津","川広建材","（株）HIKARI","（有）滝川","（株）ニッチ"].forEach(n=>addCandidate(n,true)); }
+  migrateCands();
   renderCustomerDatalist();
   mergeLocalIntoMaster(); renderCustChips(""); updateCustCurrent();
 
@@ -1364,6 +1582,7 @@ function init(){
   window.addEventListener("beforeprint",()=>{ const st=document.querySelector(".stage"); st.style.display=""; $("#sheet").style.transform="none"; st.style.height="auto"; });
   window.addEventListener("afterprint",()=>{ if(currentStep===3) fitPreview(); });
   goStep(1);
+  setMode(null);   // 最初に「市場・取引先」か「個人のお客様」かを選ぶ
 }
 init();
 </script>
