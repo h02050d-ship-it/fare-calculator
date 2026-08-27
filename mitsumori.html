@@ -1529,6 +1529,25 @@ function chipPickSet(selId, value){
   sel.value=String(value);
   if(p){ const box=$("#"+p.boxId); if(box) box.dataset.picked="1"; _drawChipPick(selId); }
 }
+/* ルートB用：複数選択チップ（複数タップ=その組合せで比較・未選択=すべて） */
+let kuGrades=new Set(), kuLens=new Set();
+function renderMultiPick(boxId, opts, set){
+  const box=$("#"+boxId); if(!box) return;
+  let h=`<button type="button" class="unit-chip${set.size===0?" on":""}" data-all="1">すべて</button>`;
+  h+=opts.map(([v,l])=>`<button type="button" class="unit-chip${set.has(String(v))?" on":""}" data-v="${v}">${l}</button>`).join("");
+  box.innerHTML=h;
+  box.querySelectorAll(".unit-chip").forEach(b=> b.addEventListener("click",()=>{
+    if(b.dataset.all){ set.clear(); }
+    else{ const v=String(b.dataset.v); if(set.has(v)) set.delete(v); else set.add(v); }
+    renderMultiPick(boxId, opts, set); calcUndecided();
+  }));
+}
+function kuSetSingle(g,len){
+  kuGrades.clear(); kuGrades.add(String(g));
+  kuLens.clear(); kuLens.add(String(len));
+  renderMultiPick("ku-gradepick", GRADES.map(x=>[x,x]), kuGrades);
+  renderMultiPick("ku-lenpick", KJ_LENS, kuLens);
+}
 function kjTypeItem(ty){
   if(ty==="フローリング15mm") return {name:"桧フローリング",t:"15"};
   if(ty==="フローリング12mm") return {name:"桧フローリング",t:"12"};
@@ -1648,9 +1667,9 @@ function calcUndecided(){
   box.style.display=hasUnit?"":"none";
   if(!hasUnit) return;
   if(!(area>0)){ box.innerHTML='<div class="fb-note">広さを入れると自動計算します。</div>'; return; }
-  const ty=$("#ku-type").value, gSel=$("#ku-grade").value, lSel=$("#ku-len").value;
-  const lens=(lSel==="all")?[910,1820,3000,4000]:[Number(lSel)];
-  const grades=(gSel==="all")?GRADES:[gSel];
+  const ty=$("#ku-type").value;
+  const lens=[910,1820,3000,4000].filter(l=> kuLens.size===0 || kuLens.has(String(l)));
+  const grades=GRADES.filter(g=> kuGrades.size===0 || kuGrades.has(g));
   const combos=[];
   lens.forEach(len=> grades.forEach(g=>{
     const y=yPriceOf(ty,len,g); if(y==null) return;
@@ -1678,7 +1697,7 @@ function calcUndecided(){
     box.innerHTML=h+"</table></div>";
     box.querySelectorAll("button.cv-apply").forEach(b=> b.addEventListener("click",()=>{
       const c=combos[parseInt(b.dataset.i)];
-      chipPickSet("ku-grade", c.g); chipPickSet("ku-len", c.len); calcUndecided();
+      kuSetSingle(c.g, c.len); calcUndecided();
     }));
   }
 }
@@ -1777,13 +1796,11 @@ function buildModeUI(){
             <div class="unit-chips" id="ku-typepick"></div>
             <select id="ku-type" style="display:none"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select>
           </div>
-          <div style="margin-bottom:8px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">等級（タップで選択・未定なら「すべて比較」）</label>
+          <div style="margin-bottom:8px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">等級（複数タップで比較できます・未選択＝すべて）</label>
             <div class="unit-chips" id="ku-gradepick"></div>
-            <select id="ku-grade" style="display:none"></select>
           </div>
-          <div><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">長さ（タップで選択・未定なら「すべて比較」）</label>
+          <div><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">長さ（複数タップで比較できます・未選択＝すべて）</label>
             <div class="unit-chips" id="ku-lenpick"></div>
-            <select id="ku-len" style="display:none"><option value="all" selected>すべて比較</option><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000">3m</option><option value="4000">4m</option></select>
           </div>
         </div>
         <div class="kj-result" id="ku-result" style="display:none"></div>
@@ -1811,10 +1828,9 @@ function buildModeUI(){
   ["#kd-grade","#kd-len"].forEach(s=> $(s).addEventListener("change", calcDecided));
   $("#kd-qty").addEventListener("input", calcDecided);
   // ルートB（面積から試算）
-  paneKEl.querySelector("#ku-grade").innerHTML='<option value="all">すべて比較</option>'+GRADES.map(g=>`<option value="${g}">${g}</option>`).join("");
   renderChipPick("ku-typepick","ku-type",KJ_TYPES);
-  renderChipPick("ku-gradepick","ku-grade",[["all","すべて比較"]].concat(GRADES.map(g=>[g,g])));
-  renderChipPick("ku-lenpick","ku-len",[["all","すべて比較"]].concat(KJ_LENS));
+  renderMultiPick("ku-gradepick", GRADES.map(g=>[g,g]), kuGrades);
+  renderMultiPick("ku-lenpick", KJ_LENS, kuLens);
   paneKEl.querySelectorAll("#ku-unitpick .unit-chip").forEach(c=> c.addEventListener("click",()=>{
     const prev=kjUnit; kjUnit=c.dataset.u;
     paneKEl.querySelectorAll("#ku-unitpick .unit-chip").forEach(x=>x.classList.toggle("on",x===c));
@@ -1823,7 +1839,7 @@ function buildModeUI(){
     const f=paneKEl.querySelector("#ku-rooms input"); if(f) f.focus();
   }));
   $("#ku-add-room").addEventListener("click",()=>{ kuAddRoom(true); calcUndecided(); });
-  ["#ku-type","#ku-grade","#ku-len"].forEach(s=> $(s).addEventListener("change", calcUndecided));
+  $("#ku-type").addEventListener("change", calcUndecided);
   renderQuickPrices();
 }
 function setMode(m){
