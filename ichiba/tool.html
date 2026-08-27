@@ -387,7 +387,7 @@ async function ensureToken(){
   const num=localStorage.getItem("hz_ichiba_fax")||"";
   if(!num) return "";
   try{
-    const r=await fetch(GAS_URL+"?action=ichibaLogin&num="+encodeURIComponent(num));
+    const r=await fetch(GAS_URL+"?action=ichibaLogin&src=auto&num="+encodeURIComponent(num));
     const j=await r.json();
     if(j&&j.ok&&j.token){
       localStorage.setItem(LS_TOKEN, j.token);
@@ -600,7 +600,7 @@ function renderGate(){
     let j=null;
     try{
       const pass=$("#g-pass").value;
-      const r=await fetch(GAS_URL+"?action=ichibaLogin&num="+encodeURIComponent(num)+(pass?"&pass="+encodeURIComponent(pass):""));
+      const r=await fetch(GAS_URL+"?action=ichibaLogin&src=login&num="+encodeURIComponent(num)+(pass?"&pass="+encodeURIComponent(pass):""));
       j=await r.json();
     }catch(e){ j={ok:false,error:"network"}; }
     $("#g-err").textContent=""; $("#g-err").style.color="";
