@@ -680,7 +680,21 @@ function mergeLocalIntoMaster(){
 }
 let custManage=false;   // 🗂 リスト整理モード（✕で非表示にする）
 let openGyo=new Set();  // 開いている行グループ（あ行〜）
+let openGyoInit=false;  // よく使うが無い場合に一度だけ全展開したか
 let custListEditing=false;  // 選択後に「変更する」で一覧へ戻っている状態
+/* 見積り履歴（DBスプシ＋ローカル）から「よく使う取引先」を集計 */
+function frequentCustomers(limit){
+  const cnt=new Map();
+  unifiedList().forEach(r=>{
+    if(r.canceled) return;
+    const name=canonCust((r.customer||"").trim()); if(!name || isJunkCust(name)) return;
+    const k=custNormKey(name); if(!k) return;
+    const e=cnt.get(k)||{name, n:0, last:""};
+    e.n++; if((r.date||"")>e.last) e.last=r.date||"";
+    cnt.set(k,e);
+  });
+  return [...cnt.values()].sort((a,b)=> (b.n-a.n) || b.last.localeCompare(a.last)).slice(0, limit||10);
+}
 function renderCustChips(filter){
   const box=$("#cust-list-box"); if(!box) return;
   const f=(filter||"").trim();
@@ -711,9 +725,24 @@ function renderCustChips(filter){
   let html="";
   if(custManage) html+='<div class="manage-hint">整理モード：<b>✕</b>＝非表示（下の「非表示中」から戻せます）／<b>市・付・ネ</b>のタグをクリック＝取引方法を切替（市売→付売→直売ネット）</div>';
   const avail=GYO_ORDER.filter(g=>groups[g] && groups[g].length);
+  // ⭐ よく使う（見積り履歴から自動・検索/整理中は出さない）
+  let freqShown=false;
+  if(!f && !custManage){
+    const freq=frequentCustomers(10).filter(e=>!hid.has(custNormKey(e.name)));
+    if(freq.length){
+      freqShown=true;
+      const rows=freq.map(e=>{
+        const m=custMaster.find(c=>custNormKey(c.name)===custNormKey(e.name));
+        return rowHTML({name:m?m.name:e.name, method:m?m.method:null});
+      }).join("");
+      html+=`<div class="cg open freq"><div class="cg-toggle" style="cursor:default"><span>⭐ よく使う</span><span class="cnt">見積り履歴から自動・${freq.length}社</span></div><div class="cg-body">${rows}</div></div>`;
+    }
+  }
   if(!avail.length && !custManage){
-    html+='<span class="muted" style="padding:6px;display:block">該当する取引先がありません（新規は下の欄に入力）</span>';
+    if(!freqShown) html+='<span class="muted" style="padding:6px;display:block">該当する取引先がありません（新規は下の欄に入力）</span>';
   }else{
+    // よく使うが無い（履歴ゼロ）場合は初回だけ全展開して「何も見えない」を防ぐ
+    if(!f && !freqShown && !openGyoInit){ avail.forEach(g=>openGyo.add(g)); openGyoInit=true; }
     // あかさたな ジャンプ補助（検索中は非表示＝結果を直接見る）
     if(!f) html+='<div class="gyo-jump">'+avail.map(g=>`<button type="button" data-g="${g}">${g.replace("行","")}</button>`).join("")+"</div>";
     avail.forEach(g=>{
@@ -738,7 +767,7 @@ function renderCustChips(filter){
   }));
   // 行グループの開閉（縦プルダウン）
   box.querySelectorAll(".cg-toggle").forEach(t=> t.addEventListener("click",()=>{
-    const g=t.parentElement.dataset.g;
+    const g=t.parentElement.dataset.g; if(!g) return;   // ⭐よく使うは常時展開
     if(openGyo.has(g)) openGyo.delete(g); else openGyo.add(g);
     renderCustChips(f);
   }));
@@ -1154,6 +1183,8 @@ async function loadDbHistory(){
     else { dbQuotes=null; $("#hist-status").textContent="この端末に保存（DB未認可）"; }
   }catch(e){ dbQuotes=null; $("#hist-status").textContent="この端末に保存（オフライン）"; }
   renderHist();
+  // 履歴が届いたら「⭐よく使う」を反映
+  if(typeof renderCustChips==="function"){ renderCustChips($("#cust-search")?$("#cust-search").value:""); }
 }
 /* ---- 見積書PDFをDriveフォルダへ保存（確定時） ---- */
 let dbFolderUrl="";
