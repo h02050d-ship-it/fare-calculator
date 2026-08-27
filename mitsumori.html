@@ -334,6 +334,8 @@
   .cust-picked .cust-row{ flex:1; border-top:none; border-radius:10px; cursor:default; }
   .cust-picked .chg{ border:1px solid #cfd6dc; background:#fff; border-radius:10px; padding:0 18px; font-size:13.5px; font-weight:700; color:#33415c; cursor:pointer; font-family:inherit; white-space:nowrap; }
   .cust-picked .chg:hover{ background:#eef4ff; border-color:#1f6feb; color:#1f6feb; }
+  .tp-chg{ border:1px solid #cfd6dc; background:#fff; border-radius:20px; padding:7px 14px; font-size:12.5px; font-weight:700; color:#33415c; cursor:pointer; font-family:inherit; }
+  .tp-chg:hover{ background:#eef4ff; border-color:#1f6feb; color:#1f6feb; }
   .qp-table.cmp td,.qp-table.cmp th{ font-size:13px; }
   @media (max-width:1000px){ .mode-choose{ padding:16px 0 8px; } }
 </style>
@@ -1488,14 +1490,33 @@ const KJ_HW=108;               // 働き幅(mm)＝ヤフー商品の実寸固定
 let kojinPath=null;            // null=ルート選択, "decided"=商品が決まっている, "undecided"=面積から試算
 let kojinWizard=false;         // 個人モードから見積書作成へ進んだ状態（タブは個人のままウィザード表示）
 let kjUnit=null;               // 面積の単位: m2 / jo / tsubo / wh(縦×横)。未選択=null
-let qpType="フローリング15mm"; // クイック価格表の表示中商品
 
-// ヤフー価格を引く（1820⇄2000はどちらで登録されていても拾う）
+// ヤフー価格を引く（1820⇄2000両対応。12mm・羽目板は15mmと同一価格＝実店舗確認済なので15mmへフォールバック）
 function yPriceOf(type,len,grade){
-  let v=YAHOO_PRICES[`${type}|${len}|${grade}`];
-  if(v==null){ const n=Number(len); const alt=(n===1820)?2000:(n===2000)?1820:null;
-    if(alt!=null) v=YAHOO_PRICES[`${type}|${alt}|${grade}`]; }
-  return (typeof v==="number" && v>0) ? v : null;
+  const tries=(type==="フローリング15mm")?[type]:[type,"フローリング15mm"];
+  for(const ty of tries){
+    let v=YAHOO_PRICES[`${ty}|${len}|${grade}`];
+    if(v==null){ const n=Number(len); const alt=(n===1820)?2000:(n===2000)?1820:null;
+      if(alt!=null) v=YAHOO_PRICES[`${ty}|${alt}|${grade}`]; }
+    if(typeof v==="number" && v>0) return v;
+  }
+  return null;
+}
+/* 商品のタップ選択（選んだら他の選択肢は消え「↩変更」で戻れる） */
+const KJ_TYPES=[["フローリング15mm","桧フローリング 15mm"],["フローリング12mm","桧フローリング 12mm"],["羽目板12mm","桧羽目板 12mm"]];
+function renderTypePick(box, sel){
+  if(!box||!sel) return;
+  if(box.dataset.picked==="1"){
+    const lbl=(KJ_TYPES.find(t=>t[0]===sel.value)||KJ_TYPES[0])[1];
+    box.innerHTML=`<button type="button" class="unit-chip on" style="cursor:default">${lbl}</button><button type="button" class="tp-chg">↩ 変更</button>`;
+    box.querySelector(".tp-chg").addEventListener("click",()=>{ box.dataset.picked=""; renderTypePick(box,sel); });
+  }else{
+    box.innerHTML=KJ_TYPES.map(([v,l])=>`<button type="button" class="unit-chip" data-v="${v}">${l}</button>`).join("");
+    box.querySelectorAll(".unit-chip").forEach(b=> b.addEventListener("click",()=>{
+      sel.value=b.dataset.v; box.dataset.picked="1"; renderTypePick(box,sel);
+      sel.dispatchEvent(new Event("change"));
+    }));
+  }
 }
 function kjTypeItem(ty){
   if(ty==="フローリング15mm") return {name:"桧フローリング",t:"15"};
@@ -1559,19 +1580,16 @@ function kuRebuildRooms(prevUnit){
   wrap.innerHTML="";
   for(let i=0;i<n;i++){ const row=kuAddRoom(false); if(keepVals && vals[i]!=null){ const v=row.querySelector(".ku-val"); if(v) v.value=vals[i]; } }
 }
-/* 📞 クイック価格表：商品タブ×（長さ×等級）でヤフー5%引きを一覧表示（電話即答用・決まってるルート内） */
+/* 📞 クイック価格表：長さ×等級でヤフー5%引きを一覧表示（フローリング15/12・羽目板は同一価格＝タブなし1枚） */
 function renderQuickPrices(){
-  const tabs=$("#qp-tabs"), box=$("#qp-table"); if(!tabs||!box) return;
-  const TYPES=[["フローリング15mm","桧フローリング15mm"],["フローリング12mm","桧フローリング12mm"],["羽目板12mm","桧羽目板12mm"]];
-  tabs.innerHTML=TYPES.map(([v,l])=>`<button type="button" class="qp-tab${v===qpType?" on":""}" data-t="${v}">${l}</button>`).join("");
-  tabs.querySelectorAll(".qp-tab").forEach(b=> b.addEventListener("click",()=>{ qpType=b.dataset.t; $("#kd-type").value=qpType; renderQuickPrices(); calcDecided(); }));
+  const box=$("#qp-table"); if(!box) return;
   if(!Object.keys(YAHOO_PRICES).length){ box.innerHTML='<div class="fb-note">ヤフー価格を取得中…（オフライン時は表示できません）</div>'; return; }
   const LENS=[[910,"910mm"],[1820,"1820mm（2m級）"],[3000,"3m"],[4000,"4m"]];
   let h='<table class="qp-table"><tr><th>長さ＼等級</th>'+GRADES.map(g=>`<th>${g}</th>`).join("")+"</tr>";
   LENS.forEach(([len,label])=>{
     h+=`<tr><th>${label}</th>`;
     GRADES.forEach(g=>{
-      const y=yPriceOf(qpType,len,g);
+      const y=yPriceOf("フローリング15mm",len,g);
       h+= (y!=null)
         ? `<td class="click" data-len="${len}" data-g="${g}" title="クリックで上の計算に反映"><b>¥${fmt(Math.round(y*0.95))}</b><small>税抜 ¥${fmt(Math.round(y*0.95/1.1))}</small></td>`
         : '<td style="color:#ccc">—</td>';
@@ -1580,8 +1598,8 @@ function renderQuickPrices(){
   });
   box.innerHTML=h+"</table>";
   box.querySelectorAll("td.click").forEach(td=> td.addEventListener("click",()=>{
-    $("#kd-type").value=qpType; $("#kd-grade").value=td.dataset.g; $("#kd-len").value=String(td.dataset.len);
-    calcDecided(); flash("価格表から商品・等級・長さを反映しました");
+    $("#kd-grade").value=td.dataset.g; $("#kd-len").value=String(td.dataset.len);
+    calcDecided(); flash("価格表から等級・長さを反映しました");
   }));
 }
 /* 🛒 ルートA：商品が決まっている → 数量×5%引き単価で即計算 */
@@ -1698,8 +1716,11 @@ function buildModeUI(){
     <div id="kj-decided" style="display:none">
       <div class="freight-box" style="margin-top:0">
         <div class="fb-title"><span>🛒 商品と数量 → ヤフー5%引きで自動計算</span></div>
-        <div class="fb-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
-          <div><label>商品</label><select id="kd-type"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select></div>
+        <div><label class="ku-q">商品（タップで選択）</label>
+          <div class="unit-chips" id="kd-typepick"></div>
+          <select id="kd-type" style="display:none"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select>
+        </div>
+        <div class="fb-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:10px">
           <div><label>等級</label><select id="kd-grade"></select></div>
           <div><label>長さ</label><select id="kd-len"><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000" selected>3m</option><option value="4000">4m</option></select></div>
           <div><label>数量（束）</label><input id="kd-qty" type="number" step="1" min="1" placeholder="例 5"></div>
@@ -1711,10 +1732,9 @@ function buildModeUI(){
         <div class="kj-actions" id="kd-actions"></div>
       </div>
       <div class="freight-box">
-        <div class="fb-title"><span>📞 クイック価格表（ヤフー5%引き・1束あたり）</span></div>
-        <div class="qp-tabs" id="qp-tabs"></div>
+        <div class="fb-title"><span>📞 クイック価格表（ヤフー5%引き・1束あたり・フローリング15/12mm・羽目板 共通価格）</span></div>
         <div style="overflow-x:auto" id="qp-table"></div>
-        <div class="fb-note">※赤字＝<b>税込（ヤフー税込価格×0.95）</b>／下段＝税抜。電話ではこのまま読み上げOK。セルをクリックすると上の計算に入ります。</div>
+        <div class="fb-note">※赤字＝<b>税込（ヤフー税込価格×0.95）</b>／下段＝税抜。電話ではこのまま読み上げOK。セルをクリックすると上の計算に等級・長さが入ります。</div>
       </div>
     </div>
     <div id="kj-undecided" style="display:none">
@@ -1735,8 +1755,11 @@ function buildModeUI(){
         </div>
         <div id="ku-step3" style="display:none;margin-top:10px">
           <label class="ku-q">③ 絞り込み（未定のところは「すべて比較」のままでOK）</label>
-          <div class="fb-grid" style="grid-template-columns:1fr 1fr 1fr">
-            <div><label>商品</label><select id="ku-type"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select></div>
+          <div style="margin-bottom:8px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">商品（タップで選択・価格は3商品共通）</label>
+            <div class="unit-chips" id="ku-typepick"></div>
+            <select id="ku-type" style="display:none"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select>
+          </div>
+          <div class="fb-grid" style="grid-template-columns:1fr 1fr">
             <div><label>等級</label><select id="ku-grade"></select></div>
             <div><label>長さ</label><select id="ku-len"><option value="all">すべて比較</option><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000">3m</option><option value="4000">4m</option></select></div>
           </div>
@@ -1759,7 +1782,9 @@ function buildModeUI(){
   paneKEl.querySelectorAll("#kj-choice .kj-card, #kj-switch .kj-sw").forEach(b=> b.addEventListener("click",()=>{ kojinWizard=false; kojinPath=b.dataset.k; setMode("kojin"); }));
   // ルートA（商品が決まっている）
   paneKEl.querySelector("#kd-grade").innerHTML=GRADES.map(g=>`<option value="${g}"${g==="無節"?" selected":""}>${g}</option>`).join("");
-  $("#kd-type").addEventListener("change",()=>{ qpType=$("#kd-type").value; renderQuickPrices(); calcDecided(); });
+  renderTypePick($("#kd-typepick"), $("#kd-type"));
+  renderTypePick($("#ku-typepick"), $("#ku-type"));
+  $("#kd-type").addEventListener("change", calcDecided);
   ["#kd-grade","#kd-len"].forEach(s=> $(s).addEventListener("change", calcDecided));
   $("#kd-qty").addEventListener("input", calcDecided);
   // ルートB（面積から試算）
