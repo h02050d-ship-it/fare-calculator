@@ -229,6 +229,30 @@
     .stage{ display:block; }
     .sheet{ box-shadow:none; margin:0; }
   }
+  /* ===== 比較見積書オーバーレイ（個人・面積から試算の複数候補） ===== */
+  #cmp-ov{ position:fixed; inset:0; z-index:9000; background:rgba(40,44,40,.75); overflow:auto; padding:16px 0 40px; }
+  #cmp-ov .cmp-toolbar{ width:210mm; max-width:96vw; margin:0 auto 10px; display:flex; gap:10px; justify-content:flex-end; }
+  #cmp-ov .cmp-toolbar button{ padding:10px 22px; font-size:14px; border:none; border-radius:8px; background:#2e5339; color:#fff; font-weight:bold; cursor:pointer; }
+  #cmp-ov .cmp-toolbar #cmp-close{ background:#666; }
+  #cmp-ov .cmp-sheet{ width:210mm; max-width:96vw; min-height:297mm; margin:0 auto; background:#fff; padding:18mm 16mm; font-family:"Yu Gothic","Hiragino Kaku Gothic ProN",Meiryo,sans-serif; color:#222; box-shadow:0 4px 24px rgba(0,0,0,.4); }
+  #cmp-ov .cmp-sheet h1{ text-align:center; font-size:24pt; letter-spacing:.35em; border-bottom:3px double #222; padding-bottom:4mm; margin:0 0 8mm; }
+  #cmp-ov .cmp-sheet .meta{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8mm; }
+  #cmp-ov .cmp-sheet .to{ font-size:14pt; border-bottom:1.5px solid #222; padding:0 8mm 1mm 1mm; min-width:60mm; }
+  #cmp-ov .cmp-sheet .co{ font-size:9.5pt; text-align:right; line-height:1.7; }
+  #cmp-ov .cmp-sheet .co b{ font-size:11pt; }
+  #cmp-ov .cmp-sheet .info{ font-size:10pt; margin-bottom:5mm; line-height:1.9; }
+  #cmp-ov .cmp-sheet table{ width:100%; border-collapse:collapse; font-size:10.5pt; margin-bottom:6mm; }
+  #cmp-ov .cmp-sheet th,#cmp-ov .cmp-sheet td{ border:1px solid #555; padding:2.5mm 2mm; text-align:center; }
+  #cmp-ov .cmp-sheet th{ background:#eef3ee; font-size:9.5pt; }
+  #cmp-ov .cmp-sheet td.pl{ font-weight:bold; background:#f7f7f2; }
+  #cmp-ov .cmp-sheet td.sum{ font-weight:bold; color:#b02918; font-size:11.5pt; }
+  #cmp-ov .cmp-sheet .notes{ font-size:8.8pt; color:#444; line-height:1.9; }
+  @media print{
+    body.cmp-mode > *:not(#cmp-ov){ display:none !important; }
+    body.cmp-mode #cmp-ov{ display:block !important; position:static; background:#fff; padding:0; overflow:visible; }
+    body.cmp-mode #cmp-ov .cmp-toolbar{ display:none !important; }
+    body.cmp-mode #cmp-ov .cmp-sheet{ box-shadow:none; margin:0; max-width:none; }
+  }
 </style>
 <style>
   /* ===== PC全画面 最適化（PC専用運用・入力左／A4プレビュー常時右） ===== */
@@ -1504,7 +1528,7 @@ function yPriceOf(type,len,grade){
 }
 /* タップ選択（商品・等級・長さ共通：選んだら他の選択肢は消え「↩変更」で戻れる） */
 const KJ_TYPES=[["フローリング15mm","桧フローリング 15mm"],["フローリング12mm","桧フローリング 12mm"],["羽目板12mm","桧羽目板 12mm"]];
-const KJ_LENS=[["910","910mm（約1m）"],["1820","1820mm（2m級）"],["3000","3m"],["4000","4m"]];
+const KJ_LENS=[["910","1m（910）"],["1820","2m（1820）"],["3000","3m"],["4000","4m"]];
 const CHIP_PICKS={};   // selId → {boxId, opts}
 function renderChipPick(boxId, selId, opts){ CHIP_PICKS[selId]={boxId, opts}; _drawChipPick(selId); }
 function _drawChipPick(selId){
@@ -1555,7 +1579,7 @@ function kjTypeItem(ty){
 }
 function kjNyusu(len){ return NYUSU_DEF[Number(len)]||10; }
 function kjPerBundle(len){ return (KJ_HW/1000)*(Number(len)/1000)*kjNyusu(len); }   // 1束あたり㎡
-function lenLabel(len){ len=Number(len); return len===910?"910mm（約1m）" : len===1820?"1820mm（2m級）" : (len/1000)+"m"; }
+function lenLabel(len){ len=Number(len); return len===910?"1m（910）" : len===1820?"2m（1820）" : (len/1000)+"m"; }
 function kjRoomArea(r){
   if(kjUnit==="wh"){ const t=parseFloat(r.querySelector(".ku-tate").value)||0, y=parseFloat(r.querySelector(".ku-yoko").value)||0; return t*y; }
   const v=parseFloat(r.querySelector(".ku-val").value)||0;
@@ -1614,7 +1638,7 @@ function kuRebuildRooms(prevUnit){
 function renderQuickPrices(){
   const box=$("#qp-table"); if(!box) return;
   if(!Object.keys(YAHOO_PRICES).length){ box.innerHTML='<div class="fb-note">ヤフー価格を取得中…（オフライン時は表示できません）</div>'; return; }
-  const LENS=[[910,"910mm"],[1820,"1820mm（2m級）"],[3000,"3m"],[4000,"4m"]];
+  const LENS=[[910,"1m（910）"],[1820,"2m（1820）"],[3000,"3m"],[4000,"4m"]];
   let h='<table class="qp-table"><tr><th>長さ＼等級</th>'+GRADES.map(g=>`<th>${g}</th>`).join("")+"</tr>";
   LENS.forEach(([len,label])=>{
     h+=`<tr><th>${label}</th>`;
@@ -1689,17 +1713,69 @@ function calcUndecided(){
       <button type="button" class="btn-back" data-q="${c.pure}">純 ${c.pure}束で見積書を作る</button>`;
     act.querySelectorAll("button").forEach(b=> b.addEventListener("click",()=> applyKojinToQuote(parseInt(b.dataset.q), {type:ty, grade:c.g, len:c.len, name:$("#ku-name").value})));
   }else{
-    h+=`<div class="fb-note">候補 ${combos.length}件（ロス1割込みで計算・税込・送料別）。等級・長さを選ぶと絞れます。「これにする」で1つに決定。</div>
-      <div style="overflow-x:auto"><table class="qp-table cmp"><tr><th>長さ</th><th>等級</th><th>単価/束</th><th>必要束数</th><th>金額</th><th></th></tr>`;
+    h+=`<div class="fb-note">候補 ${combos.length}件（ロス1割込みで計算・税込・送料別）。等級・長さを選ぶと絞れます。「これにする」で1つに決定。<br>複数候補をお客様に見せるときは、チェックを付けて「比較見積書」を押してください。</div>
+      <div style="overflow-x:auto"><table class="qp-table cmp"><tr><th>比較</th><th>長さ</th><th>等級</th><th>単価/束</th><th>必要束数</th><th>金額</th><th></th></tr>`;
     combos.forEach((c,i)=>{
-      h+=`<tr><td>${lenLabel(c.len)}</td><td>${c.g}</td><td>¥${fmt(c.incl)}</td><td>${c.loss}束</td><td><b>¥${fmt(c.loss*c.incl)}</b></td><td><button type="button" class="cv-apply" data-i="${i}">これにする</button></td></tr>`;
+      h+=`<tr><td style="text-align:center"><input type="checkbox" class="cv-chk" data-i="${i}" checked style="width:18px;height:18px"></td><td>${lenLabel(c.len)}</td><td>${c.g}</td><td>¥${fmt(c.incl)}</td><td>${c.loss}束</td><td><b>¥${fmt(c.loss*c.incl)}</b></td><td><button type="button" class="cv-apply" data-i="${i}">これにする</button></td></tr>`;
     });
     box.innerHTML=h+"</table></div>";
     box.querySelectorAll("button.cv-apply").forEach(b=> b.addEventListener("click",()=>{
       const c=combos[parseInt(b.dataset.i)];
       kuSetSingle(c.g, c.len); calcUndecided();
     }));
+    act.innerHTML=`<button type="button" class="btn-next" id="ku-cmp-btn">🖨 チェックした候補で比較見積書を作る</button>`;
+    $("#ku-cmp-btn").addEventListener("click",()=>{
+      const sel=[...box.querySelectorAll("input.cv-chk:checked")].map(el=> combos[parseInt(el.dataset.i)]);
+      if(!sel.length){ alert("比較する候補にチェックを付けてください。"); return; }
+      openCompareSheet(sel, area, {type:ty, name:$("#ku-name").value, unitLabel, rooms});
+    });
   }
+}
+/* 比較見積書（複数候補を1枚のA4で・送料別＝決定後の正式見積書で案内） */
+function openCompareSheet(sel, area, meta){
+  const it=kjTypeItem(meta.type);
+  const name=(meta.name||"").trim();
+  const d=new Date();
+  const jp=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  const lim=new Date(d); lim.setDate(lim.getDate()+30);
+  const jpLim=`${lim.getFullYear()}年${lim.getMonth()+1}月${lim.getDate()}日`;
+  const rows=sel.map((c,i)=>`<tr>
+    <td class="pl">プラン${"ABCDEFGHIJ"[i]||i+1}</td><td>${lenLabel(c.len)}</td><td>${c.g}</td>
+    <td>${kjNyusu(c.len)}枚入</td><td>¥${fmt(c.incl)}</td><td>${c.loss}束（${c.loss*kjNyusu(c.len)}枚）</td>
+    <td class="sum">¥${fmt(c.loss*c.incl)}</td></tr>`).join("");
+  const old=document.getElementById("cmp-ov"); if(old) old.remove();
+  const ov=document.createElement("div"); ov.id="cmp-ov";
+  ov.innerHTML=`
+  <div class="cmp-toolbar"><button type="button" id="cmp-print">🖨 印刷 / PDF保存</button><button type="button" id="cmp-close">✕ 閉じる</button></div>
+  <div class="cmp-sheet">
+    <h1>御見積書</h1>
+    <div class="meta">
+      <div>
+        <div class="to">${name?name+" 様":"　"}</div>
+        <div style="font-size:9pt;color:#555;margin-top:2mm">下記のとおり、プラン比較でお見積り申し上げます。</div>
+      </div>
+      <div class="co"><div>見積日：${jp}</div><div>有効期限：${jpLim}</div><br>
+        <b>株式会社林材木店</b><br>静岡県磐田市福田5490-47<br>TEL 0538-58-2395　FAX 050-3146-7566<br>担当：林</div>
+    </div>
+    <div class="info">
+      商品：<b>${it.name}（厚${it.t}mm・幅120mm・A級）</b><br>
+      必要面積：<b>${area.toFixed(2)}㎡</b>（働き幅108mm換算・施工ロス1割込みで数量を計算しています）
+    </div>
+    <table>
+      <tr><th></th><th>長さ</th><th>等級</th><th>入数</th><th>単価（税込/束）</th><th>必要数量</th><th>合計金額（税込）</th></tr>
+      ${rows}
+    </table>
+    <div class="notes">
+      ※いずれか1プランをお選びください。金額はすべて税込・<b>送料別</b>です。<br>
+      ※送料は長さ・お届け先により異なるため、プラン決定後の正式なお見積書にてご案内します。<br>
+      ※単価はヤフー店通常価格の5%引きです。数量はご希望の面積に施工ロス1割を見込んだ束数です。<br>
+      ※在庫状況により納期が前後する場合があります。
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  document.body.classList.add("cmp-mode");
+  ov.querySelector("#cmp-print").addEventListener("click",()=> window.print());
+  ov.querySelector("#cmp-close").addEventListener("click",()=>{ ov.remove(); document.body.classList.remove("cmp-mode"); });
 }
 function applyKojinToQuote(qty, o){
   if(!qty) return;
@@ -1756,7 +1832,7 @@ function buildModeUI(){
         </div>
         <div style="margin-top:10px"><label class="ku-q">長さ（タップで選択）</label>
           <div class="unit-chips" id="kd-lenpick"></div>
-          <select id="kd-len" style="display:none"><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000" selected>3m</option><option value="4000">4m</option></select>
+          <select id="kd-len" style="display:none"><option value="910">1m（910）</option><option value="1820">2m（1820）</option><option value="3000" selected>3m</option><option value="4000">4m</option></select>
         </div>
         <div class="fb-grid" style="grid-template-columns:1fr 1fr;margin-top:10px">
           <div><label>数量（束）</label><input id="kd-qty" type="number" step="1" min="1" placeholder="例 5"></div>
