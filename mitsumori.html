@@ -848,6 +848,8 @@ function canonCust(name){
   for(const [re,to] of CUST_CANON){ if(re.test(s)) return to; }
   return s;
 }
+// 納品書マスタ未登録拠点の既定区分（同社の他拠点と同じ扱い。リスト整理のタグ切替で上書き可）
+const CUST_METHOD_DEFAULT={ "（株）吉貞　高崎市場":"市売", "（株）ミトモク　本社":"市売" };
 // custMasterを正規化名でマージ（同名は取引方法あり優先）
 function canonMergeMaster(list){
   const map=new Map();
@@ -857,7 +859,9 @@ function canonMergeMaster(list){
     if(!ex) map.set(k,{name, method:c.method||null});
     else if(!ex.method && c.method) ex.method=c.method;
   });
-  return [...map.values()];
+  const out=[...map.values()];
+  out.forEach(v=>{ if(!v.method && CUST_METHOD_DEFAULT[v.name]) v.method=CUST_METHOD_DEFAULT[v.name]; });
+  return out;
 }
 // この端末のlocalStorage候補を一度だけクリーンアップ（旧名→正式名・正規化キーで重複排除）
 function migrateCands(){
