@@ -186,7 +186,7 @@
   .wiz-arrow{color:#cfd4da;font-size:16px}
   .step-pane{display:none}
   .step-pane.show{display:block}
-  .step-pane#pane2.show,.step-pane#pane3.show{margin-top:6px}
+  .step-pane#pane2.show,.step-pane#pane3.show,.step-pane#pane4.show{margin-top:6px}
   .wrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:2px}
   .wrow.mt{margin-top:14px}
   .wiz-btns{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
@@ -330,6 +330,10 @@
   .cust-row.del .m:hover{ background:#2e7d32; border-color:#2e7d32; color:#fff; }
   .cust-row .x{ color:#c62828; font-weight:700; padding:2px 7px; border-radius:6px; }
   .cust-row .x:hover{ background:#c62828; color:#fff; }
+  .cust-picked{ display:flex; align-items:stretch; gap:8px; }
+  .cust-picked .cust-row{ flex:1; border-top:none; border-radius:10px; cursor:default; }
+  .cust-picked .chg{ border:1px solid #cfd6dc; background:#fff; border-radius:10px; padding:0 18px; font-size:13.5px; font-weight:700; color:#33415c; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .cust-picked .chg:hover{ background:#eef4ff; border-color:#1f6feb; color:#1f6feb; }
   .qp-table.cmp td,.qp-table.cmp th{ font-size:13px; }
   @media (max-width:1000px){ .mode-choose{ padding:16px 0 8px; } }
 </style>
@@ -676,10 +680,25 @@ function mergeLocalIntoMaster(){
 }
 let custManage=false;   // 🗂 リスト整理モード（✕で非表示にする）
 let openGyo=new Set();  // 開いている行グループ（あ行〜）
+let custListEditing=false;  // 選択後に「変更する」で一覧へ戻っている状態
 function renderCustChips(filter){
   const box=$("#cust-list-box"); if(!box) return;
   const f=(filter||"").trim();
   const cur=($("#f-customer")?$("#f-customer").value.trim():"");
+  // 選択済み：一覧を畳んで選択中の1件だけ表示（「変更する」で一覧に戻れる）
+  const tools=document.querySelector(".cust-tools");
+  if(cur && !custManage && !custListEditing){
+    if(tools) tools.style.display="none";
+    const m0=custMaster.find(c=>c.name===cur);
+    const em0=methodOf(cur, m0?m0.method:null); const t0=em0==="市売"?"市":em0==="付売"?"付":"ネ";
+    box.innerHTML=`<div class="cust-picked">
+      <div class="cust-row sel"><span class="nm">${esc(cur)}</span><span class="rt"><span class="m">${t0}</span></span></div>
+      <button type="button" class="chg" id="cust-change">↩ 変更する</button>
+    </div>`;
+    box.querySelector("#cust-change").addEventListener("click",()=>{ custListEditing=true; renderCustChips($("#cust-search")?$("#cust-search").value:""); });
+    return;
+  }
+  if(tools) tools.style.display="";
   const hid=hiddenKeySet();
   let list=custMaster.filter(c=>!isJunkCust(c.name) && !hid.has(custNormKey(c.name)));
   if(f) list=list.filter(c=>c.name.indexOf(f)>=0);
@@ -738,6 +757,7 @@ function renderCustChips(filter){
 function pickCustomer(name, method){
   $("#f-customer").value=name;
   setKubun(method || "直売");          // マスタに区分あれば市売/付売、無ければ直売（ネット）
+  custListEditing=false;               // 選択したら一覧を畳む
   updateCustCurrent(); renderCustChips($("#cust-search")?$("#cust-search").value:"");
   saveDraft(); render();
 }
@@ -798,10 +818,22 @@ function custNormKey(name){
    マスタやこの端末の候補に残る「市場」なしの旧名を正式名へ寄せ、一覧の重複を防ぐ。
    ※非表示リスト(LS_HIDE)には適用しない＝ユーザーが整理した内容はそのまま保持。 */
 const CUST_CANON=[
+  // 𠮷貞（公式拠点=熊谷/佐野/高崎/戸田市場）
   [/^[（(]株[）)][\s　]*吉貞[\s　]*熊谷(?![市プ])/, "（株）吉貞　熊谷市場"],
   [/^[（(]株[）)][\s　]*吉貞[\s　]*佐野(?!市場)/, "（株）吉貞　佐野市場"],
   [/^[（(]株[）)][\s　]*吉貞[\s　]*高崎(?!市場)/, "（株）吉貞　高崎市場"],
-  [/^[（(]株[）)][\s　]*吉貞[\s　]*戸田(?!市場)/, "（株）吉貞　戸田市場"]
+  [/^[（(]株[）)][\s　]*吉貞[\s　]*戸田(?!市場)/, "（株）吉貞　戸田市場"],
+  // 丸宇（正式=丸宇木材市売（株）○○市場。「丸宇木材市場(株)○○」は旧名）
+  [/^丸宇木材市[場売][（(]株[）)][\s　]*下館(?!市場)/, "丸宇木材市売（株）下館市場"],
+  [/^丸宇木材市[場売][（(]株[）)][\s　]*京葉(?!市場)/, "丸宇木材市売（株）京葉市場"],
+  [/^丸宇木材市[場売][（(]株[）)][\s　]*大栄浜(?!市場)/, "丸宇木材市売（株）大栄浜市場"],
+  [/^丸宇木材市[場売][（(]株[）)][\s　]*北浜(?!市場)/, "丸宇木材市売（株）北浜市場"],
+  // 中央木材市売（「中央木材市場(株)」「中央木材(株)」は旧名）
+  [/^中央木材市場[（(]株[）)][\s　]*西部/, "中央木材市売（株）西部営業所"],
+  [/^中央木材市場[（(]株[）)][\s　]*大口/, "中央木材市売（株）大口営業所"],
+  [/^中央木材[（(]株[）)][\s　]*浜松/, "中央木材市売（株）浜松営業所"],
+  // 勝山（法人格なしの旧名を統一）
+  [/^勝山木材市場$/, "（株）勝山木材市場"]
 ];
 function canonCust(name){
   const s=(name==null?"":String(name)).trim();
@@ -1291,22 +1323,25 @@ function buildWizard(){
   const remarks=document.getElementById("f-remarks").closest(".field");
 
   const nav=elFrom(`<div class="wiz-nav">
-    <div class="wiz-step" data-go="1"><span class="num">1</span>取引先・基本</div>
+    <div class="wiz-step" data-go="1"><span class="num">1</span>取引先</div>
     <span class="wiz-arrow">›</span>
-    <div class="wiz-step" data-go="2"><span class="num">2</span>商品・配送</div>
+    <div class="wiz-step" data-go="2"><span class="num">2</span>商品（サイズ・等級・入数）</div>
     <span class="wiz-arrow">›</span>
-    <div class="wiz-step" data-go="3"><span class="num">3</span>確認・編集</div>
+    <div class="wiz-step" data-go="3"><span class="num">3</span>運賃・配送</div>
+    <span class="wiz-arrow">›</span>
+    <div class="wiz-step" data-go="4"><span class="num">4</span>確認・編集</div>
   </div>`);
   const pane1=elFrom(`<div class="step-pane" id="pane1"></div>`);
   const pane2=elFrom(`<div class="step-pane" id="pane2"></div>`);
   const pane3=elFrom(`<div class="step-pane" id="pane3"></div>`);
-  paneEls[1]=pane1; paneEls[2]=pane2; paneEls[3]=pane3;
+  const pane4=elFrom(`<div class="step-pane" id="pane4"></div>`);
+  paneEls[1]=pane1; paneEls[2]=pane2; paneEls[3]=pane3; paneEls[4]=pane4;
 
   /* ステップ1：見積日／担当／取引方法＋選択中バー＋取引先ピッカー */
   const row1=elFrom(`<div class="wrow"></div>`); row1.append(fDate, fTanto, fKubun);
   const selBar=elFrom(`<div class="sel-bar">
     <div class="sel-info">選択中：<b id="cust-current">（未選択）</b><span id="cust-method-tag"></span></div>
-    <button type="button" class="btn-next" id="wiz-next-top">商品・配送へ →</button>
+    <button type="button" class="btn-next" id="wiz-next-top">商品へ →</button>
   </div>`);
   const picker=elFrom(`<div class="field" style="margin-top:4px">
     <label class="ku-q" style="font-size:14px">① 取引先を選ぶ（あかさたなをタップ → 一覧から選択。<b>市</b>＝市売／<b>付</b>＝付売／<b>ネ</b>＝直売ネット）</label>
@@ -1337,8 +1372,10 @@ function buildWizard(){
     <div class="fb-note">※1畳=1.62㎡で換算。働き幅＝実（さね）を除いた有効幅で、「明細から取得」は幅−12mmの目安を入れます（例 120→108）。実寸に合わせて手修正OK。</div>
     <div class="fb-result" id="cv-result"></div>
   </div>`);
-  const row2=elFrom(`<div class="wrow mt"></div>`); row2.append(fCarrier, fFreight, fNouki);
-  pane2.append(calcBox, row2, freightBox);
+  pane2.append(calcBox);
+  /* ステップ3：運賃・配送（配送業者・運賃・納期＋送料自動計算） */
+  const row2=elFrom(`<div class="wrow"></div>`); row2.append(fCarrier, fFreight, fNouki);
+  pane3.append(row2, freightBox);
 
   /* 常時表示ユーティリティ（見積書フォルダ／データベース）をナビ右へ移動＝全ステップで使える */
   const btnFolder=document.getElementById("btn-folder"), btnDb=document.getElementById("btn-db");
@@ -1349,22 +1386,22 @@ function buildWizard(){
   const topbar=elFrom(`<div class="wiz-topbar"></div>`);
   topbar.append(nav, utils);
 
-  /* ステップ3：確認（敬称・支払・有効期限／備考／保存ツールバー／履歴） */
+  /* ステップ4：確認（敬称・支払・有効期限／備考／保存ツールバー／履歴） */
   const row3=elFrom(`<div class="wrow"></div>`); row3.append(fKeisho, fShiharai, fLimit);
-  pane3.append(toolbar, row3, remarks, histwrap, hint);
+  pane4.append(toolbar, row3, remarks, histwrap, hint);
 
   const btns=elFrom(`<div class="wiz-btns">
     <button type="button" class="btn-back" id="wiz-back">← 戻る</button>
     <button type="button" class="btn-next" id="wiz-next">次へ →</button>
   </div>`);
 
-  panel.append(topbar, pane1, pane2, pane3, btns);
+  panel.append(topbar, pane1, pane2, pane3, pane4, btns);
   /* 空になった元コンテナを掃除 */
   [...panel.querySelectorAll(".hdrfields,.hdrfields2")].forEach(c=>{ if(!c.children.length) c.remove(); });
 
   nav.querySelectorAll(".wiz-step").forEach(s=> s.addEventListener("click",()=>goStep(+s.dataset.go)));
   $("#wiz-back").addEventListener("click",()=>goStep(Math.max(1,currentStep-1)));
-  $("#wiz-next").addEventListener("click",()=>{ if(validateStep(currentStep)) goStep(Math.min(3,currentStep+1)); });
+  $("#wiz-next").addEventListener("click",()=>{ if(validateStep(currentStep)) goStep(Math.min(4,currentStep+1)); });
   $("#cust-search").addEventListener("input",e=>renderCustChips(e.target.value));
   $("#cust-manage").addEventListener("click",()=>{
     custManage=!custManage;
@@ -1379,18 +1416,19 @@ function buildWizard(){
 }
 function goStep(n){
   currentStep=n;
-  paneEls[1].classList.toggle("show", n===1||n===3);
-  paneEls[2].classList.toggle("show", n===2||n===3);
-  paneEls[3].classList.toggle("show", n===3);
-  if(wizStageEl) wizStageEl.style.display=(n===3)?"":"none";   // プレビューは確認（ステップ3）のみ表示
-  document.querySelector(".app").classList.toggle("single", n!==3);   // 1・2はパネルを中央寄せ・適正幅に
-  const nt=$("#wiz-next-top"); if(nt) nt.style.display=(n===1)?"":"none";   // 選択中バーの「商品・配送へ」はステップ1のみ
+  paneEls[1].classList.toggle("show", n===1||n===4);
+  paneEls[2].classList.toggle("show", n===2||n===4);
+  paneEls[3].classList.toggle("show", n===3||n===4);
+  paneEls[4].classList.toggle("show", n===4);
+  if(wizStageEl) wizStageEl.style.display=(n===4)?"":"none";   // プレビューは確認（ステップ4）のみ表示
+  document.querySelector(".app").classList.toggle("single", n!==4);   // 1〜3はパネルを中央寄せ・適正幅に
+  const nt=$("#wiz-next-top"); if(nt) nt.style.display=(n===1)?"":"none";   // 選択中バーの「商品へ」はステップ1のみ
   document.querySelectorAll(".wiz-nav .wiz-step").forEach(s=>{ const i=+s.dataset.go; s.classList.toggle("active",i===n); s.classList.toggle("done",i<n); });
   const back=$("#wiz-back"), next=$("#wiz-next");
   if(back) back.style.visibility=(n===1)?"hidden":"visible";
-  if(back) back.textContent=(n===3)?"← 商品・配送へ":"← 取引先・基本へ";
-  if(next){ if(n>=3){ next.style.display="none"; } else { next.style.display=""; next.textContent=(n===1)?"商品・配送へ →":"確認へ →"; } }
-  if(n===3) setTimeout(fitPreview,40);
+  if(back) back.textContent = n===2?"← 取引先へ" : n===3?"← 商品へ" : "← 運賃・配送へ";
+  if(next){ if(n>=4){ next.style.display="none"; } else { next.style.display=""; next.textContent = n===1?"商品へ →" : n===2?"運賃・配送へ →" : "確認へ →"; } }
+  if(n===4) setTimeout(fitPreview,40);
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function validateStep(n){
@@ -1581,7 +1619,7 @@ function applyKojinToQuote(qty, o){
   addRow({name:it.name, grade:o.grade, t:it.t, w:"120", l:String(o.len), in:String(kjNyusu(o.len)), qty:qty});
   addRow();
   setKubun("直売");
-  kojinWizard=true; setMode("kojin"); goStep(2);   // タブは「個人」のまま見積書編集へ
+  kojinWizard=true; setMode("kojin"); goStep(3);   // タブは「個人」のまま運賃・配送ページへ（明細は反映済み）
   deriveFreightFromItems(); updateCustCurrent(); saveDraft(); render();
   flash("個人見積りを明細に反映しました（直売＝ヤフー5%引き単価）");
 }
@@ -1773,9 +1811,9 @@ function init(){
   $("#price-status").textContent="価格表：内蔵データ";
   refreshPricebook(); refreshYahooPrices(); loadCustomerCandidates().then(loadPartnerCustomers); loadDbHistory(); fetchFolderUrl();
 
-  window.addEventListener("resize",()=>{ if(currentStep===3) fitPreview(); });
+  window.addEventListener("resize",()=>{ if(currentStep===4) fitPreview(); });
   window.addEventListener("beforeprint",()=>{ const st=document.querySelector(".stage"); st.style.display=""; $("#sheet").style.transform="none"; st.style.height="auto"; });
-  window.addEventListener("afterprint",()=>{ if(currentStep===3) fitPreview(); });
+  window.addEventListener("afterprint",()=>{ if(currentStep===4) fitPreview(); });
   goStep(1);
   setMode(null);   // 最初に「市場・取引先」か「個人のお客様」かを選ぶ
 }
