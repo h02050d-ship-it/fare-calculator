@@ -1714,9 +1714,9 @@ function calcUndecided(){
     act.querySelectorAll("button").forEach(b=> b.addEventListener("click",()=> applyKojinToQuote(parseInt(b.dataset.q), {type:ty, grade:c.g, len:c.len, name:$("#ku-name").value})));
   }else{
     h+=`<div class="fb-note">候補 ${combos.length}件（ロス1割込みで計算・税込・送料別）。等級・長さを選ぶと絞れます。「これにする」で1つに決定。<br>複数候補をお客様に見せるときは、チェックを付けて「比較見積書」を押してください。</div>
-      <div style="overflow-x:auto"><table class="qp-table cmp"><tr><th>比較</th><th>長さ</th><th>等級</th><th>単価/束</th><th>必要束数</th><th>金額</th><th></th></tr>`;
+      <div style="overflow-x:auto"><table class="qp-table cmp"><tr><th>比較</th><th>長さ</th><th>等級</th><th>入数</th><th>単価/束</th><th>必要束数</th><th>金額</th><th></th></tr>`;
     combos.forEach((c,i)=>{
-      h+=`<tr><td style="text-align:center"><input type="checkbox" class="cv-chk" data-i="${i}" checked style="width:18px;height:18px"></td><td>${lenLabel(c.len)}</td><td>${c.g}</td><td>¥${fmt(c.incl)}</td><td>${c.loss}束</td><td><b>¥${fmt(c.loss*c.incl)}</b></td><td><button type="button" class="cv-apply" data-i="${i}">これにする</button></td></tr>`;
+      h+=`<tr><td style="text-align:center"><input type="checkbox" class="cv-chk" data-i="${i}" checked style="width:18px;height:18px"></td><td>${lenLabel(c.len)}</td><td>${c.g}</td><td>${kjNyusu(c.len)}枚入</td><td>¥${fmt(c.incl)}</td><td>${c.loss}束<br><span style="font-size:.85em;color:#666">（${c.loss*kjNyusu(c.len)}枚）</span></td><td><b>¥${fmt(c.loss*c.incl)}</b></td><td><button type="button" class="cv-apply" data-i="${i}">これにする</button></td></tr>`;
     });
     box.innerHTML=h+"</table></div>";
     box.querySelectorAll("button.cv-apply").forEach(b=> b.addEventListener("click",()=>{
