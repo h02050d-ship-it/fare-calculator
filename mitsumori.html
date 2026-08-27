@@ -310,6 +310,26 @@
   .ku-q{ display:block; font-size:13px; font-weight:700; color:#2e7d32; margin:2px 0 6px; }
   .ku-room-del{ border:none; background:#fdecec; color:#c33; border-radius:6px; padding:9px 11px; cursor:pointer; font-weight:700; }
   .ku-room-del:hover{ background:#f8d7d7; }
+  /* ===== 取引先一覧：縦アコーディオン＋あかさたなジャンプ ===== */
+  .gyo-jump{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; position:sticky; top:0; background:#fafafa; padding:4px 0; z-index:2; }
+  .gyo-jump button{ border:1px solid #cfd6dc; background:#fff; border-radius:8px; padding:8px 0; flex:1 1 40px; min-width:40px; font-size:14px; font-weight:700; color:#2e7d32; cursor:pointer; font-family:inherit; }
+  .gyo-jump button:hover{ background:#e8f5e9; border-color:#2e7d32; }
+  .cg{ border:1px solid #e3e7ea; border-radius:10px; margin-bottom:8px; background:#fff; overflow:hidden; }
+  .cg-toggle{ width:100%; display:flex; justify-content:space-between; align-items:center; padding:11px 14px; background:#f6f8fa; border:none; font-size:14.5px; font-weight:700; color:#2e7d32; cursor:pointer; font-family:inherit; }
+  .cg-toggle:hover{ background:#eef4ef; }
+  .cg-toggle .cnt{ color:#8a95a0; font-weight:normal; font-size:12px; }
+  .cg-body{ display:none; }
+  .cg.open .cg-body{ display:block; }
+  .cust-row{ display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; padding:11px 14px; border:none; border-top:1px solid #eef1f4; background:#fff; font-size:14.5px; cursor:pointer; font-family:inherit; text-align:left; }
+  .cust-row:hover{ background:#e8f5e9; }
+  .cust-row.sel{ background:#2e7d32; color:#fff; }
+  .cust-row .rt{ display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+  .cust-row .m{ font-size:11px; color:#555; background:#eceff1; border:1px solid #cfd6dc; border-radius:6px; padding:2px 8px; }
+  .cust-row.sel .m{ background:rgba(255,255,255,.2); color:#fff; border-color:rgba(255,255,255,.4); }
+  .cust-row.del .m{ cursor:pointer; }
+  .cust-row.del .m:hover{ background:#2e7d32; border-color:#2e7d32; color:#fff; }
+  .cust-row .x{ color:#c62828; font-weight:700; padding:2px 7px; border-radius:6px; }
+  .cust-row .x:hover{ background:#c62828; color:#fff; }
   .qp-table.cmp td,.qp-table.cmp th{ font-size:13px; }
   @media (max-width:1000px){ .mode-choose{ padding:16px 0 8px; } }
 </style>
@@ -655,6 +675,7 @@ function mergeLocalIntoMaster(){
     if(cn && !isJunkCust(cn) && !names.has(k)){ custMaster.push({name:cn, method:null}); names.add(k); } });
 }
 let custManage=false;   // 🗂 リスト整理モード（✕で非表示にする）
+let openGyo=new Set();  // 開いている行グループ（あ行〜）
 function renderCustChips(filter){
   const box=$("#cust-list-box"); if(!box) return;
   const f=(filter||"").trim();
@@ -662,28 +683,48 @@ function renderCustChips(filter){
   const hid=hiddenKeySet();
   let list=custMaster.filter(c=>!isJunkCust(c.name) && !hid.has(custNormKey(c.name)));
   if(f) list=list.filter(c=>c.name.indexOf(f)>=0);
-  if(!list.length && !custManage){ box.innerHTML='<span class="muted" style="padding:6px">該当する取引先がありません（新規は下の欄に入力）</span>'; return; }
   const groups={};
   list.forEach(c=>{ const g=yomiRow(c.name); (groups[g]=groups[g]||[]).push(c); });
-  const chipHTML=c=>{ const em=methodOf(c.name, c.method); const t=em==="市売"?"市":em==="付売"?"付":"ネ"; const sel=(c.name===cur)?" sel":"";
+  const rowHTML=c=>{ const em=methodOf(c.name, c.method); const t=em==="市売"?"市":em==="付売"?"付":"ネ"; const sel=(c.name===cur)?" sel":"";
     const del=custManage?" del":""; const x=custManage?'<span class="x" title="この取引先を非表示にする">✕</span>':"";
     const mTitle=custManage?' title="クリックで取引方法を切替（市→付→ネ）"':"";
-    return `<button type="button" class="cust-chip${sel}${del}" data-name="${esc(c.name)}" data-method="${esc(em||"")}">${esc(c.name)}<span class="m"${mTitle}>${t}</span>${x}</button>`; };
+    return `<button type="button" class="cust-row${sel}${del}" data-name="${esc(c.name)}" data-method="${esc(em||"")}"><span class="nm">${esc(c.name)}</span><span class="rt"><span class="m"${mTitle}>${t}</span>${x}</span></button>`; };
   let html="";
   if(custManage) html+='<div class="manage-hint">整理モード：<b>✕</b>＝非表示（下の「非表示中」から戻せます）／<b>市・付・ネ</b>のタグをクリック＝取引方法を切替（市売→付売→直売ネット）</div>';
-  GYO_ORDER.forEach(g=>{ const arr=groups[g]; if(!arr||!arr.length) return;
-    arr.sort((a,b)=>yomiSortKey(a.name).localeCompare(yomiSortKey(b.name),"ja"));
-    html+=`<div class="cust-group"><div class="cg-head">${g}</div><div class="cg-chips">${arr.map(chipHTML).join("")}</div></div>`;
-  });
+  const avail=GYO_ORDER.filter(g=>groups[g] && groups[g].length);
+  if(!avail.length && !custManage){
+    html+='<span class="muted" style="padding:6px;display:block">該当する取引先がありません（新規は下の欄に入力）</span>';
+  }else{
+    // あかさたな ジャンプ補助（検索中は非表示＝結果を直接見る）
+    if(!f) html+='<div class="gyo-jump">'+avail.map(g=>`<button type="button" data-g="${g}">${g.replace("行","")}</button>`).join("")+"</div>";
+    avail.forEach(g=>{
+      const arr=groups[g];
+      arr.sort((a,b)=>yomiSortKey(a.name).localeCompare(yomiSortKey(b.name),"ja"));
+      const open=f?true:openGyo.has(g);   // 検索中は全展開
+      html+=`<div class="cg${open?" open":""}" data-g="${g}" id="cg-${g}">
+        <button type="button" class="cg-toggle"><span>${g}</span><span class="cnt">${arr.length}社 ${open?"▲":"▼"}</span></button>
+        <div class="cg-body">${arr.map(rowHTML).join("")}</div></div>`;
+    });
+  }
   if(custManage){
     let hiddenNames=loadHidden(); if(f) hiddenNames=hiddenNames.filter(n=>n.indexOf(f)>=0);
     html+=`<div class="cust-hidden-sec"><div class="chs-head">非表示中（クリックで戻す）${hiddenNames.length?'　<button type="button" class="editlist" id="cust-unhide-all">すべて戻す</button>':""}</div><div class="cg-chips">`+
       (hiddenNames.length ? hiddenNames.map(n=>`<button type="button" class="cust-chip ghost" data-hname="${esc(n)}">${esc(n)}</button>`).join("") : '<span class="muted">非表示の取引先はありません</span>')+`</div></div>`;
   }
   box.innerHTML=html;
-  box.querySelectorAll(".cust-chip").forEach(ch=>{
-    if(ch.dataset.hname!==undefined){ ch.addEventListener("click",()=>{ unhideCust(ch.dataset.hname); renderCustomerDatalist(); renderCustChips(f); }); }
-    else if(custManage){
+  // あかさたなジャンプ：その行を開いてスクロール
+  box.querySelectorAll(".gyo-jump button").forEach(b=> b.addEventListener("click",()=>{
+    openGyo.add(b.dataset.g); renderCustChips(f);
+    const el=document.getElementById("cg-"+b.dataset.g); if(el) el.scrollIntoView({block:"start", behavior:"smooth"});
+  }));
+  // 行グループの開閉（縦プルダウン）
+  box.querySelectorAll(".cg-toggle").forEach(t=> t.addEventListener("click",()=>{
+    const g=t.parentElement.dataset.g;
+    if(openGyo.has(g)) openGyo.delete(g); else openGyo.add(g);
+    renderCustChips(f);
+  }));
+  box.querySelectorAll(".cust-row").forEach(ch=>{
+    if(custManage){
       ch.addEventListener("click",e=>{
         if(e.target.classList.contains("m")){ cycleMethod(ch.dataset.name); renderCustChips(f); updateCustCurrent(); }
         else if(e.target.classList.contains("x")){ hideCust(ch.dataset.name); renderCustomerDatalist(); renderCustChips(f); }
@@ -691,6 +732,7 @@ function renderCustChips(filter){
     }
     else ch.addEventListener("click",()=> pickCustomer(ch.dataset.name, ch.dataset.method||null));
   });
+  box.querySelectorAll(".cust-chip.ghost").forEach(ch=> ch.addEventListener("click",()=>{ unhideCust(ch.dataset.hname); renderCustomerDatalist(); renderCustChips(f); }));
   const ua=box.querySelector("#cust-unhide-all"); if(ua) ua.addEventListener("click",()=>{ saveHidden([]); renderCustomerDatalist(); renderCustChips(f); });
 }
 function pickCustomer(name, method){
@@ -1266,8 +1308,8 @@ function buildWizard(){
     <div class="sel-info">選択中：<b id="cust-current">（未選択）</b><span id="cust-method-tag"></span></div>
     <button type="button" class="btn-next" id="wiz-next-top">商品・配送へ →</button>
   </div>`);
-  const picker=elFrom(`<div class="field" style="margin-top:12px">
-    <label>取引先（クリックで選択。<b>市</b>＝市売／<b>付</b>＝付売／<b>ネ</b>＝直売ネット）</label>
+  const picker=elFrom(`<div class="field" style="margin-top:4px">
+    <label class="ku-q" style="font-size:14px">① 取引先を選ぶ（あかさたなをタップ → 一覧から選択。<b>市</b>＝市売／<b>付</b>＝付売／<b>ネ</b>＝直売ネット）</label>
     <div class="cust-picker">
       <div class="cust-tools">
         <input class="cust-search" id="cust-search" placeholder="🔍 社名で絞り込み" autocomplete="off">
@@ -1279,7 +1321,8 @@ function buildWizard(){
   fCust.querySelector("label").innerHTML='新規取引先（一覧にない場合はここに入力）<button type="button" class="editlist" id="cust-add" title="この取引先を候補に追加">✎候補に追加</button>';
   const pickerBox=picker.querySelector(".cust-picker");
   pickerBox.appendChild(fCust);
-  pane1.append(row1, selBar, picker);
+  const basicsHead=elFrom(`<label class="ku-q" style="font-size:14px;margin-top:16px">② 基本情報を確認（見積日・担当・取引方法は自動、必要なら変更）</label>`);
+  pane1.append(picker, selBar, basicsHead, row1);
 
   /* ステップ2：明細／必要数量計算／配送業者・運賃・納期／送料自動計算 */
   pane2.append(gridWrap, addBar);
