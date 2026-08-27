@@ -1502,21 +1502,32 @@ function yPriceOf(type,len,grade){
   }
   return null;
 }
-/* 商品のタップ選択（選んだら他の選択肢は消え「↩変更」で戻れる） */
+/* タップ選択（商品・等級・長さ共通：選んだら他の選択肢は消え「↩変更」で戻れる） */
 const KJ_TYPES=[["フローリング15mm","桧フローリング 15mm"],["フローリング12mm","桧フローリング 12mm"],["羽目板12mm","桧羽目板 12mm"]];
-function renderTypePick(box, sel){
-  if(!box||!sel) return;
+const KJ_LENS=[["910","910mm（約1m）"],["1820","1820mm（2m級）"],["3000","3m"],["4000","4m"]];
+const CHIP_PICKS={};   // selId → {boxId, opts}
+function renderChipPick(boxId, selId, opts){ CHIP_PICKS[selId]={boxId, opts}; _drawChipPick(selId); }
+function _drawChipPick(selId){
+  const p=CHIP_PICKS[selId]; if(!p) return;
+  const box=$("#"+p.boxId), sel=$("#"+selId); if(!box||!sel) return;
   if(box.dataset.picked==="1"){
-    const lbl=(KJ_TYPES.find(t=>t[0]===sel.value)||KJ_TYPES[0])[1];
+    const hit=p.opts.find(t=>String(t[0])===String(sel.value));
+    const lbl=(hit||p.opts[0])[1];
     box.innerHTML=`<button type="button" class="unit-chip on" style="cursor:default">${lbl}</button><button type="button" class="tp-chg">↩ 変更</button>`;
-    box.querySelector(".tp-chg").addEventListener("click",()=>{ box.dataset.picked=""; renderTypePick(box,sel); });
+    box.querySelector(".tp-chg").addEventListener("click",()=>{ box.dataset.picked=""; _drawChipPick(selId); });
   }else{
-    box.innerHTML=KJ_TYPES.map(([v,l])=>`<button type="button" class="unit-chip" data-v="${v}">${l}</button>`).join("");
+    box.innerHTML=p.opts.map(([v,l])=>`<button type="button" class="unit-chip" data-v="${v}">${l}</button>`).join("");
     box.querySelectorAll(".unit-chip").forEach(b=> b.addEventListener("click",()=>{
-      sel.value=b.dataset.v; box.dataset.picked="1"; renderTypePick(box,sel);
+      sel.value=b.dataset.v; box.dataset.picked="1"; _drawChipPick(selId);
       sel.dispatchEvent(new Event("change"));
     }));
   }
+}
+// プログラムから値を入れるとき用（クイック価格表・比較表の「これにする」）
+function chipPickSet(selId, value){
+  const p=CHIP_PICKS[selId]; const sel=$("#"+selId); if(!sel) return;
+  sel.value=String(value);
+  if(p){ const box=$("#"+p.boxId); if(box) box.dataset.picked="1"; _drawChipPick(selId); }
 }
 function kjTypeItem(ty){
   if(ty==="フローリング15mm") return {name:"桧フローリング",t:"15"};
@@ -1598,7 +1609,7 @@ function renderQuickPrices(){
   });
   box.innerHTML=h+"</table>";
   box.querySelectorAll("td.click").forEach(td=> td.addEventListener("click",()=>{
-    $("#kd-grade").value=td.dataset.g; $("#kd-len").value=String(td.dataset.len);
+    chipPickSet("kd-grade", td.dataset.g); chipPickSet("kd-len", td.dataset.len);
     calcDecided(); flash("価格表から等級・長さを反映しました");
   }));
 }
@@ -1667,7 +1678,7 @@ function calcUndecided(){
     box.innerHTML=h+"</table></div>";
     box.querySelectorAll("button.cv-apply").forEach(b=> b.addEventListener("click",()=>{
       const c=combos[parseInt(b.dataset.i)];
-      $("#ku-grade").value=c.g; $("#ku-len").value=String(c.len); calcUndecided();
+      chipPickSet("ku-grade", c.g); chipPickSet("ku-len", c.len); calcUndecided();
     }));
   }
 }
@@ -1720,10 +1731,17 @@ function buildModeUI(){
           <div class="unit-chips" id="kd-typepick"></div>
           <select id="kd-type" style="display:none"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select>
         </div>
-        <div class="fb-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:10px">
-          <div><label>等級</label><select id="kd-grade"></select></div>
-          <div><label>長さ</label><select id="kd-len"><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000" selected>3m</option><option value="4000">4m</option></select></div>
+        <div style="margin-top:10px"><label class="ku-q">等級（タップで選択）</label>
+          <div class="unit-chips" id="kd-gradepick"></div>
+          <select id="kd-grade" style="display:none"></select>
+        </div>
+        <div style="margin-top:10px"><label class="ku-q">長さ（タップで選択）</label>
+          <div class="unit-chips" id="kd-lenpick"></div>
+          <select id="kd-len" style="display:none"><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000" selected>3m</option><option value="4000">4m</option></select>
+        </div>
+        <div class="fb-grid" style="grid-template-columns:1fr 1fr;margin-top:10px">
           <div><label>数量（束）</label><input id="kd-qty" type="number" step="1" min="1" placeholder="例 5"></div>
+          <div></div>
         </div>
         <div class="kj-result" id="kd-result"></div>
         <div class="fb-grid" style="grid-template-columns:1fr;margin-top:10px">
@@ -1741,7 +1759,7 @@ function buildModeUI(){
       <div class="freight-box" style="margin-top:0">
         <div class="fb-title"><span>📐 広さから試算 → 等級・長さを絞り込む</span></div>
         <div><label class="ku-q">① お客様はどの言い方で広さを言っていますか？</label>
-          <div class="unit-chips">
+          <div class="unit-chips" id="ku-unitpick">
             <button type="button" class="unit-chip" data-u="m2">㎡（平米）</button>
             <button type="button" class="unit-chip" data-u="jo">畳</button>
             <button type="button" class="unit-chip" data-u="tsubo">坪</button>
@@ -1759,9 +1777,13 @@ function buildModeUI(){
             <div class="unit-chips" id="ku-typepick"></div>
             <select id="ku-type" style="display:none"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select>
           </div>
-          <div class="fb-grid" style="grid-template-columns:1fr 1fr">
-            <div><label>等級</label><select id="ku-grade"></select></div>
-            <div><label>長さ</label><select id="ku-len"><option value="all">すべて比較</option><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000">3m</option><option value="4000">4m</option></select></div>
+          <div style="margin-bottom:8px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">等級（タップで選択・未定なら「すべて比較」）</label>
+            <div class="unit-chips" id="ku-gradepick"></div>
+            <select id="ku-grade" style="display:none"></select>
+          </div>
+          <div><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">長さ（タップで選択・未定なら「すべて比較」）</label>
+            <div class="unit-chips" id="ku-lenpick"></div>
+            <select id="ku-len" style="display:none"><option value="all" selected>すべて比較</option><option value="910">910mm（約1m）</option><option value="1820">1820mm（2m級）</option><option value="3000">3m</option><option value="4000">4m</option></select>
           </div>
         </div>
         <div class="kj-result" id="ku-result" style="display:none"></div>
@@ -1782,16 +1804,20 @@ function buildModeUI(){
   paneKEl.querySelectorAll("#kj-choice .kj-card, #kj-switch .kj-sw").forEach(b=> b.addEventListener("click",()=>{ kojinWizard=false; kojinPath=b.dataset.k; setMode("kojin"); }));
   // ルートA（商品が決まっている）
   paneKEl.querySelector("#kd-grade").innerHTML=GRADES.map(g=>`<option value="${g}"${g==="無節"?" selected":""}>${g}</option>`).join("");
-  renderTypePick($("#kd-typepick"), $("#kd-type"));
-  renderTypePick($("#ku-typepick"), $("#ku-type"));
+  renderChipPick("kd-typepick","kd-type",KJ_TYPES);
+  renderChipPick("kd-gradepick","kd-grade",GRADES.map(g=>[g,g]));
+  renderChipPick("kd-lenpick","kd-len",KJ_LENS);
   $("#kd-type").addEventListener("change", calcDecided);
   ["#kd-grade","#kd-len"].forEach(s=> $(s).addEventListener("change", calcDecided));
   $("#kd-qty").addEventListener("input", calcDecided);
   // ルートB（面積から試算）
   paneKEl.querySelector("#ku-grade").innerHTML='<option value="all">すべて比較</option>'+GRADES.map(g=>`<option value="${g}">${g}</option>`).join("");
-  paneKEl.querySelectorAll(".unit-chip").forEach(c=> c.addEventListener("click",()=>{
+  renderChipPick("ku-typepick","ku-type",KJ_TYPES);
+  renderChipPick("ku-gradepick","ku-grade",[["all","すべて比較"]].concat(GRADES.map(g=>[g,g])));
+  renderChipPick("ku-lenpick","ku-len",[["all","すべて比較"]].concat(KJ_LENS));
+  paneKEl.querySelectorAll("#ku-unitpick .unit-chip").forEach(c=> c.addEventListener("click",()=>{
     const prev=kjUnit; kjUnit=c.dataset.u;
-    paneKEl.querySelectorAll(".unit-chip").forEach(x=>x.classList.toggle("on",x===c));
+    paneKEl.querySelectorAll("#ku-unitpick .unit-chip").forEach(x=>x.classList.toggle("on",x===c));
     kuRebuildRooms(prev);
     calcUndecided();
     const f=paneKEl.querySelector("#ku-rooms input"); if(f) f.focus();
