@@ -614,7 +614,9 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyE2O2zEk1NDYskaxflVtPR
    返るのはヤフー公開価格のみ。直売単価＝この税込価格×0.95 を税抜換算して表示し、消費税は別行で合算。 ===== */
 const YPRICE_URL = "https://script.google.com/macros/s/AKfycbxvPjDv81vrJMW2GaqpCJooyxxt7__gvMF4mJkmcGNbNS2xGMoXgTnn6_OEPZ3Rr0spdg/exec";
 const YPRICE_TOKEN = "hzy-yprice-mitsumori-2026";
-const YAHOO_PRICES = {}; // "type|len|grade" -> ヤフー税込価格
+const YAHOO_PRICES = {}; // "type|len|grade" -> ヤフー税込価格（A級・標準のみ＝直売単価の自動投入用）
+let YP_ALL = [];         // ヤフー全価格行（B級・オリジナル加工・幅狭も含む。個人モードで使用）
+const YP_IDX = {};       // "q|group|type|len(1820正規化)|grade" -> {price, bundle}
 function yahooTypeOf(it){
   if(it.name==="桧フローリング" && Number(it.t)===15) return "フローリング15mm";
   if(it.name==="桧フローリング" && Number(it.t)===12) return "フローリング12mm";
@@ -634,9 +636,15 @@ async function refreshYahooPrices(){
     const j=await r.json();
     if(j && j.ok && Array.isArray(j.prices)){
       for(const k in YAHOO_PRICES) delete YAHOO_PRICES[k];
+      for(const k in YP_IDX) delete YP_IDX[k];
       j.prices.forEach(p=>{ if(p.q!=="A" || p.group!=="標準") return; YAHOO_PRICES[`${p.type}|${p.len}|${p.grade}`]=p.price; });
+      // 全品種（A/B × 標準/オリジナル/幅狭）を個人モード用に保持。長さは1820に正規化
+      YP_ALL = j.prices.map(p=>({ q:p.q, group:p.group, type:p.type, len:(Number(p.len)===2000?1820:Number(p.len)),
+                                  grade:p.grade, price:Number(p.price)||0, bundle:Number(p.bundle)||20 }))
+                       .filter(p=> p.price>0);
+      YP_ALL.forEach(p=>{ YP_IDX[`${p.q}|${p.group}|${p.type}|${p.len}|${p.grade}`]={price:p.price,bundle:p.bundle}; });
       if(kubun==="直売"){ autofillPrices(true); render(); }
-      if(typeof renderQuickPrices==="function"){ renderQuickPrices(); calcDecided(); calcUndecided(); }
+      if(typeof refreshKojinOptions==="function") refreshKojinOptions();
     }
   }catch(e){ /* オフライン/未デプロイ時は直売価格は手入力 */ }
 }
@@ -1083,7 +1091,10 @@ function addRow(data){
   $("#items").appendChild(row);
   if(data){
     row.querySelector(".i-name").value=data.name||""; row.querySelector(".i-grade").value=data.grade||"";
-    row.querySelector(".i-t").value=data.t||""; row.querySelector(".i-w").value=data.w||""; row.querySelector(".i-l").value=data.l||"";
+    row.querySelector(".i-t").value=data.t||"";
+    const we=row.querySelector(".i-w");   // 幅は選択肢外（幅狭100mm等）でも入れられるようにする
+    if(data.w && ![...we.options].some(o=>o.value===String(data.w))) we.add(new Option(String(data.w),String(data.w)));
+    we.value=data.w||""; row.querySelector(".i-l").value=data.l||"";
     row.querySelector(".i-in").value=data.in||"";
     const qe=row.querySelector(".i-qty");
     if(data.qty){ if(![...qe.options].some(o=>o.value===String(data.qty))) qe.add(new Option(String(data.qty),String(data.qty))); qe.value=String(data.qty); }
@@ -1510,25 +1521,48 @@ function validateStep(n){
 let quoteMode=null;            // null=最初の選択画面, "ichiba"=市場・取引先, "kojin"=個人
 let modeBarEl=null, pane0El=null, paneKEl=null;
 const TSUBO_M2=3.305785;       // 1坪=400/121㎡（≒2畳）
-const KJ_HW=108;               // 働き幅(mm)＝ヤフー商品の実寸固定（plan.htmlと同じ固定マスタ方式・入数取り違え防止）
+// 働き幅は品種×商品ごとの固定マスタ（KJ_SERIES.dim）。plan.htmlと同じ固定マスタ方式＝入数・幅の取り違え防止
 let kojinPath=null;            // null=ルート選択, "decided"=商品が決まっている, "undecided"=面積から試算
 let kojinWizard=false;         // 個人モードから見積書作成へ進んだ状態（タブは個人のままウィザード表示）
 let kjUnit=null;               // 面積の単位: m2 / jo / tsubo / wh(縦×横)。未選択=null
 
-// ヤフー価格を引く（1820⇄2000両対応。12mm・羽目板は15mmと同一価格＝実店舗確認済なので15mmへフォールバック）
-function yPriceOf(type,len,grade){
-  const tries=(type==="フローリング15mm")?[type]:[type,"フローリング15mm"];
-  for(const ty of tries){
-    let v=YAHOO_PRICES[`${ty}|${len}|${grade}`];
-    if(v==null){ const n=Number(len); const alt=(n===1820)?2000:(n===2000)?1820:null;
-      if(alt!=null) v=YAHOO_PRICES[`${ty}|${alt}|${grade}`]; }
-    if(typeof v==="number" && v>0) return v;
-  }
-  return null;
-}
-/* タップ選択（商品・等級・長さ共通：選んだら他の選択肢は消え「↩変更」で戻れる） */
+/* タップ選択（品種・商品・等級・長さ共通：選んだら他の選択肢は消え「↩変更」で戻れる） */
 const KJ_TYPES=[["フローリング15mm","桧フローリング 15mm"],["フローリング12mm","桧フローリング 12mm"],["羽目板12mm","桧羽目板 12mm"]];
 const KJ_LENS=[["910","1m（910）"],["1820","2m（1820）"],["3000","3m"],["4000","4m"]];
+/* ===== 品種（シリーズ）＝ ヤフーの q(A級/B級) × group(標準/オリジナル/幅狭) =====
+   hw=働き幅・w=商品幅（ヤフー商品名の表記どおり。標準F 15×108×…／標準羽目板 12×103×…／幅狭F 12×93／幅狭羽目板 12×88／オリジナル加工 15×108） */
+const DIM_STD ={"フローリング15mm":{hw:108,w:120},"フローリング12mm":{hw:108,w:120},"羽目板12mm":{hw:103,w:120}};
+const DIM_NARROW={"フローリング15mm":{hw:93,w:105},"フローリング12mm":{hw:93,w:105},"羽目板12mm":{hw:88,w:100}};
+const KJ_SERIES=[
+  {k:"A|標準",       q:"A", grp:"標準",       label:"標準 A級",             note:"いつもの定番",     suf:"",                        fb15:true,  dim:DIM_STD},
+  {k:"B|標準",       q:"B", grp:"標準",       label:"標準 B級品",           note:"訳あり・お買い得", suf:"（B級品）",                fb15:false, dim:DIM_STD},
+  {k:"A|オリジナル", q:"A", grp:"オリジナル", label:"オリジナル加工 A級",   note:"ナイスオリジナル", suf:"（オリジナル加工）",        fb15:false, dim:DIM_STD},
+  {k:"B|オリジナル", q:"B", grp:"オリジナル", label:"オリジナル加工 B級品", note:"ナイスオリジナル", suf:"（オリジナル加工・B級品）", fb15:false, dim:DIM_STD},
+  {k:"A|幅狭",       q:"A", grp:"幅狭",       label:"幅狭 A級",             note:"幅93/88mm",        suf:"（幅狭）",                 fb15:false, dim:DIM_NARROW},
+  {k:"B|幅狭",       q:"B", grp:"幅狭",       label:"幅狭 B級品",           note:"幅93/88mm",        suf:"（幅狭・B級品）",          fb15:false, dim:DIM_NARROW}
+];
+let kjSeries="A|標準";
+function seriesOf(k){ return KJ_SERIES.find(s=>s.k===(k||kjSeries)) || KJ_SERIES[0]; }
+function seriesRows(k){ const s=seriesOf(k); return YP_ALL.filter(p=> p.q===s.q && p.group===s.grp); }
+function seriesAvail(){ const has=new Set(YP_ALL.map(p=>p.q+"|"+p.group)); return KJ_SERIES.filter(s=> has.has(s.k)); }
+function kjDim(type,k){ return seriesOf(k).dim[type] || {hw:108,w:120}; }
+// ヤフー価格を引く（1820⇄2000両対応。標準A級のみ12mm・羽目板は15mmと同一価格＝実店舗確認済なので15mmへフォールバック）
+function ypGet(type,len,grade,k){
+  const s=seriesOf(k); const n=(Number(len)===2000)?1820:Number(len);
+  const tries=(s.fb15 && type!=="フローリング15mm")?[type,"フローリング15mm"]:[type];
+  for(const ty of tries){ const r=YP_IDX[`${s.q}|${s.grp}|${ty}|${n}|${grade}`]; if(r && r.price>0) return r; }
+  return null;
+}
+function kjLot(len){ return NYUSU_DEF[(Number(len)===2000)?1820:Number(len)] || 10; }   // 当社梱包の枚数（＝送料の口数の基準）
+// 1束（=kjLot枚）あたり税込。ヤフーの入数と当社梱包が違う長さ（2m=ヤフー20枚入／当社10枚束）を必ず枚数換算する
+function kjPriceIncl(type,len,grade,k){ const r=ypGet(type,len,grade,k); return r? Math.round(r.price*0.95/r.bundle*kjLot(len)) : null; }
+function kjPriceRaw(type,len,grade,k){ const r=ypGet(type,len,grade,k); return r? Math.round(r.price/r.bundle*kjLot(len)) : null; }
+function kjYBundle(type,len,grade,k){ const r=ypGet(type,len,grade,k); return r? r.bundle : null; }
+/* 品種ごとに「選べる商品・等級・長さ」をデータから作る（B級・オリジナルは一部の等級/長さしか無い） */
+function kjTypesFor(k){ const s=seriesOf(k); if(s.fb15) return KJ_TYPES.slice();
+  const has=new Set(seriesRows(k).map(p=>p.type)); return KJ_TYPES.filter(t=> has.has(t[0])); }
+function kjGradesFor(type,k){ return GRADES.filter(g=> KJ_LENS.some(([l])=> ypGet(type,l,g,k))); }
+function kjLensFor(type,k,grade){ return KJ_LENS.filter(([l])=> grade ? !!ypGet(type,l,grade,k) : GRADES.some(g=> ypGet(type,l,g,k))); }
 const CHIP_PICKS={};   // selId → {boxId, opts}
 function renderChipPick(boxId, selId, opts){ CHIP_PICKS[selId]={boxId, opts}; _drawChipPick(selId); }
 function _drawChipPick(selId){
@@ -1569,16 +1603,17 @@ function renderMultiPick(boxId, opts, set){
 function kuSetSingle(g,len){
   kuGrades.clear(); kuGrades.add(String(g));
   kuLens.clear(); kuLens.add(String(len));
-  renderMultiPick("ku-gradepick", GRADES.map(x=>[x,x]), kuGrades);
-  renderMultiPick("ku-lenpick", KJ_LENS, kuLens);
+  const ty=$("#ku-type").value;
+  renderMultiPick("ku-gradepick", kjGradesFor(ty).map(x=>[x,x]), kuGrades);
+  renderMultiPick("ku-lenpick", kjLensFor(ty), kuLens);
 }
 function kjTypeItem(ty){
   if(ty==="フローリング15mm") return {name:"桧フローリング",t:"15"};
   if(ty==="フローリング12mm") return {name:"桧フローリング",t:"12"};
   return {name:"桧羽目板",t:"12"};
 }
-function kjNyusu(len){ return NYUSU_DEF[Number(len)]||10; }
-function kjPerBundle(len){ return (KJ_HW/1000)*(Number(len)/1000)*kjNyusu(len); }   // 1束あたり㎡
+function kjNyusu(len){ return kjLot(len); }
+function kjPerBundle(len,type,k){ return (kjDim(type||"フローリング15mm",k).hw/1000)*(Number(len)/1000)*kjLot(len); }   // 1束あたり㎡
 function lenLabel(len){ len=Number(len); return len===910?"1m（910）" : len===1820?"2m（1820）" : (len/1000)+"m"; }
 function kjRoomArea(r){
   if(kjUnit==="wh"){ const t=parseFloat(r.querySelector(".ku-tate").value)||0, y=parseFloat(r.querySelector(".ku-yoko").value)||0; return t*y; }
@@ -1634,25 +1669,31 @@ function kuRebuildRooms(prevUnit){
   wrap.innerHTML="";
   for(let i=0;i<n;i++){ const row=kuAddRoom(false); if(keepVals && vals[i]!=null){ const v=row.querySelector(".ku-val"); if(v) v.value=vals[i]; } }
 }
-/* 📞 クイック価格表：長さ×等級でヤフー5%引きを一覧表示（フローリング15/12・羽目板は同一価格＝タブなし1枚） */
+/* 📞 クイック価格表：選択中の品種・商品について、長さ×等級でヤフー5%引きを一覧表示 */
 function renderQuickPrices(){
   const box=$("#qp-table"); if(!box) return;
-  if(!Object.keys(YAHOO_PRICES).length){ box.innerHTML='<div class="fb-note">ヤフー価格を取得中…（オフライン時は表示できません）</div>'; return; }
-  const LENS=[[910,"1m（910）"],[1820,"2m（1820）"],[3000,"3m"],[4000,"4m"]];
-  let h='<table class="qp-table"><tr><th>長さ＼等級</th>'+GRADES.map(g=>`<th>${g}</th>`).join("")+"</tr>";
-  LENS.forEach(([len,label])=>{
-    h+=`<tr><th>${label}</th>`;
-    GRADES.forEach(g=>{
-      const y=yPriceOf("フローリング15mm",len,g);
-      h+= (y!=null)
-        ? `<td class="click" data-len="${len}" data-g="${g}" title="クリックで上の計算に反映"><b>¥${fmt(Math.round(y*0.95))}</b><small>税抜 ¥${fmt(Math.round(y*0.95/1.1))}</small></td>`
+  const s=seriesOf(), ty=($("#kd-type")&&$("#kd-type").value)||"フローリング15mm";
+  const tEl=$("#qp-title");
+  if(tEl) tEl.textContent=`📞 クイック価格表（${s.label}・${(KJ_TYPES.find(t=>t[0]===ty)||["","" ])[1]}・ヤフー5%引き・1束あたり）`;
+  if(!YP_ALL.length){ box.innerHTML='<div class="fb-note">ヤフー価格を取得中…（オフライン時は表示できません）</div>'; return; }
+  const grades=kjGradesFor(ty), lens=kjLensFor(ty);
+  if(!grades.length || !lens.length){ box.innerHTML='<div class="fb-note">この品種・商品の価格はヤフーに登録がありません。</div>'; return; }
+  let h='<table class="qp-table"><tr><th>長さ＼等級</th>'+grades.map(g=>`<th>${g}</th>`).join("")+"</tr>";
+  lens.forEach(([len,label])=>{
+    h+=`<tr><th>${label}<br><span style="font-size:.8em;color:#666">${kjLot(len)}枚入</span></th>`;
+    grades.forEach(g=>{
+      const p=kjPriceIncl(ty,len,g);
+      h+= (p!=null)
+        ? `<td class="click" data-len="${len}" data-g="${g}" title="クリックで上の計算に反映"><b>¥${fmt(p)}</b><small>税抜 ¥${fmt(Math.round(p/1.1))}</small></td>`
         : '<td style="color:#ccc">—</td>';
     });
     h+="</tr>";
   });
   box.innerHTML=h+"</table>";
   box.querySelectorAll("td.click").forEach(td=> td.addEventListener("click",()=>{
-    chipPickSet("kd-grade", td.dataset.g); chipPickSet("kd-len", td.dataset.len);
+    chipPickSet("kd-grade", td.dataset.g);
+    refreshKojinOptions();                       // その等級で選べる長さに作り直してから長さを入れる
+    chipPickSet("kd-len", td.dataset.len);
     calcDecided(); flash("価格表から等級・長さを反映しました");
   }));
 }
@@ -1661,23 +1702,25 @@ function calcDecided(){
   const box=$("#kd-result"), act=$("#kd-actions"); if(!box) return;
   const ty=$("#kd-type").value, g=$("#kd-grade").value, len=Number($("#kd-len").value);
   const qty=parseInt($("#kd-qty").value)||0;
-  const y=yPriceOf(ty,len,g);
+  const s=seriesOf(), lot=kjLot(len), dim=kjDim(ty);
+  const incl=kjPriceIncl(ty,len,g);
   let h="", ah="";
-  if(y==null){
-    h='<div class="fb-note">この等級・長さのヤフー価格が未取得です（見積書側で手入力できます）。</div>';
+  if(incl==null){
+    h='<div class="fb-note">この品種・等級・長さのヤフー価格はありません（別の組合せを選ぶか、見積書側で手入力してください）。</div>';
   }else{
-    const incl=Math.round(y*0.95), excl=Math.round(y*0.95/1.1);
-    h=`<div>単価（ヤフー5%引き）：<span class="big">¥${fmt(incl)}</span> 税込/束（${kjNyusu(len)}枚入・税抜 ¥${fmt(excl)}）</div>`;
+    const excl=Math.round(incl/1.1), yb=kjYBundle(ty,len,g);
+    h=`<div><b>${s.label}</b>／単価（ヤフー5%引き）：<span class="big">¥${fmt(incl)}</span> 税込/束（${lot}枚入・税抜 ¥${fmt(excl)}）</div>`;
+    if(yb && yb!==lot) h+=`<div class="fb-note">※ヤフーは${yb}枚入 ¥${fmt(ypGet(ty,len,g).price)}表記ですが、実梱包は${lot}枚束のため${lot}枚単位（通常 ¥${fmt(kjPriceRaw(ty,len,g))}／5%引き ¥${fmt(incl)}）で計算しています。</div>`;
     if(qty>0){
       h+=`<div>合計（商品のみ・送料別）：${qty}束 × ¥${fmt(incl)} = <span class="big" style="color:#c62828">¥${fmt(qty*incl)}</span>（税込）</div>
-        <div class="fb-note">施工面積の目安：約 ${(kjPerBundle(len)*qty).toFixed(2)}㎡（働き幅${KJ_HW}mm換算）</div>`;
+        <div class="fb-note">施工面積の目安：約 ${(kjPerBundle(len,ty)*qty).toFixed(2)}㎡（働き幅${dim.hw}mm換算）</div>`;
       ah=`<button type="button" class="btn-next" data-q="${qty}">この内容で見積書を作る →</button>`;
     }else{
       h+='<div class="fb-note">数量（束）を入れると合計金額が出ます。</div>';
     }
   }
   box.innerHTML=h; act.innerHTML=ah;
-  act.querySelectorAll("button").forEach(b=> b.addEventListener("click",()=> applyKojinToQuote(parseInt(b.dataset.q), {type:ty, grade:g, len:len, name:$("#kd-name").value})));
+  act.querySelectorAll("button").forEach(b=> b.addEventListener("click",()=> applyKojinToQuote(parseInt(b.dataset.q), {type:ty, grade:g, len:len, name:$("#kd-name").value, series:kjSeries})));
 }
 /* 📐 ルートB：決まっていない → 単位→広さ→等級・長さをだんだん絞り込む（未定は全比較） */
 function calcUndecided(){
@@ -1691,19 +1734,19 @@ function calcUndecided(){
   box.style.display=hasUnit?"":"none";
   if(!hasUnit) return;
   if(!(area>0)){ box.innerHTML='<div class="fb-note">広さを入れると自動計算します。</div>'; return; }
-  const ty=$("#ku-type").value;
-  const lens=[910,1820,3000,4000].filter(l=> kuLens.size===0 || kuLens.has(String(l)));
-  const grades=GRADES.filter(g=> kuGrades.size===0 || kuGrades.has(g));
+  const ty=$("#ku-type").value, s=seriesOf(), dim=kjDim(ty);
+  const lens=kjLensFor(ty).map(x=>Number(x[0])).filter(l=> kuLens.size===0 || kuLens.has(String(l)));
+  const grades=kjGradesFor(ty).filter(g=> kuGrades.size===0 || kuGrades.has(g));
   const combos=[];
   lens.forEach(len=> grades.forEach(g=>{
-    const y=yPriceOf(ty,len,g); if(y==null) return;
-    const per=kjPerBundle(len);
-    combos.push({len,g,incl:Math.round(y*0.95),excl:Math.round(y*0.95/1.1),per,pure:Math.ceil(area/per),loss:Math.ceil(area*1.1/per)});
+    const incl=kjPriceIncl(ty,len,g); if(incl==null) return;
+    const per=kjPerBundle(len,ty);
+    combos.push({len,g,incl,excl:Math.round(incl/1.1),per,pure:Math.ceil(area/per),loss:Math.ceil(area*1.1/per)});
   }));
   const unitLabel = kjUnit==="jo"?"畳" : kjUnit==="tsubo"?"坪" : kjUnit==="wh"?"縦×横" : "㎡";
   const rooms=kjRoomCount();
-  let h=`<div>必要面積 <b>${area.toFixed(2)}㎡</b>（${unitLabel}入力${rooms>1?`・${rooms}部屋合計`:""}・働き幅${KJ_HW}mm換算）</div>`;
-  if(!combos.length){ box.innerHTML=h+'<div class="fb-note">この条件のヤフー価格が未取得です。商品・等級・長さを変えてみてください。</div>'; return; }
+  let h=`<div>必要面積 <b>${area.toFixed(2)}㎡</b>（${unitLabel}入力${rooms>1?`・${rooms}部屋合計`:""}・${s.label}・働き幅${dim.hw}mm換算）</div>`;
+  if(!combos.length){ box.innerHTML=h+'<div class="fb-note">この条件のヤフー価格がありません。品種・商品・等級・長さを変えてみてください。</div>'; return; }
   if(combos.length===1){
     const c=combos[0];
     h+=`<div>${lenLabel(c.len)}・<b>${c.g}</b>（${kjNyusu(c.len)}枚入・1束=${c.per.toFixed(2)}㎡）　単価 <b>¥${fmt(c.incl)}</b> 税込/束（税抜 ¥${fmt(c.excl)}）</div>
@@ -1711,7 +1754,7 @@ function calcUndecided(){
     box.innerHTML=h;
     act.innerHTML=`<button type="button" class="btn-next" data-q="${c.loss}">ロス込み ${c.loss}束で見積書を作る →</button>
       <button type="button" class="btn-back" data-q="${c.pure}">純 ${c.pure}束で見積書を作る</button>`;
-    act.querySelectorAll("button").forEach(b=> b.addEventListener("click",()=> applyKojinToQuote(parseInt(b.dataset.q), {type:ty, grade:c.g, len:c.len, name:$("#ku-name").value})));
+    act.querySelectorAll("button").forEach(b=> b.addEventListener("click",()=> applyKojinToQuote(parseInt(b.dataset.q), {type:ty, grade:c.g, len:c.len, name:$("#ku-name").value, series:kjSeries})));
   }else{
     h+=`<div class="fb-note">候補 ${combos.length}件（ロス1割込みで計算・税込・送料別）。等級・長さを選ぶと絞れます。「これにする」で1つに決定。<br>複数候補をお客様に見せるときは、チェックを付けて「比較見積書」を押してください。</div>
       <div style="overflow-x:auto"><table class="qp-table cmp"><tr><th>比較</th><th>長さ</th><th>等級</th><th>入数</th><th>単価/束</th><th>必要束数</th><th>金額</th><th></th></tr>`;
@@ -1727,13 +1770,14 @@ function calcUndecided(){
     $("#ku-cmp-btn").addEventListener("click",()=>{
       const sel=[...box.querySelectorAll("input.cv-chk:checked")].map(el=> combos[parseInt(el.dataset.i)]);
       if(!sel.length){ alert("比較する候補にチェックを付けてください。"); return; }
-      openCompareSheet(sel, area, {type:ty, name:$("#ku-name").value, unitLabel, rooms});
+      openCompareSheet(sel, area, {type:ty, name:$("#ku-name").value, unitLabel, rooms, series:kjSeries});
     });
   }
 }
 /* 比較見積書（複数候補を1枚のA4で・送料別＝決定後の正式見積書で案内） */
 function openCompareSheet(sel, area, meta){
   const it=kjTypeItem(meta.type);
+  const sr=seriesOf(meta.series), dim=kjDim(meta.type, meta.series);
   const name=(meta.name||"").trim();
   const d=new Date();
   const jp=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
@@ -1758,8 +1802,8 @@ function openCompareSheet(sel, area, meta){
         <b>株式会社林材木店</b><br>静岡県磐田市福田5490-47<br>TEL 0538-58-2395　FAX 050-3146-7566<br>担当：林</div>
     </div>
     <div class="info">
-      商品：<b>${it.name}（厚${it.t}mm・幅120mm・A級）</b><br>
-      必要面積：<b>${area.toFixed(2)}㎡</b>（働き幅108mm換算・施工ロス1割込みで数量を計算しています）
+      商品：<b>${it.name}（厚${it.t}mm・幅${dim.w}mm・${sr.label}）</b><br>
+      必要面積：<b>${area.toFixed(2)}㎡</b>（働き幅${dim.hw}mm換算・施工ロス1割込みで数量を計算しています）
     </div>
     <table>
       <tr><th></th><th>長さ</th><th>等級</th><th>入数</th><th>単価（税込/束）</th><th>必要数量</th><th>合計金額（税込）</th></tr>
@@ -1780,10 +1824,14 @@ function openCompareSheet(sel, area, meta){
 function applyKojinToQuote(qty, o){
   if(!qty) return;
   const it=kjTypeItem(o.type);
+  const sr=seriesOf(o.series), dim=kjDim(o.type,o.series);
+  const incl=kjPriceIncl(o.type,o.len,o.grade,o.series);
   $("#f-customer").value=(o.name||"").trim();
   $("#f-keisho").value="様";
   $("#items").innerHTML="";
-  addRow({name:it.name, grade:o.grade, t:it.t, w:"120", l:String(o.len), in:String(kjNyusu(o.len)), qty:qty});
+  // 単価は個人モードで確定済み（ヤフー5%引き・当社梱包の枚数換算済み）＝手入力扱いで入れ、自動投入に上書きさせない
+  addRow({name:it.name+sr.suf, grade:o.grade, t:it.t, w:String(dim.w), l:String(o.len), in:String(kjLot(o.len)), qty:qty,
+          price:(incl!=null)?Math.round(incl/1.1):0});
   addRow();
   setKubun("直売");
   kojinWizard=true; setMode("kojin"); goStep(3);   // タブは「個人」のまま運賃・配送ページへ（明細は反映済み）
@@ -1822,7 +1870,10 @@ function buildModeUI(){
     <div id="kj-decided" style="display:none">
       <div class="freight-box" style="margin-top:0">
         <div class="fb-title"><span>🛒 商品と数量 → ヤフー5%引きで自動計算</span></div>
-        <div><label class="ku-q">商品（タップで選択）</label>
+        <div><label class="ku-q">品種（A級／B級品・オリジナル加工・幅狭）</label>
+          <div class="unit-chips" id="kd-seriespick"></div>
+        </div>
+        <div style="margin-top:10px"><label class="ku-q">商品（タップで選択）</label>
           <div class="unit-chips" id="kd-typepick"></div>
           <select id="kd-type" style="display:none"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select>
         </div>
@@ -1845,9 +1896,9 @@ function buildModeUI(){
         <div class="kj-actions" id="kd-actions"></div>
       </div>
       <div class="freight-box">
-        <div class="fb-title"><span>📞 クイック価格表（ヤフー5%引き・1束あたり・フローリング15/12mm・羽目板 共通価格）</span></div>
+        <div class="fb-title"><span id="qp-title">📞 クイック価格表（ヤフー5%引き・1束あたり）</span></div>
         <div style="overflow-x:auto" id="qp-table"></div>
-        <div class="fb-note">※赤字＝<b>税込（ヤフー税込価格×0.95）</b>／下段＝税抜。電話ではこのまま読み上げOK。セルをクリックすると上の計算に等級・長さが入ります。</div>
+        <div class="fb-note">※上段＝<b>税込（ヤフー税込価格×0.95）</b>／下段＝税抜。電話ではこのまま読み上げOK。セルをクリックすると上の計算に等級・長さが入ります。品種・商品を切り替えると表も切り替わります。</div>
       </div>
     </div>
     <div id="kj-undecided" style="display:none">
@@ -1868,7 +1919,10 @@ function buildModeUI(){
         </div>
         <div id="ku-step3" style="display:none;margin-top:10px">
           <label class="ku-q">③ 絞り込み（未定のところは「すべて比較」のままでOK）</label>
-          <div style="margin-bottom:8px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">商品（タップで選択・価格は3商品共通）</label>
+          <div style="margin-bottom:8px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">品種（A級／B級品・オリジナル加工・幅狭）</label>
+            <div class="unit-chips" id="ku-seriespick"></div>
+          </div>
+          <div style="margin-bottom:8px"><label style="display:block;font-size:11px;color:#555;font-weight:bold;margin-bottom:4px">商品（タップで選択）</label>
             <div class="unit-chips" id="ku-typepick"></div>
             <select id="ku-type" style="display:none"><option value="フローリング15mm">桧フローリング 15mm</option><option value="フローリング12mm">桧フローリング 12mm</option><option value="羽目板12mm">桧羽目板 12mm</option></select>
           </div>
@@ -1884,7 +1938,7 @@ function buildModeUI(){
           <div><label>お客様のお名前（見積書に載せる場合・空欄OK）</label><input id="ku-name" placeholder="例 山田 太郎"></div>
         </div>
         <div class="kj-actions" id="ku-actions"></div>
-        <div class="fb-note">※1畳=1.62㎡／1坪=3.31㎡（約2畳）。働き幅${KJ_HW}mm・入数は長さごとに固定（910:20枚／1820:10枚／3m:10枚／4m:8枚）で計算します。</div>
+        <div class="fb-note">※1畳=1.62㎡／1坪=3.31㎡（約2畳）。働き幅は品種ごと（標準フローリング108mm・標準羽目板103mm・幅狭93/88mm）、入数は長さごとに固定（910:20枚／1820:10枚／3m:10枚／4m:8枚）で計算します。</div>
       </div>
     </div>
   </div>`);
@@ -1897,16 +1951,12 @@ function buildModeUI(){
   paneKEl.querySelectorAll("#kj-choice .kj-card, #kj-switch .kj-sw").forEach(b=> b.addEventListener("click",()=>{ kojinWizard=false; kojinPath=b.dataset.k; setMode("kojin"); }));
   // ルートA（商品が決まっている）
   paneKEl.querySelector("#kd-grade").innerHTML=GRADES.map(g=>`<option value="${g}"${g==="無節"?" selected":""}>${g}</option>`).join("");
-  renderChipPick("kd-typepick","kd-type",KJ_TYPES);
-  renderChipPick("kd-gradepick","kd-grade",GRADES.map(g=>[g,g]));
-  renderChipPick("kd-lenpick","kd-len",KJ_LENS);
-  $("#kd-type").addEventListener("change", calcDecided);
-  ["#kd-grade","#kd-len"].forEach(s=> $(s).addEventListener("change", calcDecided));
+  $("#kd-type").addEventListener("change", refreshKojinOptions);
+  $("#kd-grade").addEventListener("change", refreshKojinOptions);
+  $("#kd-len").addEventListener("change", calcDecided);
   $("#kd-qty").addEventListener("input", calcDecided);
   // ルートB（面積から試算）
-  renderChipPick("ku-typepick","ku-type",KJ_TYPES);
-  renderMultiPick("ku-gradepick", GRADES.map(g=>[g,g]), kuGrades);
-  renderMultiPick("ku-lenpick", KJ_LENS, kuLens);
+  $("#ku-type").addEventListener("change", refreshKojinOptions);
   paneKEl.querySelectorAll("#ku-unitpick .unit-chip").forEach(c=> c.addEventListener("click",()=>{
     const prev=kjUnit; kjUnit=c.dataset.u;
     paneKEl.querySelectorAll("#ku-unitpick .unit-chip").forEach(x=>x.classList.toggle("on",x===c));
@@ -1915,8 +1965,53 @@ function buildModeUI(){
     const f=paneKEl.querySelector("#ku-rooms input"); if(f) f.focus();
   }));
   $("#ku-add-room").addEventListener("click",()=>{ kuAddRoom(true); calcUndecided(); });
-  $("#ku-type").addEventListener("change", calcUndecided);
-  renderQuickPrices();
+  refreshKojinOptions();
+}
+/* 品種チップ（常に全部見えるようにして、いま何級で計算しているか一目で分かるようにする） */
+function renderSeriesPick(boxId){
+  const box=$("#"+boxId); if(!box) return;
+  const list=seriesAvail();
+  if(!list.length){ box.innerHTML='<div class="fb-note">ヤフー価格を取得中…</div>'; return; }
+  box.innerHTML=list.map(s=>`<button type="button" class="unit-chip${s.k===kjSeries?" on":""}" data-k="${s.k}">${s.label}<small style="display:block;font-weight:normal;opacity:.75">${s.note}</small></button>`).join("");
+  box.querySelectorAll(".unit-chip").forEach(b=> b.addEventListener("click",()=>{ kjSeries=b.dataset.k; refreshKojinOptions(); }));
+}
+/* selectの選択肢を作り直す（いまの値が新しい品種に無ければ先頭へ） */
+function ensureSel(selId, opts){
+  const sel=$("#"+selId); if(!sel || !opts.length) return;
+  const cur=sel.value;
+  sel.innerHTML=opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+  sel.value = opts.some(o=>String(o[0])===String(cur)) ? cur : String(opts[0][0]);
+}
+/* 品種・商品を切り替えたら、選べる商品／等級／長さと価格表を作り直す */
+let _kjBusy=false;
+function refreshKojinOptions(){
+  if(!paneKEl || _kjBusy) return;
+  _kjBusy=true;
+  try{
+    renderSeriesPick("kd-seriespick"); renderSeriesPick("ku-seriespick");
+    const types=kjTypesFor();
+    if(types.length){
+      // ルートA
+      ensureSel("kd-type", types); renderChipPick("kd-typepick","kd-type",types);
+      const tyA=$("#kd-type").value;
+      const gAll=kjGradesFor(tyA);                       // 価格未取得（オフライン）のときは従来どおり全部出す
+      const gA=(gAll.length?gAll:GRADES).map(g=>[g,g]);
+      ensureSel("kd-grade", gA); renderChipPick("kd-gradepick","kd-grade",gA);
+      const lAll=kjLensFor(tyA,null,$("#kd-grade").value);
+      const lA=lAll.length?lAll:KJ_LENS;
+      ensureSel("kd-len", lA); renderChipPick("kd-lenpick","kd-len",lA);
+      // ルートB
+      ensureSel("ku-type", types); renderChipPick("ku-typepick","ku-type",types);
+      const tyB=$("#ku-type").value;
+      const gBs=kjGradesFor(tyB), gB=gBs.length?gBs:GRADES;
+      [...kuGrades].forEach(g=>{ if(!gB.includes(g)) kuGrades.delete(g); });
+      renderMultiPick("ku-gradepick", gB.map(g=>[g,g]), kuGrades);
+      const lBs=kjLensFor(tyB), lB=lBs.length?lBs:KJ_LENS;
+      [...kuLens].forEach(l=>{ if(!lB.some(x=>String(x[0])===String(l))) kuLens.delete(l); });
+      renderMultiPick("ku-lenpick", lB, kuLens);
+    }
+  } finally { _kjBusy=false; }
+  renderQuickPrices(); calcDecided(); calcUndecided();
 }
 function setMode(m){
   quoteMode=m;
