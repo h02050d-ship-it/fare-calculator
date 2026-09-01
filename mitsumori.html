@@ -29,7 +29,7 @@
   .hdrfields2 .field{ margin-bottom:0; }
 
   .grid-wrap{ border:1px solid #d5d9de; border-radius:8px; overflow:hidden; margin-top:10px; }
-  .items-head, .item-row{ display:grid; grid-template-columns: 2.0fr 1.2fr .8fr .8fr 1.0fr .7fr .9fr 1.0fr 1.1fr 28px; gap:0; align-items:stretch; }
+  .items-head, .item-row{ display:grid; grid-template-columns: 1.8fr 1.6fr .8fr .8fr 1.0fr .7fr .9fr 1.0fr 1.1fr 28px; gap:0; align-items:stretch; }
   .items-head{ font-size:12px; color:#33415c; font-weight:bold; background:#eef1f5; }
   .items-head span{ padding:7px 4px; text-align:center; border-right:1px solid #e0e4e9; min-width:0; overflow:hidden; }
   .items-head span:last-child{ border-right:none; }
@@ -1013,13 +1013,13 @@ const QR_DATAURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAAEiAQAAAA
 
 const ROWS_TOTAL = 16;
 const COLS = [
-  {k:"name", h:"品名",  w:38,   cls:"name"},
-  {k:"grade",h:"等級",  w:18,   cls:"grade"},
+  {k:"name", h:"品名",  w:36,   cls:"name"},
+  {k:"grade",h:"等級",  w:23.5, cls:"grade"},   // 「無節特上小」5文字が1行で収まる幅（18mmだと2行に折れる）
   {k:"t",    h:"厚",    w:11,   cls:"center"},
   {k:"w",    h:"幅",    w:11,   cls:"center"},
   {k:"l",    h:"長",    w:11,   cls:"center"},
   {k:"in",   h:"入数",  w:11,   cls:"center"},
-  {k:"qty",  h:"数 量", w:19.9, cls:"center"},
+  {k:"qty",  h:"数 量", w:16.4, cls:"center"},
   {k:"price",h:"単価",  w:20.2, cls:"num"},
   {k:"amt",  h:"金 額", w:33.5, cls:"num"},
 ];
