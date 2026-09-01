@@ -742,8 +742,10 @@ function renderCustChips(filter){
     if(tools) tools.style.display="none";
     const m0=custMaster.find(c=>c.name===cur);
     const em0=methodOf(cur, m0?m0.method:null); const t0=em0==="市売"?"市":em0==="付売"?"付":"ネ";
+    const pi0=partnerInfo[custNormKey(cur)];   // 番号を出して拠点違い(ナイス新潟⇄長野等)にその場で気づけるように
+    const contact0=(pi0&&(pi0.tel||pi0.fax))?`<div style="font-size:11.5px;color:#8a6d1a;background:#fff8e1;border-radius:6px;padding:3px 8px;margin-top:4px">📍 ${pi0.tel?"TEL "+esc(pi0.tel):""}${pi0.tel&&pi0.fax?"　":""}${pi0.fax?"FAX "+esc(pi0.fax):""}　← 拠点違いに注意（番号を確認）</div>`:"";
     box.innerHTML=`<div class="cust-picked">
-      <div class="cust-row sel"><span class="nm">${esc(cur)}</span><span class="rt"><span class="m">${t0}</span></span></div>
+      <div class="cust-row sel"><span class="nm">${esc(cur)}</span><span class="rt"><span class="m">${t0}</span></span></div>${contact0}
       <button type="button" class="chg" id="cust-change">↩ 変更する</button>
     </div>`;
     box.querySelector("#cust-change").addEventListener("click",()=>{ custListEditing=true; renderCustChips($("#cust-search")?$("#cust-search").value:""); });
@@ -953,10 +955,14 @@ async function fetchPartners(cred){
   finally{ clearTimeout(to); }
 }
 // 取引先候補（datalist＋チップ）に、まだ無い名前だけを追加する（既存候補は消さない）
+let partnerInfo={};   // 正規化名→{tel,fax,addr}。多拠点取引先(ナイス14拠点等)の取り違え防止に選択カードへ番号を表示する
 async function loadPartnerCustomers(){
   const cred=borrowCred(); if(!cred) return;               // 資格情報が無ければ従来通り（変化ゼロ）
   const partners=await fetchPartners(cred);
   if(!Array.isArray(partners) || !partners.length) return;
+  partners.forEach(p=>{ const nm=canonCust((p&&p.name!=null?String(p.name):"").trim()); if(!nm) return;
+    const k=custNormKey(nm); if(k && (p.tel||p.fax||p.addr)) partnerInfo[k]={tel:String(p.tel||""),fax:String(p.fax||""),addr:String(p.addr||"")}; });
+  renderCustChips($("#cust-search")?$("#cust-search").value:"");   // 既に選択済みでも番号表示を反映
   const seen=new Set();                                    // 既存名の正規化キー（チップ＋localStorage候補）
   custMaster.forEach(c=> seen.add(custNormKey(c.name)));
   loadCands().forEach(n=> seen.add(custNormKey(n)));
