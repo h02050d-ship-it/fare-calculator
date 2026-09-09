@@ -659,7 +659,8 @@ async function refreshPricebook(){
   try{
     // 価格表APIは認証必須（2026-08-26）。ログイン済みならSSOパス、無ければ社内ツール共通の合言葉で取得
     const _c=borrowCred();
-    const auth=_c ? "&pass="+encodeURIComponent(_c.pass) : "&k=nk-9t2Xr7Lq4wPz";
+    if(!_c) return; // 未ログインなら内蔵価格表のまま（2026-09-09 合言葉の直書きを廃止）
+    const auth="&pass="+encodeURIComponent(_c.pass);
     for(const m of ["市売","付売"]){
       const r=await fetch(GAS_URL+"?action=getPrices"+auth+"&method="+encodeURIComponent(m)); const j=await r.json();
       const tbl={};
