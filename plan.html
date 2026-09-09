@@ -174,6 +174,13 @@ button:hover{opacity:.88}
     <div class="row"><div class="f"><label>件名</label><input id="i-subj"></div></div>
     <div class="row"><div class="f"><label>備考（1行1項目）</label>
       <textarea id="i-remarks" rows="5"></textarea></div></div>
+    <div class="row">
+      <div class="f"><label>追加費用の名目（現場おろし等・空なら無し）</label><input id="i-extra-label" placeholder="例）現場おろし追加送料"></div>
+      <div class="f" style="flex:0 0 150px"><label>金額（税込）</label><input id="i-extra" type="number" min="0" step="10" placeholder="例）13750"></div>
+      <div class="f" style="flex:0 0 200px"><label>加工オプション表</label>
+        <select id="i-noopt"><option value="">載せる（1m・2mのみ）</option><option value="1">載せない</option></select></div>
+    </div>
+    <div class="hint">追加費用は送料とは別行で合計に含めます（LINE文にも載ります）。「追加オプションなし」で出すときは加工オプション表を「載せない」に。</div>
     <div class="btns">
       <button id="btn-pdf" onclick="downloadPdf()">📄 PDFをダウンロード</button>
       <button class="sec" onclick="window.print()">🖨 印刷</button>
@@ -240,6 +247,7 @@ const bracket  = l => Math.min(4, Math.max(1, Math.ceil(l/1000)));   // 運賃�
 const prefFull = p => p==="北海道" ? p : (p==="東京" ? "東京都" : ((p==="大阪"||p==="京都") ? p+"府" : p+"県"));
 
 let LENON = {910:true, 1820:true, 3000:true, 4000:true};
+let FIXT = false;   // URLに fixt=1 があれば厚さを確定表記（15/12同価格の文言を出さない）
 
 /* ===================== ヤフー価格 ===================== */
 function yType(){
@@ -295,6 +303,8 @@ function fare(pref, len, lots){
 }
 
 /* ===================== 計算 ===================== */
+function extraLabel(){ return ($("#i-extra-label").value||"").trim(); }
+function extraFee(){ return extraLabel() ? Math.max(0, Math.round(parseFloat($("#i-extra").value)||0)) : 0; }
 function areaM2(){
   const v=parseFloat($("#i-area").value)||0;
   return $("#i-unit").value==="jo" ? v*JO_M2 : v;
@@ -319,7 +329,8 @@ function calcPlan(len, area, pref, grade){
   p.margin = cover/area - 1;
   p.goods  = Math.round(p.perPiece * p.pieces);
   p.fare   = fare(pref, len, lots);
-  p.total  = p.fare==null ? null : p.goods + p.fare;
+  p.extra  = extraFee();
+  p.total  = p.fare==null ? null : p.goods + p.fare + p.extra;
   p.ok     = p.total!=null;
   return p;
 }
@@ -389,7 +400,7 @@ function buildLine(plans, area, gname, force){
   if(!plans.length){ ta.value=""; return; }
   const to=$("#i-to").value.trim(), kei=$("#i-keisho").value;
   const isFloor=$("#i-name").value==="桧フローリング";
-  const list=plans.map(p=>`・${LNAME[p.len]}　${fmt(p.total)}円`).join("\n");
+  const list=plans.map(p=>`・${LNAME[p.len]}　${fmt(p.total)}円`+(p.extra?`（うち${extraLabel()} ${fmt(p.extra)}円）`:"")).join("\n");
   const lines=[
     `${(to.split(/[\s　]+/)[0])||"お客様"}${kei}`, "",   // LINEは苗字＋敬称（見積書は氏名フル）
     `${+area.toFixed(2)}㎡分のお見積書をお送りします📄`, "",
@@ -397,7 +408,7 @@ function buildLine(plans, area, gname, force){
     list,
     "※すべて税込・送料込みの総額です。", ""
   ];
-  if(isFloor) lines.push("厚さは15mm・12mmどちらでも同価格でお選びいただけます。");
+  if(isFloor && !FIXT) lines.push("厚さは15mm・12mmどちらでも同価格でお選びいただけます。");
   lines.push("無料サンプルもお送りできますので、ご希望でしたらお気軽にお申し付けください😊");
   ta.value=lines.join("\n");
 }
@@ -447,10 +458,11 @@ function drawSheet(plans, area, gname){
 
   if(!plans.length){ s.innerHTML = `<div style="padding:60px 0;text-align:center;color:#999">広さと長さを入力すると見積書が表示されます</div>`; return; }
 
+  const exLabel=extraLabel(), exFee=extraFee(), hasExtra=exFee>0;
   const rows = plans.map(p=>{ const u=unitCells(p); return `
     <tr><td class="len">${lenName(p.len)}</td><td>${u.unit}</td><td>${u.price}</td>
     <td>${u.qty}</td><td>${p.pieces}枚</td><td>約${p.cover.toFixed(1)}㎡</td>
-    <td>${fmt(p.goods)}円</td><td>${fmt(p.fare)}円</td><td class="sum">${fmt(p.total)}円</td></tr>`; }).join("");
+    <td>${fmt(p.goods)}円</td><td>${fmt(p.fare)}円</td>${hasExtra?`<td>${fmt(p.extra)}円</td>`:""}<td class="sum">${fmt(p.total)}円</td></tr>`; }).join("");
 
   const ynote = plans.map(p=>`${SHORT[p.len]}：${unitCells(p).ynote}`).join("、");
   const bumped = plans.filter(p=>p.bumped);
@@ -463,7 +475,7 @@ function drawSheet(plans, area, gname){
   ].filter(x=>x.replace(/※|。/g,"").trim());
 
   // 加工オプション（1m・2mが含まれる場合のみ）
-  const optPlans = plans.filter(p=>OPT[p.len]);
+  const optPlans = $("#i-noopt").value==="1" ? [] : plans.filter(p=>OPT[p.len]);
   const optHtml = !optPlans.length ? "" : `
   <div class="sec"><i></i><span>加工オプション（${optPlans.map(p=>SHORT[p.len]).join("・")}プランのみ）</span></div>
   <table class="opt"><thead><tr><th style="width:16%">オプション</th><th style="width:${43-(optPlans.length-1)*0}%">内容</th>
@@ -478,10 +490,13 @@ function drawSheet(plans, area, gname){
   // 配送
   const seino = plans.filter(p=>CARRIER[p.len]==="西濃運輸").map(p=>SHORT[p.len]);
   const sagawa= plans.filter(p=>CARRIER[p.len]==="佐川急便").map(p=>SHORT[p.len]);
+  const genba = hasExtra && /現場/.test(exLabel);
   const ship = [
-    seino.length ? `・<b>${seino.join("・")} は西濃運輸</b>でのお届けです。表示送料は法人様宛て（会社届け）の基本価格です。` : "",
-    seino.length ? `・<b>個人のお客様は西濃運輸の支店止め</b>（最寄り支店でのお受け取り）となります。` : "",
-    seino.length ? `・現場でのお降ろし（現場渡し）は別途費用がかかります。` : "",
+    seino.length ? `・<b>${seino.join("・")} は西濃運輸</b>でのお届けです。${genba?"":"表示送料は法人様宛て（会社届け）の基本価格です。"}` : "",
+    (seino.length && !genba) ? `・<b>個人のお客様は西濃運輸の支店止め</b>（最寄り支店でのお受け取り）となります。` : "",
+    seino.length ? (genba
+      ? `・<b>${esc(exLabel)} ${fmt(exFee)}円</b>（現場渡し）を合計に含めています。看板のある法人様宛て、または西濃運輸営業所止めの場合はこの費用は不要です。`
+      : `・現場でのお降ろし（現場渡し）は別途費用がかかります。`) : "",
     sagawa.length? `・<b>${sagawa.join("・")} のみ佐川急便</b>（160サイズ）のため、個人様のご自宅へもお届けできます。` : "",
     `・数量・梱包状況により実際の送料が前後する場合があります。`
   ].filter(Boolean);
@@ -507,7 +522,7 @@ function drawSheet(plans, area, gname){
   <div class="sec"><i></i><span>共通仕様</span></div>
   <div class="specbox">
     国産無垢 ${esc(nm)} <b>${esc(gname)}</b>（A級品・超仕上げ）／ 幅は <b>108mm</b> で統一 ／
-    ${isFloor ? `厚さは <b>15mm・12mm</b> のどちらでも同価格でお選びいただけます。` : `厚さ <b>${esc(t)}mm</b>。`}<br>
+    ${(isFloor && !FIXT) ? `厚さは <b>15mm・12mm</b> のどちらでも同価格でお選びいただけます。` : `厚さ <b>${esc(t)}mm</b>。`}<br>
     価格はすべて<b>税込</b>・当店ヤフーショッピング店の通常価格から <b>5%引き</b>の直接販売特別価格です。
   </div>
 
@@ -516,6 +531,7 @@ function drawSheet(plans, area, gname){
     <th style="width:16%">長さ</th><th style="width:10%">販売単位</th><th style="width:13%">単価（税込）<br>5%引き後</th>
     <th style="width:8%">必要数</th><th style="width:9%">合計枚数</th><th style="width:10%">施工可能<br>面積</th>
     <th style="width:12%">商品代<br>（税込）</th><th style="width:10%">送料 ※<br>（税込）</th>
+    ${hasExtra?`<th style="width:10%">${esc(exLabel)}<br>（税込）</th>`:""}
     <th style="width:15%;white-space:nowrap">合計（税込）</th>
   </tr></thead><tbody>${rows}</tbody></table>
   <div class="notes">${notes.map(n=>`<div>${n}</div>`).join("")}</div>
@@ -568,7 +584,7 @@ function drawChips(){
 }
 const LS="hayazai_plan_quote";
 function save(){
-  const d={}; ["i-to","i-keisho","i-pref","i-city","i-nouki","i-date","i-no","i-limit","i-name","i-t","i-grade","i-area","i-unit","i-subj","i-remarks"].forEach(id=>d[id]=$("#"+id).value);
+  const d={}; ["i-to","i-keisho","i-pref","i-city","i-nouki","i-date","i-no","i-limit","i-name","i-t","i-grade","i-area","i-unit","i-subj","i-remarks","i-extra-label","i-extra","i-noopt"].forEach(id=>d[id]=$("#"+id).value);
   d._len=LENON; d._touched=$("#i-subj").dataset.touched||"";
   try{ localStorage.setItem(LS, JSON.stringify(d)); }catch(e){}
 }
@@ -584,8 +600,10 @@ function load(){
 function applyQuery(){
   const q=new URLSearchParams(location.search);
   const map={to:"i-to",kei:"i-keisho",pref:"i-pref",city:"i-city",nouki:"i-nouki",no:"i-no",date:"i-date",
-             name:"i-name",t:"i-t",grade:"i-grade",area:"i-area",unit:"i-unit",subj:"i-subj"};
+             name:"i-name",t:"i-t",grade:"i-grade",area:"i-area",unit:"i-unit",subj:"i-subj",
+             remarks:"i-remarks",extralabel:"i-extra-label",extra:"i-extra",noopt:"i-noopt"};
   Object.keys(map).forEach(k=>{ if(q.has(k)){ const el=$("#"+map[k]); if(el){ el.value=q.get(k); if(k==="subj") el.dataset.touched="1"; } } });
+  if(q.get("fixt")==="1") FIXT=true;
   if(q.has("len")){ const on=q.get("len").split(",").map(Number); LENS.forEach(l=>{ LENON[l]=on.includes(l); }); if(!LENS.some(l=>LENON[l])) LENS.forEach(l=>LENON[l]=true); }
 }
 function resetRemarks(){ $("#i-remarks").value=DEFAULT_REMARKS; render(); }
