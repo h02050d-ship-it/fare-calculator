@@ -655,6 +655,9 @@ async function refreshYahooPrices(){
 }
 // 見積りデータベース（新規スプシ＋GAS）。初回認可後に同期が有効化される
 const DB_URL = "https://script.google.com/macros/s/AKfycbzskqossGk7mBeZEY2XrfqE2-MNS5b0PfgX65tpBfowD7mMwqXvueRe7E6Cclob2iFQ/exec";
+// 2026-10-07 見積DBの一覧・取消・PDF保存は共通SSOのpass必須になった（取引先の連絡先を含むため）。未ログインなら端末保存のまま動く
+function dbAuthQS(){ const c=borrowCred(); return c ? "&pass="+encodeURIComponent(c.pass) : ""; }
+function dbAuthBody(o){ const c=borrowCred(); if(c) o.pass=c.pass; return o; }
 // 見積りデータベースのスプレッドシート（ボタンで開く）
 const DB_SHEET_URL = "https://docs.google.com/spreadsheets/d/1qaHLTYfQPGU8lT9K1UIkzXxnMwhY-r0Df3rBcjIuwCM/edit";
 async function refreshPricebook(){
@@ -1226,7 +1229,7 @@ function computeTotals(d){
 async function loadDbHistory(){
   if(!DB_URL){ renderHist(); return; }
   try{
-    const r=await fetch(DB_URL+"?action=getQuotes",{cache:"no-store"});
+    const r=await fetch(DB_URL+"?action=getQuotes"+dbAuthQS(),{cache:"no-store"});
     const j=await r.json();
     if(j && j.ok){ dbQuotes=j.quotes||[]; $("#hist-status").textContent="スプシDBと同期"; }
     else { dbQuotes=null; $("#hist-status").textContent="この端末に保存（DB未認可）"; }
@@ -1239,7 +1242,7 @@ async function loadDbHistory(){
 let dbFolderUrl="";
 async function fetchFolderUrl(){
   if(!DB_URL) return;
-  try{ const j=await fetch(DB_URL+"?action=getFolderUrl",{cache:"no-store"}).then(r=>r.json()); if(j&&j.ok&&j.url) dbFolderUrl=j.url; }catch(e){}
+  try{ const j=await fetch(DB_URL+"?action=getFolderUrl"+dbAuthQS(),{cache:"no-store"}).then(r=>r.json()); if(j&&j.ok&&j.url) dbFolderUrl=j.url; }catch(e){}
 }
 async function saveQuotePdf(filename){
   if(!DB_URL || !window.html2canvas || !window.jspdf){ return; }
@@ -1253,7 +1256,7 @@ async function saveQuotePdf(filename){
     const pdf=new jsPDF({unit:"mm",format:"a4",orientation:"portrait"});
     pdf.addImage(img,"JPEG",0,0,210,297);
     const b64=pdf.output("datauristring").split(",")[1];
-    fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"savePdf",filename,pdfBase64:b64})}).catch(()=>{});
+    fetch(DB_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(dbAuthBody({action:"savePdf",filename,pdfBase64:b64}))}).catch(()=>{});
     flash("📄 見積書PDFをフォルダに保存しました");
   }catch(e){ console.log("pdf error",e); }
   finally{ sheet.style.transform=prevT; stage.style.height=prevH; fitPreview(); }
@@ -1312,7 +1315,7 @@ function recallHist(key,src){
 function cancelHist(key,src){
   if(!confirm("この見積りを取消にしますか？")) return;
   if(src==="db"){
-    fetch(DB_URL+"?action=cancelQuote&denpyo="+encodeURIComponent(key)).then(()=>{}).catch(()=>{});
+    fetch(DB_URL+"?action=cancelQuote&denpyo="+encodeURIComponent(key)+dbAuthQS()).then(()=>{}).catch(()=>{});
     flash("取消にしました"); setTimeout(loadDbHistory,1200);
   }else{
     const a=loadHist(); const r=a.find(x=>x.id===key); if(r){ r.canceled=true; saveHist(a); renderHist(); flash("取消にしました"); }
