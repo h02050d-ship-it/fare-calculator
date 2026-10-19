@@ -71,7 +71,7 @@ const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
 </style></head><body>
   <div class="head">
     <div class="co">株式会社 林材木店　<small>無垢ヒノキ専門</small></div>
-    <div class="date">2026年6月25日<br>送料のご案内（市場のお取引先様へ）</div>
+    <div class="date">2026年10月19日<br>送料のご案内（市場のお取引先様へ）<br><small>西濃運輸 2026年11月運賃改定 反映版</small></div>
   </div>
 
   <h1>📦 送料がその場でわかります</h1>
